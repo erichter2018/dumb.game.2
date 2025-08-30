@@ -9,6 +9,7 @@ const sharp = require('sharp'); // Import sharp
 const redBlobDetector = require('./src/detection/redBlobDetector');
 const blueBoxDetector = require('./src/detection/blueBoxDetector');
 const finishBuildAutomation = require('./src/automation/finishBuild');
+const finishLevelAutomation = require('./src/automation/finishLevel');
 
 let mainWindow;
 let isCapturing = false;
@@ -19,12 +20,16 @@ const STATUS_MESSAGE_LIMIT = 5; // Limit to 5 status messages
 let statusMessageHistory = []; // Store recent status messages
 let isHoldingBlueBox = false; // Add state to track if a blue box is being held
 let isAutomationRunning = false; // New flag to control the automation loop in finishBuild.js
+let isFinishLevelRunning = false; // For Finish Level automation
 
 // Define named click areas
 const CLICK_AREAS = {
   OPEN_CLOSE_RESEARCH_WINDOW: { x: 403, y: 942 },
   INDIVIDUAL_RESEARCH: { x: 352, y: 456 },
   CLICK_OFF: { x: 33, y: 904 }, // Updated y-coordinate for click-off area
+  "START_EXITING": { x: 49, y: 940 },
+  "CONFIRM_EXIT": { x: 238, y: 745 },
+  "START_LEVEL": { x: 232, y: 631 },
 };
 
 // New functions for click and hold using cliclick
@@ -422,16 +427,78 @@ ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
   }
 });
 
-ipcMain.handle('pause-automation-on-mouse-move', async () => {
-  console.log(`DEBUG: Mouse movement detected. Current state: isAutomationRunning: ${isAutomationRunning}, pauseTimeout: ${!!pauseTimeout}, isHoldingBlueBox: ${isHoldingBlueBox}`);
+ipcMain.handle('toggle-finish-level', async (event, isRunning) => {
+  if (isAutomationRunning) {
+    console.log('ERROR: Finish Build automation is already running. Cannot start Finish Level.');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('finish-build-status', 'Finish Build already running. Cannot start Finish Level.', 'error');
+    }
+    return;
+  }
 
-  if (!isAutomationRunning) { // Only pause if automation is actually running
-    console.log('DEBUG: Automation not running, ignoring mouse move.');
+  isFinishLevelRunning = isRunning;
+  console.log(`DEBUG: toggle-finish-level IPC handler called with isRunning: ${isRunning}`);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('finish-build-status', `Finish Level Automation ${isRunning ? 'Started' : 'Stopped'}.`, 'info');
+  }
+
+  const automationDependencies = {
+    performClick,
+    clickDown,
+    clickUp,
+    clickAndHold,
+    performRapidClicks,
+    CLICK_AREAS,
+    redBlobDetectorDetect: redBlobDetector.detect,
+    detectBlueBoxes: blueBoxDetector.detect,
+    captureScreenRegion,
+    updateStatus: (message, type) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        statusMessageHistory.push({ message, type, timestamp: new Date().toLocaleTimeString() });
+        if (statusMessageHistory.length > STATUS_MESSAGE_LIMIT) {
+          statusMessageHistory.shift();
+        }
+        mainWindow.webContents.send('finish-build-status', message, type);
+        mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
+      }
+    },
+    iphoneMirroringRegion: iphoneMirroringRegion,
+    getlastBlueBoxClickCoords: () => lastBlueBoxClickCoords,
+    setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
+    getIsHoldingBlueBox: () => isHoldingBlueBox,
+    setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; },
+    getIsAutomationRunning: () => isFinishLevelRunning, // Use its own state for finish level
+    setIsAutomationRunning: (state) => { isFinishLevelRunning = state; }, // Pass setter for automation running state
+    finishBuildAutomationRunBuildProtocol: finishBuildAutomation.runBuildProtocol, // Pass the runBuildProtocol from finishBuildAutomation
+  };
+
+  if (isRunning) {
+    console.log('DEBUG: Activating iPhone Mirroring app.');
+    await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
+    await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after activation
+    await finishLevelAutomation.startAutomation(automationDependencies);
+  } else {
+    await finishLevelAutomation.stopAutomation(automationDependencies);
+  }
+});
+
+ipcMain.handle('pause-automation-on-mouse-move', async () => {
+  console.log(`DEBUG: Mouse movement detected. Current state: isAutomationRunning: ${isAutomationRunning}, isFinishLevelRunning: ${isFinishLevelRunning}, pauseTimeout: ${!!pauseTimeout}, isHoldingBlueBox: ${isHoldingBlueBox}`);
+
+  // If Finish Level automation is running, do not pause it on mouse move.
+  // Instead, only consider pausing Finish Build automation.
+  if (isFinishLevelRunning && !isAutomationRunning) {
+    console.log('DEBUG: Finish Level automation is running and Finish Build is not. Ignoring mouse move for pausing Finish Level.');
+    return; 
+  }
+  
+  if (!isAutomationRunning) { // Only pause if Finish Build automation is actually running
+    console.log('DEBUG: Finish Build automation not running, ignoring mouse move.');
     return;
   }
 
   isAutomationRunning = false; // Temporarily stop the loop in finishBuild.js
-  console.log('DEBUG: Automation loop in finishBuild.js will stop.');
+  console.log('DEBUG: Finish Build automation loop in finishBuild.js will stop.');
 
   // If we were holding a click, explicitly release it
   if (isHoldingBlueBox && lastBlueBoxClickCoords) {

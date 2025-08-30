@@ -164,6 +164,7 @@ async function detect(imageDataUrl, captureRegion) {
         for (let i = 0; i < detectedBlobs.length; i++) {
             const blob = detectedBlobs[i];
             const originalBlobId = i + 1; // Corresponds to the ID from previous logs
+            const newBlob = { ...blob }; // Initialize newBlob here
 
             // Check for exclusion (blobs 1, 2, 6 from previous logs)
             let shouldExclude = false;
@@ -184,18 +185,20 @@ async function detect(imageDataUrl, captureRegion) {
             if (Math.abs(blob.x - 300) <= exclusionTolerance && Math.abs(blob.y - 894) <= exclusionTolerance) {
                 shouldExclude = true;
             }
-
-            if (shouldExclude) {
-                console.log(`Excluding blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as per instructions.`);
-                continue; // Skip this blob
+            // New exclusion for 'exit level' blob (x:51, y:890)
+            if (Math.abs(blob.x - 51) <= exclusionTolerance && Math.abs(blob.y - 890) <= exclusionTolerance) {
+                shouldExclude = true;
             }
-
-            const newBlob = { ...blob };
 
             // Check for naming (blob 5 from previous logs - e.g., x:368, y:893)
             if (Math.abs(blob.x - 368) <= exclusionTolerance && Math.abs(blob.y - 893) <= exclusionTolerance) {
                 newBlob.name = "research blob";
                 console.log(`Naming blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as "research blob".`);
+            }
+
+            if (shouldExclude) {
+                console.log(`Excluding blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as per instructions.`);
+                continue; // Skip this blob
             }
 
             filteredAndNamedBlobs.push(newBlob);

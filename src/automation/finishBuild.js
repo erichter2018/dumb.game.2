@@ -101,6 +101,7 @@ async function checkResearchBlob(dependencies) {
     }
 
     const detections = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
+    console.log(`DEBUG: Red blob detections in checkResearchBlob: ${JSON.stringify(detections)}`);
 
     const researchBlobFound = detections.some(blob => blob.name === 'research blob');
     console.log(`DEBUG: Research blob found: ${researchBlobFound}`);
@@ -137,15 +138,16 @@ async function doResearch(dependencies) {
 async function findBlueBoxWithRetry(dependencies) {
     const { captureScreenRegion, detectBlueBoxes, iphoneMirroringRegion, updateStatus, getIsAutomationRunning } = dependencies;
     
-    // blueBoxFound is a local variable, no longer needed as we're returning the full detectedBox
+    const MAX_RETRIES = 10; // New: Maximum number of retries
+    let retryCount = 0; // New: Counter for retries
 
     if (!getIsAutomationRunning()) {
         updateStatus('Automation stopped before blue box detection.', 'warn');
         return null;
     }
 
-    while (getIsAutomationRunning()) {
-        updateStatus('Detecting blue boxes...', 'info');
+    while (getIsAutomationRunning() && retryCount < MAX_RETRIES) { // Modified: Add retryCount condition
+        updateStatus(`Detecting blue boxes (Attempt ${retryCount + 1}/${MAX_RETRIES})...`, 'info');
         console.log('DEBUG: Detecting blue boxes with Sharp...');
 
         if (!getIsAutomationRunning()) { // Check again inside the loop
@@ -157,6 +159,7 @@ async function findBlueBoxWithRetry(dependencies) {
         if (!fullScreenDataUrl) {
             updateStatus('Failed to capture screen region for blue box detection. Retrying in 2 seconds...', 'error');
             console.error('ERROR: Failed to capture screen region for blue box detection.');
+            retryCount++; // Increment retry count on capture failure
             await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retrying capture
             continue;
         }
@@ -174,10 +177,15 @@ async function findBlueBoxWithRetry(dependencies) {
         } else {
             updateStatus('No blue boxes detected. Retrying in 2 seconds...', 'info');
             console.log('DEBUG: No blue box found, retrying in 2 seconds.');
+            retryCount++; // Increment retry count on detection failure
             await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying detection
         }
     }
-    return null; // Should only be reached if automation is stopped.
+    if (retryCount >= MAX_RETRIES) {
+        updateStatus(`Failed to detect blue box after ${MAX_RETRIES} attempts. Exiting blue box detection.`, 'error');
+        console.error(`ERROR: Failed to detect blue box after ${MAX_RETRIES} attempts. Exiting blue box detection.`);
+    }
+    return null; // Should only be reached if automation is stopped or max retries reached.
 }
 
 async function runBuildProtocol(dependencies) {
@@ -196,8 +204,7 @@ async function runBuildProtocol(dependencies) {
         if (initialDetectedBox.state === 'grey_max') {
             updateStatus('MAX build achieved at startup. Stopping automation.', 'success');
             console.log('DEBUG: MAX build achieved at startup. Stopping automation.');
-            dependencies.setIsAutomationRunning(false);
-            return;
+            return 'max_build_achieved';
         }
 
         // If we found any valid box (blue_build, grey_build, other_grey), set its coords as current
@@ -232,8 +239,7 @@ async function runBuildProtocol(dependencies) {
                     console.warn('WARNING: CLICK_OFF coordinates or performClick not available in dependencies.');
                 }
 
-                dependencies.setIsAutomationRunning(false); // Stop the main loop
-                return; // Exit the protocol
+                return 'max_build_achieved'; // Return status to indicate MAX build
             } else { // It's a blue_build, grey_build, or other_grey box
                 blueBoxCoords = currentDetectedBox.coords; // Use the click coords from the newly detected box
                 updateStatus(`Build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${currentDetectedBox.state})`, 'info');

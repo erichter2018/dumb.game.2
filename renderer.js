@@ -18,6 +18,7 @@ const blueBoxResults = document.getElementById('blueBoxResults');
 const toggleFinishBuildBtn = document.getElementById('toggleFinishBuildBtn');
 const finishBuildStatus = document.getElementById('finishBuildStatus');
 const finishBuildStatusList = document.getElementById('finishBuildStatusList');
+const toggleFinishLevelBtn = document.getElementById('toggleFinishLevelBtn');
 
 // Canvas context
 const ctx = previewCanvas.getContext('2d');
@@ -27,6 +28,7 @@ let isCapturing = false;
 let lastCapture = null;
 let currentRegion = { x: 0, y: 100, width: 450, height: 900 }; // Default, will be updated by main process
 let isFinishBuildRunning = false;
+let isFinishLevelRunning = false;
 
 // Function to update status - now unified
 function updateStatus(message, type = 'info') {
@@ -139,6 +141,22 @@ toggleFinishBuildBtn.addEventListener('click', async () => {
     await ipcRenderer.invoke('toggle-finish-build', isFinishBuildRunning);
 });
 
+// Handle toggle finish level button click
+toggleFinishLevelBtn.addEventListener('click', async () => {
+    isFinishLevelRunning = !isFinishLevelRunning;
+    if (isFinishLevelRunning) {
+        toggleFinishLevelBtn.textContent = 'Stop Finish Level';
+        toggleFinishLevelBtn.classList.remove('btn-secondary');
+        toggleFinishLevelBtn.classList.add('btn-danger');
+    } else {
+        toggleFinishLevelBtn.textContent = 'Start Finish Level';
+        toggleFinishLevelBtn.classList.remove('btn-danger');
+        toggleFinishLevelBtn.classList.add('btn-secondary');
+    }
+    console.log(`DEBUG: Toggling finish level automation to: ${isFinishLevelRunning}`);
+    await ipcRenderer.invoke('toggle-finish-level', isFinishLevelRunning);
+});
+
 // Helper to display detection results
 function displayDetections(resultsContainer, detections) {
     resultsContainer.innerHTML = ''; // Clear previous results
@@ -238,7 +256,7 @@ let lastMouseX = -1;
 let lastMouseY = -1;
 
 document.addEventListener('mousemove', (e) => {
-  if (!isFinishBuildRunning) { // Only active if automation is running
+  if (!isFinishBuildRunning && !isFinishLevelRunning) { // Only active if either automation is running
     return;
   }
 
