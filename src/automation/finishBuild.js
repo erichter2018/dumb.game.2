@@ -136,8 +136,8 @@ async function doResearch(dependencies) {
 
 async function findBlueBoxWithRetry(dependencies) {
     const { captureScreenRegion, detectBlueBoxes, iphoneMirroringRegion, updateStatus, getIsAutomationRunning } = dependencies;
-    let retries = 0;
-    const maxRetries = 10; // For initial detection, retry a few times before giving up
+    
+    // blueBoxFound is a local variable, no longer needed as we're returning the full detectedBox
 
     if (!getIsAutomationRunning()) {
         updateStatus('Automation stopped before blue box detection.', 'warn');
@@ -164,22 +164,20 @@ async function findBlueBoxWithRetry(dependencies) {
         const detections = await detectBlueBoxes(fullScreenDataUrl, iphoneMirroringRegion);
 
         if (detections && detections.length > 0) {
-            const firstBlueBox = detections[0];
+            const firstDetectedBox = detections[0]; // Get the first detected box (could be any state)
             const coords = {
-                x: Math.round(firstBlueBox.x + firstBlueBox.width / 2),
-                y: Math.round(firstBlueBox.y + firstBlueBox.height / 2),
+                x: Math.round(firstDetectedBox.x + firstDetectedBox.width / 2),
+                y: Math.round(firstDetectedBox.y + firstDetectedBox.height / 2),
             };
-            updateStatus(`Blue box detected at X:${coords.x}, Y:${coords.y}`, 'success');
-            console.log(`DEBUG: Blue box detected and coords set: ${JSON.stringify(coords)}`);
-            blueBoxFound = true;
-            return coords;
+            // Return the full box object with its state and calculated click coordinates
+            return { ...firstDetectedBox, coords }; 
         } else {
             updateStatus('No blue boxes detected. Retrying in 2 seconds...', 'info');
             console.log('DEBUG: No blue box found, retrying in 2 seconds.');
             await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying detection
         }
     }
-    return null; // Should not be reached if loop exits with blueBoxFound = true
+    return null; // Should only be reached if automation is stopped.
 }
 
 async function runBuildProtocol(dependencies) {
@@ -187,16 +185,62 @@ async function runBuildProtocol(dependencies) {
 
     try {
         // Step 1: Call check blue build box until one is found, every 2 seconds
-        blueBoxCoords = await findBlueBoxWithRetry(dependencies);
-        if (!blueBoxCoords) {
-            updateStatus('Automation cannot start: Blue box never found.', 'error');
-            return; // Cannot proceed without a blue box
+        // This initial call needs to establish valid blueBoxCoords for the first hold.
+        let initialDetectedBox = await findBlueBoxWithRetry(dependencies);
+        
+        if (!initialDetectedBox) {
+            updateStatus('Automation cannot start: No clickable build box found after retries.', 'error');
+            return; // Cannot proceed without an initial clickable box
         }
+
+        if (initialDetectedBox.state === 'grey_max') {
+            updateStatus('MAX build achieved at startup. Stopping automation.', 'success');
+            console.log('DEBUG: MAX build achieved at startup. Stopping automation.');
+            dependencies.setIsAutomationRunning(false);
+            return;
+        }
+
+        // If we found any valid box (blue_build, grey_build, other_grey), set its coords as current
+        blueBoxCoords = initialDetectedBox.coords;
         lastBlueBoxFound = true; // Mark as found for subsequent checks
+        updateStatus(`Initial build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${initialDetectedBox.state})`, 'info');
+        console.log(`DEBUG: Initial build box found: ${JSON.stringify(initialDetectedBox)}`);
 
         // Step 2: Start a loop
         while (getIsAutomationRunning()) {
-            // Step 3: Call a function to hold down in the middle of the blue box for 5 seconds
+            // Perform blue box detection once per cycle to get the latest state
+            const currentDetectedBox = await findBlueBoxWithRetry(dependencies); // This will retry until a box is found or automation stops
+
+            if (!currentDetectedBox) {
+                updateStatus('No clickable build box detected, continuing with last known coordinates.', 'warn');
+                console.log('DEBUG: No clickable build box found in current cycle. Continuing with last known coords.');
+                // In this case, we continue with the last known blueBoxCoords (which should be set by initial detection or previous loop iteration)
+                if (!blueBoxCoords) { // This should ideally not happen if initial detection worked
+                    updateStatus('No blue box coordinates to hold. Stopping automation.', 'error');
+                    dependencies.setIsAutomationRunning(false);
+                    return;
+                }
+            } else if (currentDetectedBox.state === 'grey_max') {
+                updateStatus('MAX build achieved. Stopping automation.', 'success');
+                console.log('DEBUG: MAX build achieved. Stopping automation.');
+                
+                // Perform the "click off" action
+                if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
+                    updateStatus('Performing final "click off" action.', 'info');
+                    await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                } else {
+                    console.warn('WARNING: CLICK_OFF coordinates or performClick not available in dependencies.');
+                }
+
+                dependencies.setIsAutomationRunning(false); // Stop the main loop
+                return; // Exit the protocol
+            } else { // It's a blue_build, grey_build, or other_grey box
+                blueBoxCoords = currentDetectedBox.coords; // Use the click coords from the newly detected box
+                updateStatus(`Build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${currentDetectedBox.state})`, 'info');
+                console.log(`DEBUG: Build box found in current cycle: ${JSON.stringify(currentDetectedBox)}`);
+            }
+
+            // Step 3: Call a function to hold down in the middle of the current blue box for 5 seconds
             await holdBlueBox(blueBoxCoords, 5000, dependencies);
 
             // Step 4: Call another function to check research blob

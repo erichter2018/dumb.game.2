@@ -78,12 +78,18 @@ async function detect(imageDataUrl, captureRegion) {
             const { r, g, b } = pixel;
             const hsv = rgbToHsv(r, g, b);
             
-            const isHueBlue = (hsv.h >= 180 && hsv.h <= 260); // Broader blue hue range
-            const isBlueSufficientlySaturated = hsv.s > 20; // Lower saturation threshold
-            const isBlueSufficientlyBright = hsv.v > 20; // Lower brightness threshold
-            const isClearlyBlue = b > r + 10 && b > g + 10; // Slightly more lenient
+            // Modified to be more lenient, allowing initial detection of grey-ish tones
+            // This will ensure grey boxes are picked up by connected components
+            const isGenerallyNotRed = !isRedOrange(pixel);
+            const isSaturatedEnough = hsv.s < 30; // Even lower saturation to catch grey more broadly
+            const isBrightEnough = hsv.v > 20 && hsv.v < 90; // Broader brightness range for grey
 
-            return isHueBlue && isBlueSufficientlySaturated && isBlueSufficientlyBright && isClearlyBlue;
+            // Original blue conditions (can be used for specific blue confirmation later)
+            const isHueBlue = (hsv.h >= 180 && hsv.h <= 260); 
+            const isClearlyBlue = b > r + 10 && b > g + 10; 
+
+            // Prioritize grey-ish tones for initial detection, or clearly blue
+            return (isGenerallyNotRed && isSaturatedEnough && isBrightEnough) || (isHueBlue && isClearlyBlue); 
         }
 
         function isRedOrange(pixel) {
@@ -95,6 +101,72 @@ async function detect(imageDataUrl, captureRegion) {
             const isRedOrangeSufficientlyBright = hsv.v > 60; // Restore original brightness
 
             return isHueRedOrange && isRedOrangeSufficientlySaturated && isRedOrangeSufficientlyBright;
+        }
+
+        function isGrey(pixel) {
+            const { r, g, b } = pixel;
+            // More robust grey check: lower saturation, medium brightness, R, G, B values are close
+            const hsv = rgbToHsv(r, g, b);
+            const tolerance = 30; // Increased tolerance for RGB closeness
+            return hsv.s < 25 && hsv.v > 40 && hsv.v < 85 && 
+                   Math.abs(r - g) < tolerance && Math.abs(r - b) < tolerance && Math.abs(g - b) < tolerance;
+        }
+
+        function isRedText(pixel) {
+            const { r, g, b } = pixel;
+            const hsv = rgbToHsv(r, g, b);
+            // Red text typically has a high red component and low blue/green
+            // Refined hue and saturation for better red text detection
+            const isHueRed = (hsv.h >= 0 && hsv.h <= 10) || (hsv.h >= 350 && hsv.h <= 360); 
+            const isSaturatedRed = hsv.s > 60; 
+            const isBrightRed = hsv.v > 60; 
+            return isHueRed && isSaturatedRed && isBrightRed && r > g + 30 && r > b + 30;
+        }
+
+        // Helper to detect if there's *any* red text within a sub-region
+        async function hasRedTextInRegion(box, textDetectRegionRelative, base64Data, effectiveRegion, info) {
+            const intendedTextLeft = box.x_relative_to_cropped + textDetectRegionRelative.left;
+            const intendedTextTop = box.y_relative_to_cropped + textDetectRegionRelative.top;
+            const intendedTextRight = intendedTextLeft + textDetectRegionRelative.width - 1;
+            const intendedTextBottom = intendedTextTop + textDetectRegionRelative.height - 1;
+
+            const clippedTextLeft = Math.max(0, intendedTextLeft);
+            const clippedTextTop = Math.max(0, intendedTextTop);
+            const clippedTextRight = Math.min(info.width - 1, intendedTextRight);
+            const clippedTextBottom = Math.min(info.height - 1, intendedTextBottom);
+
+            const subRegion = {
+                left: clippedTextLeft,
+                top: clippedTextTop,
+                width: Math.max(1, clippedTextRight - clippedTextLeft + 1),
+                height: Math.max(1, clippedTextBottom - clippedTextTop + 1)
+            };
+
+            if (subRegion.width <= 0 || subRegion.height <= 0) return false;
+
+            const textCroppedBuffer = await sharp(Buffer.from(base64Data, 'base64')).extract({
+                left: subRegion.left + effectiveRegion.left,
+                top: subRegion.top + effectiveRegion.top,
+                width: subRegion.width,
+                height: subRegion.height
+            }).raw().toBuffer({ resolveWithObject: true });
+            const { data: textData, info: textInfo } = textCroppedBuffer;
+
+            function getSubRegionPixel(x, y) {
+                if (x < 0 || x >= textInfo.width || y < 0 || y >= textInfo.height) return null;
+                const idx = (textInfo.width * y + x) * textInfo.channels;
+                return { r: textData[idx], g: textData[idx + 1], b: textData[idx + 2], a: textData[idx + 3] };
+            }
+
+            for (let ty = 0; ty < textInfo.height; ty++) {
+                for (let tx = 0; tx < textInfo.width; tx++) {
+                    const pixel = getSubRegionPixel(tx, ty);
+                    if (pixel && isRedText(pixel)) {
+                        return true; // Found red text
+                    }
+                }
+            }
+            return false; // No red text found
         }
 
         for (let y = 0; y < info.height; y++) {
@@ -161,34 +233,12 @@ async function detect(imageDataUrl, captureRegion) {
         }
 
         console.log(`Initial blue boxes detected (before sub-detection): ${detectedBoxes.length}`);
-
-        const filteredBlueBoxes = [];
-        const exclusionTolerance = 5; // Pixels
-
-        for (let i = 0; i < detectedBoxes.length; i++) {
-            const box = detectedBoxes[i];
-            const originalBoxId = i + 1; // Corresponds to the ID from previous logs
-
-            let shouldExclude = false;
-
-            // Exclude box #2 (X:154, Y:906)
-            if (Math.abs(box.x - 154) <= exclusionTolerance && Math.abs(box.y - 906) <= exclusionTolerance) {
-                shouldExclude = true;
-            }
-
-            if (shouldExclude) {
-                console.log(`Excluding blue box (original ID: ${originalBoxId}) at x:${box.x}, y:${box.y} as per instructions.`);
-                continue; // Skip this box
-            }
-
-            filteredBlueBoxes.push({ ...box, id: originalBoxId }); // Add original ID for clarity
-        }
-
-        console.log(`Filtered blue boxes for sub-detection: ${JSON.stringify(filteredBlueBoxes)}`);
+        console.log(`DEBUG: Raw detectedBoxes (relative to cropped region): ${JSON.stringify(detectedBoxes.map(b => ({x: b.x - effectiveRegion.left, y: b.y - effectiveRegion.top, width: b.width, height: b.height})))}`);
+        console.log(`DEBUG: Effective captureRegion: ${JSON.stringify(effectiveRegion)}`);
 
         // Now, for each detected blue box, look for the red/orange circle and white text
         let finalBoxCounter = 1;
-        for (const box of filteredBlueBoxes) {
+        for (const box of detectedBoxes) {
             if (box.width <= 0 || box.height <= 0) {
                 console.warn(`Skipping blue box detection for box with invalid dimensions: ${JSON.stringify(box)}`);
                 continue;
@@ -332,49 +382,148 @@ async function detect(imageDataUrl, captureRegion) {
                 for (let ty = 0; ty < textInfo.height; ty++) {
                     for (let tx = 0; tx < textInfo.width; tx++) {
                         const pixel = getTextPixel(tx, ty);
-                        if (pixel && pixel.r > 230 && pixel.g > 230 && pixel.b > 230) {
+                        // Make white detection more lenient
+                        if (pixel && pixel.r > 200 && pixel.g > 200 && pixel.b > 200) {
                             whitePixelCount++;
                         }
                     }
                 }
 
                 const whitePixelDensity = whitePixelCount / totalPixelsInTextRegion;
-                if (whitePixelDensity > 0.10) {
+                console.log(`DEBUG: White text detection for box at x:${box.x}, y:${box.y} - whitePixelCount: ${whitePixelCount}, totalPixelsInTextRegion: ${totalPixelsInTextRegion}, whitePixelDensity: ${whitePixelDensity.toFixed(2)}`);
+                if (whitePixelDensity > 0.05) { // Lowered threshold for white text presence
                     hasWhiteText = true;
                 }
             }
 
-            // if (hasRedOrangeCircle && hasWhiteText) { // Temporarily disable this condition
-                // Create a fresh sharp instance for the final cropped box image to avoid any state issues
-                const finalBoxImage = sharp(Buffer.from(base64Data, 'base64'));
-                const finalBoxImageMetadata = await finalBoxImage.metadata();
+            // Now re-evaluate hasRedText using the new helper function
+            const textDetectRegionRelativeForRed = {
+                left: Math.floor(box.width * 0.45),
+                top: Math.floor(box.height * 0.2),
+                width: Math.floor(box.width * 0.5),
+                height: Math.floor(box.height * 0.6)
+            };
+            const hasRedTextResult = await hasRedTextInRegion(box, textDetectRegionRelativeForRed, base64Data, effectiveRegion, info);
 
-                if (box.width <= 0 || box.height <= 0 ||
-                    box.x < 0 || box.y < 0 ||
-                    box.x + box.width > finalBoxImageMetadata.width ||
-                    box.y + box.height > finalBoxImageMetadata.height) {
-                    console.error(`Skipping final blue box extraction for box #${finalBoxCounter}: invalid dimensions or out of bounds.`, { box, finalBoxImageMetadata });
-                    finalBoxCounter++;
-                    continue;
+            // Default state if initial blue check passes, but we need to refine this later
+            let boxState = null; 
+
+            // Calculate average color for the box
+            let averageColor = { r: 0, g: 0, b: 0 };
+            let totalPixels = 0;
+            for (let py = box.y_relative_to_cropped; py < box.y_relative_to_cropped + box.height; py++) {
+                for (let px = box.x_relative_to_cropped; px < box.x_relative_to_cropped + box.width; px++) {
+                    const pixel = getPixel(px, py);
+                    if (pixel) {
+                        totalPixels++;
+                        averageColor.r += pixel.r;
+                        averageColor.g += pixel.g;
+                        averageColor.b += pixel.b;
+                    }
                 }
+            }
+            averageColor.r /= (totalPixels || 1);
+            averageColor.g /= (totalPixels || 1);
+            averageColor.b /= (totalPixels || 1);
 
-                const croppedBoxImage = await finalBoxImage.extract({
-                    left: box.x,
-                    top: box.y,
-                    width: box.width,
-                    height: box.height
-                }).png().toBuffer();
+            // Determine box state more directly after sub-detections
+            if (isGrey(averageColor)) {
+                console.log(`DEBUG: Box at x:${box.x}, y:${box.y} is generally Grey. Avg RGB: (${averageColor.r.toFixed(0)}, ${averageColor.g.toFixed(0)}, ${averageColor.b.toFixed(0)}). hasRedText: ${hasRedTextResult}, hasWhiteText: ${hasWhiteText}.`);
+                if (!hasRedTextResult && hasWhiteText) {
+                    boxState = 'grey_max';
+                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as GREY MAX (no red, has white).`);
+                } else if (hasRedTextResult && hasWhiteText) {
+                    boxState = 'grey_build'; // Grey with red text
+                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as GREY BUILD (has red, has white).`);
+                } else {
+                    boxState = 'other_grey'; // Grey without specific text patterns
+                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as OTHER GREY (no specific text).`);
+                }
+            } else if (hasRedOrangeCircle && hasWhiteText) { // Blue build box criteria
+                // Additional check for blue dominance in the main body if it's not grey
+                let bluePixelCountInBody = 0;
+                let totalPixelsInBody = 0;
+                const mainBodyDetectRegionRelativeX = Math.floor(box.width * 0.1);
+                const mainBodyDetectRegionRelativeY = Math.floor(box.height * 0.1);
+                const mainBodyDetectRegionRelativeWidth = Math.floor(box.width * 0.8);
+                const mainBodyDetectRegionRelativeHeight = Math.floor(box.height * 0.8);
 
-                detections.push({
-                    id: finalBoxCounter,
-                    x: box.x,
-                    y: box.y,
-                    width: box.width,
-                    height: box.height,
-                    image: `data:image/png;base64,${croppedBoxImage.toString('base64')}`
-                });
+                const intendedMainBodyLeft = box.x_relative_to_cropped + mainBodyDetectRegionRelativeX;
+                const intendedMainBodyTop = box.y_relative_to_cropped + mainBodyDetectRegionRelativeY;
+                const intendedMainBodyRight = intendedMainBodyLeft + mainBodyDetectRegionRelativeWidth - 1;
+                const intendedMainBodyBottom = intendedMainBodyTop + mainBodyDetectRegionRelativeHeight - 1;
+
+                const clippedMainBodyLeft = Math.max(0, intendedMainBodyLeft);
+                const clippedMainBodyTop = Math.max(0, intendedMainBodyTop);
+                const clippedMainBodyRight = Math.min(info.width - 1, intendedMainBodyRight);
+                const clippedMainBodyBottom = Math.min(info.height - 1, intendedMainBodyBottom);
+
+                const mainBodySubRegionRelative = {
+                    left: clippedMainBodyLeft,
+                    top: clippedMainBodyTop,
+                    width: Math.max(1, clippedMainBodyRight - clippedMainBodyLeft + 1),
+                    height: Math.max(1, clippedMainBodyBottom - clippedMainBodyTop + 1)
+                };
+
+                if (mainBodySubRegionRelative.width > 0 && mainBodySubRegionRelative.height > 0) {
+                    for (let py = mainBodySubRegionRelative.top; py < mainBodySubRegionRelative.top + mainBodySubRegionRelative.height; py++) {
+                        for (let px = mainBodySubRegionRelative.left; px < mainBodySubRegionRelative.left + mainBodySubRegionRelative.width; px++) {
+                            const pixel = getPixel(px, py);
+                            if (pixel) {
+                                totalPixelsInBody++;
+                                if (isBlue(pixel)) {
+                                    bluePixelCountInBody++;
+                                }
+                            }
+                        }
+                    }
+                    const blueDensity = (totalPixelsInBody > 0) ? (bluePixelCountInBody / totalPixelsInBody) : 0;
+                    if (blueDensity > 0.3) { // If predominantly blue
+                        boxState = 'blue_build';
+                        console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as BLUE BUILD (blue density: ${blueDensity.toFixed(2)}).`);
+                    } else {
+                        boxState = 'other_non_blue'; // Not grey, not blue build
+                        console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as OTHER NON-BLUE (blue density: ${blueDensity.toFixed(2)}).`);
+                    }
+                }
+            } else { // Neither grey nor blue build criteria met
+                boxState = 'unknown';
+                console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as UNKNOWN state.`);
+            }
+
+            // Only push detections that are explicitly blue_build or grey_max
+            // Removed filtering, now push all boxes that meet basic criteria with their state
+            const finalBoxImage = sharp(Buffer.from(base64Data, 'base64'));
+            const finalBoxImageMetadata = await finalBoxImage.metadata();
+
+            if (box.width <= 0 || box.height <= 0 ||
+                box.x < 0 || box.y < 0 ||
+                box.x + box.width > finalBoxImageMetadata.width ||
+                box.y + box.height > finalBoxImageMetadata.height) {
+                console.error(`Skipping final blue box extraction for box #${finalBoxCounter}: invalid dimensions or out of bounds.`, { box, finalBoxImageMetadata });
                 finalBoxCounter++;
-            // }
+                continue;
+            }
+
+            const croppedBoxImage = await finalBoxImage.extract({
+                left: box.x,
+                top: box.y,
+                width: box.width,
+                height: box.height
+            }).png().toBuffer();
+
+            detections.push({
+                id: finalBoxCounter,
+                x: box.x,
+                y: box.y,
+                width: box.width,
+                height: box.height,
+                image: `data:image/png;base64,${croppedBoxImage.toString('base64')}`,
+                hasRedOrangeCircle: hasRedOrangeCircle,
+                hasWhiteText: hasWhiteText,
+                state: boxState, // Add the state of the box
+            });
+            finalBoxCounter++;
         }
 
     } catch (error) {

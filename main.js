@@ -24,6 +24,7 @@ let isAutomationRunning = false; // New flag to control the automation loop in f
 const CLICK_AREAS = {
   OPEN_CLOSE_RESEARCH_WINDOW: { x: 403, y: 942 },
   INDIVIDUAL_RESEARCH: { x: 352, y: 456 },
+  CLICK_OFF: { x: 33, y: 904 }, // Updated y-coordinate for click-off area
 };
 
 // New functions for click and hold using cliclick
@@ -324,6 +325,7 @@ ipcMain.handle('detect-blue-box', async () => {
     console.log(`iPhone Mirroring Region: ${JSON.stringify(iphoneMirroringRegion)}`);
 
     const detections = await blueBoxDetector.detect(fullScreenDataUrl, iphoneMirroringRegion);
+    console.log(`DEBUG: Blue box detection result for UI: ${JSON.stringify(detections)}`);
     return { success: true, detections };
   } catch (error) {
     console.error('Error detecting blue boxes:', error);
@@ -366,6 +368,7 @@ async function startFinishBuildAutomationLoop() {
     getIsHoldingBlueBox: () => isHoldingBlueBox, // Pass getter for the state
     setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; }, // Pass setter for the state
     getIsAutomationRunning: () => isAutomationRunning, // Pass getter for the automation running state
+    setIsAutomationRunning: (state) => { isAutomationRunning = state; }, // Pass setter for automation running state
     // For pausing/resuming based on user input, the main loop manages this part
   };
 
@@ -414,6 +417,7 @@ ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
       clickUp: clickUp,
       getlastBlueBoxClickCoords: () => lastBlueBoxClickCoords,
       setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
+      setIsAutomationRunning: (state) => { isAutomationRunning = state; }, // Pass setter for automation running state
     });
   }
 });

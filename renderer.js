@@ -151,7 +151,12 @@ function displayDetections(resultsContainer, detections) {
         const resultDiv = document.createElement('div');
         resultDiv.className = 'detection-item';
         const idText = item.name === "research blob" ? "research" : `${item.id}.`; // Display "research" or "ID."
-        resultDiv.innerHTML = `<span>${idText} X:${item.x}, Y:${item.y}</span>`;
+        
+        let displayText = `<span>${idText} X:${item.x}, Y:${item.y}</span>`;
+        if (item.state) {
+            displayText += `<span> (${item.state})</span>`;
+        }
+        resultDiv.innerHTML = displayText;
         
         if (item.image) {
             const img = document.createElement('img');
