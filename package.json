@@ -1,0 +1,22 @@
+{
+  "name": "iphone-game-automation",
+  "version": "1.0.0",
+  "description": "Automation tool for iPhone mirroring game",
+  "main": "main.js",
+  "scripts": {
+    "start": "PATH=\"/usr/local/bin:$PATH\" electron .",
+    "watch": "electronmon .",
+    "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [],
+  "author": "erichter@gmail.com",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^29.1.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "sharp": "^0.33.2"
+  }
+}

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone Mirroring Live View</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="live-view-section">
+                    <div class="preview-container">
+                        <canvas id="previewCanvas" width="800" height="600"></canvas>
+                        <div class="preview-overlay" id="previewOverlay"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div class="section" id="liveViewControlsSection">
+                    <h2>🎮 Game Controls</h2>
+                    <div class="controls">
+                        <button id="startLiveViewBtn" class="btn btn-success">Start Live View</button>
+                        <button id="stopLiveViewBtn" class="btn btn-danger" style="display: none;">Stop Live View</button>
+                        <button id="toggleFinishBuildBtn" class="btn btn-secondary">Start Finish Build</button>
+                    </div>
+                    <div class="status-info">
+                        <div><span id="statusText">Ready</span></div>
+                        <div><span id="coordinates">Mouse: (0, 0)</span></div>
+                        <div><span id="finishBuildStatus">Idle</span></div>
+                        <div id="finishBuildStatusList" class="status-list"></div>
+                    </div>
+                </div>
+
+                <div class="section detection-section">
+                    <h2>🔴 Red Blob Detection</h2>
+                    <div class="button-group">
+                        <button id="detectRedBlobBtn" class="btn btn-primary">Detect Red Blobs</button>
+                    </div>
+                    <div id="redBlobResults" class="detection-results"></div>
+                </div>
+
+                <div class="section detection-section">
+                    <h2>🟦 Blue Build Box Detection</h2>
+                    <div class="button-group">
+                        <button id="detectBlueBoxBtn" class="btn btn-primary">Detect Blue Boxes</button>
+                    </div>
+                    <div id="blueBoxResults" class="detection-results"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
