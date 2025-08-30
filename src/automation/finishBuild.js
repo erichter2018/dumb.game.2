@@ -2,28 +2,40 @@ const blueBoxDetector = require('../detection/blueBoxDetector');
 const redBlobDetector = require('../detection/redBlobDetector');
 
 /*
-Protocol for Finish Build Automation:
-1.  Detect blue build box (with a 2-second retry loop until found).
-2.  Start of main loop (each call to runBuildProtocol from main.js).
-3.  Click and hold on the middle of the blue build box for 5 seconds (release any prior hold first).
-4.  Check for presence or absence of the named "research blob"
-    4a. If absent, continue click-holding and go back to #2 (the current 5-second hold continues, and the next loop iteration will process it).
-    4b. If present, stop click-holding on build.
-5.  Click on "open/close research" (CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW).
-6.  Click on "individual research" (CLICK_AREAS.INDIVIDUAL_RESEARCH) 10x rapidly, with 100ms delay between clicks.
-7.  Click on "open/close research" (CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW).
-8.  After completing research clicks, immediately initiate a new 5-second click-hold on the blue build box, then go back to #2 (the hold persists until the next loop iteration in main.js).
+Protocol for Finish Build Automation (Simplified):
+1.  Call a function to check blue build box until one is found, retrying every 2 seconds.
+2.  Start an infinite loop.
+3.  Inside the loop, call a function to hold down the mouse in the middle of the blue box for 5 seconds (this is a blocking call).
+4.  Call a function to check for the research blob.
+    a. If the research blob is found, call a function to perform the research actions (click open/close research, 10x rapid clicks on individual research, click open/close research again).
+    b. If the research blob is not found, the loop simply continues, implicitly maintaining the click-hold for the next iteration.
+5.  The loop then starts over (Step 2).
 */
 
 // These are global within this module but managed by main.js through setters/getters
 let blueBoxCoords = null; // Store blue box coordinates for repeated clicks
 let lastBlueBoxFound = false; // New flag to track if a blue box was found in the previous cycle
-let holdStartTime = null; // New variable to track when the current 5-second hold started
 
 function resetAutomationState() {
   blueBoxCoords = null; // Ensure blue box is re-detected after pause/stop
   lastBlueBoxFound = false; // Ensure blue box is re-detected after pause/stop
-  holdStartTime = null; // Reset hold start time
+}
+
+async function stopAutomation(dependencies) {
+    const { updateStatus, setIsHoldingBlueBox, clickUp, getlastBlueBoxClickCoords, setlastBlueBoxClickCoords } = dependencies;
+
+    updateStatus('Stopping automation cleanly...', 'info');
+    console.log('DEBUG: Attempting to release any active click-hold during stop.');
+    if (setIsHoldingBlueBox && getlastBlueBoxClickCoords()) {
+        const coords = getlastBlueBoxClickCoords();
+        await new Promise(resolve => setTimeout(resolve, 50));
+        await clickUp(coords.x, coords.y);
+        setIsHoldingBlueBox(false);
+        setlastBlueBoxClickCoords(null);
+    }
+    resetAutomationState();
+    updateStatus('Automation stopped.', 'info');
+    console.log('DEBUG: Automation stopped and state reset.');
 }
 
 // Function to find blue box click coordinates
@@ -48,182 +60,168 @@ async function findAndGetBlueBoxClickCoordinates(imageDataUrl, captureRegion) {
     }
 }
 
+async function holdBlueBox(coords, duration, dependencies) {
+    const { clickDown, clickUp, setIsHoldingBlueBox, setlastBlueBoxClickCoords, updateStatus, clickAndHold, getIsAutomationRunning } = dependencies;
+    
+    if (!coords || coords.x === null || coords.y === null) {
+        console.error('ERROR: Attempted to hold blue box with null or invalid coordinates.', coords);
+        updateStatus('Error: Attempted to hold blue box with invalid coordinates.', 'error');
+        setIsHoldingBlueBox(false);
+        return; // Exit if coordinates are invalid
+    }
+
+    updateStatus(`Initiating ${duration / 1000}-second click-hold at (${coords.x}, ${coords.y}).`, 'info');
+    console.log(`DEBUG: Initiating ${duration / 1000}-second click-hold at (${coords.x}, ${coords.y}).`);
+    
+    setlastBlueBoxClickCoords(coords); // Store coords to be able to release on interruption
+    setIsHoldingBlueBox(true); // Indicate that a click-hold is active
+    
+    // Use the interruptible clickAndHold from main.js
+    await clickAndHold(coords.x, coords.y, duration, getIsAutomationRunning);
+    
+    console.log('DEBUG: Releasing click-hold at ' + (coords ? `(${coords.x}, ${coords.y})` : 'null') + '.');
+    setIsHoldingBlueBox(false); // Indicate that click-hold is no longer active
+}
+
+async function checkResearchBlob(dependencies) {
+    const { updateStatus, redBlobDetectorDetect, captureScreenRegion, iphoneMirroringRegion, getIsAutomationRunning } = dependencies;
+
+    if (!getIsAutomationRunning()) {
+        updateStatus('Automation stopped during research blob detection.', 'warn');
+        return false;
+    }
+
+    updateStatus('Capturing screen for research blob detection.', 'info');
+    console.log('DEBUG: Capturing screen for research blob detection.');
+
+    const fullScreenDataUrl = await captureScreenRegion();
+    if (!fullScreenDataUrl) {
+        console.error('ERROR: Failed to capture screen region for research blob detection.');
+        return false;
+    }
+
+    const detections = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
+
+    const researchBlobFound = detections.some(blob => blob.name === 'research blob');
+    console.log(`DEBUG: Research blob found: ${researchBlobFound}`);
+    return researchBlobFound;
+}
+
+async function doResearch(dependencies) {
+    const { performClick, performRapidClicks, CLICK_AREAS, updateStatus, getIsAutomationRunning } = dependencies;
+
+    if (!getIsAutomationRunning()) {
+        updateStatus('Automation stopped during research actions.', 'warn');
+        return;
+    }
+
+    updateStatus('Performing research actions.', 'info');
+    console.log('DEBUG: Performing research actions.');
+
+    if (!getIsAutomationRunning()) { return; }
+    await performClick(CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW.x, CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW.y);
+    await new Promise(resolve => setTimeout(resolve, 200)); // Short delay after first click
+
+    if (!getIsAutomationRunning()) { return; }
+    await performRapidClicks(CLICK_AREAS.INDIVIDUAL_RESEARCH.x, CLICK_AREAS.INDIVIDUAL_RESEARCH.y, 10);
+    await new Promise(resolve => setTimeout(resolve, 50)); // Short delay after rapid clicks
+
+    if (!getIsAutomationRunning()) { return; }
+    await performClick(CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW.x, CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW.y);
+    await new Promise(resolve => setTimeout(resolve, 200)); // Short delay after last click
+
+    updateStatus('Research cycle completed.', 'success');
+    console.log('DEBUG: Research cycle completed.');
+}
+
+async function findBlueBoxWithRetry(dependencies) {
+    const { captureScreenRegion, detectBlueBoxes, iphoneMirroringRegion, updateStatus, getIsAutomationRunning } = dependencies;
+    let retries = 0;
+    const maxRetries = 10; // For initial detection, retry a few times before giving up
+
+    if (!getIsAutomationRunning()) {
+        updateStatus('Automation stopped before blue box detection.', 'warn');
+        return null;
+    }
+
+    while (getIsAutomationRunning()) {
+        updateStatus('Detecting blue boxes...', 'info');
+        console.log('DEBUG: Detecting blue boxes with Sharp...');
+
+        if (!getIsAutomationRunning()) { // Check again inside the loop
+            updateStatus('Automation stopped during blue box detection.', 'warn');
+            return null;
+        }
+
+        const fullScreenDataUrl = await captureScreenRegion();
+        if (!fullScreenDataUrl) {
+            updateStatus('Failed to capture screen region for blue box detection. Retrying in 2 seconds...', 'error');
+            console.error('ERROR: Failed to capture screen region for blue box detection.');
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retrying capture
+            continue;
+        }
+
+        const detections = await detectBlueBoxes(fullScreenDataUrl, iphoneMirroringRegion);
+
+        if (detections && detections.length > 0) {
+            const firstBlueBox = detections[0];
+            const coords = {
+                x: Math.round(firstBlueBox.x + firstBlueBox.width / 2),
+                y: Math.round(firstBlueBox.y + firstBlueBox.height / 2),
+            };
+            updateStatus(`Blue box detected at X:${coords.x}, Y:${coords.y}`, 'success');
+            console.log(`DEBUG: Blue box detected and coords set: ${JSON.stringify(coords)}`);
+            blueBoxFound = true;
+            return coords;
+        } else {
+            updateStatus('No blue boxes detected. Retrying in 2 seconds...', 'info');
+            console.log('DEBUG: No blue box found, retrying in 2 seconds.');
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying detection
+        }
+    }
+    return null; // Should not be reached if loop exits with blueBoxFound = true
+}
+
 async function runBuildProtocol(dependencies) {
-    const { 
-        performClick, 
-        clickDown,
-        clickUp,
-        performRapidClicks,
-        CLICK_AREAS,
-        redBlobDetectorDetect,
-        detectBlueBoxes, // Corrected dependency name
-        captureScreenRegion,
-        updateStatus,
-        iphoneMirroringRegion,
-        setlastBlueBoxClickCoords,
-        setIsHoldingBlueBox,
-        getIsHoldingBlueBox,
-    } = dependencies;
+    const { updateStatus, getIsAutomationRunning } = dependencies;
 
     try {
-        console.log(`DEBUG: runBuildProtocol started. blueBoxCoords: ${JSON.stringify(blueBoxCoords)}, isHoldingBlueBox: ${getIsHoldingBlueBox()}, lastBlueBoxFound: ${lastBlueBoxFound}, holdStartTime: ${holdStartTime}`);
-
-        // PROTOCOL Step 1: Detect blue build box (with a 2-second retry loop until found)
-        if (!blueBoxCoords || !lastBlueBoxFound) {
-            updateStatus('Detecting blue build box...', 'info');
-            while (!blueBoxCoords || !lastBlueBoxFound) { // Retry loop for blue box detection
-                const fullScreenDataUrl = await captureScreenRegion();
-                if (!fullScreenDataUrl) {
-                    updateStatus('Failed to capture screen region for blue box detection.', 'error');
-                    console.error('ERROR: Failed to capture screen region for blue box detection.');
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retrying capture
-                    continue;
-                }
-
-                const detections = await detectBlueBoxes(fullScreenDataUrl, iphoneMirroringRegion);
-                if (detections && detections.length > 0) {
-                    const firstBlueBox = detections[0];
-                    blueBoxCoords = {
-                        x: Math.round(firstBlueBox.x + firstBlueBox.width / 2),
-                        y: Math.round(firstBlueBox.y + firstBlueBox.height / 2),
-                    };
-                    setlastBlueBoxClickCoords(blueBoxCoords); // Update main process's stored coords
-                    updateStatus(`Blue box detected at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y}`, 'success');
-                    console.log(`DEBUG: Blue box detected and coords set: ${JSON.stringify(blueBoxCoords)}`);
-                    lastBlueBoxFound = true;
-                    break; // Exit retry loop
-                } else {
-                    updateStatus('No blue boxes detected. Retrying in 2 seconds...', 'info');
-                    console.log('DEBUG: No blue box found after detection, retrying in 2 seconds.');
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying detection
-                }
-            }
-
-            if (!blueBoxCoords) { // If after retries, blue box is still not found
-                updateStatus('Automation cannot start: Blue box never found.', 'error');
-                console.log('DEBUG: Blue box never found after retries, automation cannot proceed.');
-                // If blue box not found, and we were holding, release the hold.
-                if (getIsHoldingBlueBox() && clickUp && blueBoxCoords) {
-                    console.log('DEBUG: Releasing click-hold due to no blue box detection during initial detect.');
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    await clickUp(blueBoxCoords.x, blueBoxCoords.y);
-                    setIsHoldingBlueBox(false);
-                    updateStatus('Released click-hold due to no blue box detection.', 'info');
-                }
-                lastBlueBoxFound = false;
-                return; // Cannot proceed without a blue box, will implicitly re-attempt detection on next interval
-            }
+        // Step 1: Call check blue build box until one is found, every 2 seconds
+        blueBoxCoords = await findBlueBoxWithRetry(dependencies);
+        if (!blueBoxCoords) {
+            updateStatus('Automation cannot start: Blue box never found.', 'error');
+            return; // Cannot proceed without a blue box
         }
+        lastBlueBoxFound = true; // Mark as found for subsequent checks
 
-        // AT THIS POINT: blueBoxCoords is guaranteed to be valid and lastBlueBoxFound is true.
+        // Step 2: Start a loop
+        while (getIsAutomationRunning()) {
+            // Step 3: Call a function to hold down in the middle of the blue box for 5 seconds
+            await holdBlueBox(blueBoxCoords, 5000, dependencies);
 
-        // PROTOCOL Step 3: Click and hold on the middle of the blue build box for 5 seconds (non-blocking)
-        const currentTime = Date.now();
+            // Step 4: Call another function to check research blob
+            const researchBlobFound = await checkResearchBlob(dependencies);
 
-        if (!getIsHoldingBlueBox()) {
-            // Initiate a new 5-second click-hold (this is the very first hold, or after a research cycle)
-            updateStatus('Initiating 5-second click-hold on blue box.', 'info');
-            console.log(`DEBUG: Initiating 5-second click-hold at (${blueBoxCoords.x}, ${blueBoxCoords.y}).`);
-            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before clickDown
-            await clickDown(blueBoxCoords.x, blueBoxCoords.y);
-            setIsHoldingBlueBox(true);
-            holdStartTime = currentTime; // Record the start time of the hold
-            setlastBlueBoxClickCoords(blueBoxCoords); // Important for mouse interruption to release
-            console.log(`DEBUG: 5-second click-hold started. isHoldingBlueBox: ${getIsHoldingBlueBox()}, holdStartTime: ${holdStartTime}`);
-            return; // Return to allow the hold to run for 5 seconds. The setInterval will call again.
-
-        } else if ((currentTime - holdStartTime) < 5000) {
-            // Click-hold is ongoing and less than 5 seconds has passed, continue holding
-            console.log(`DEBUG: Click-hold ongoing, ${currentTime - holdStartTime}ms elapsed. Continuing hold.`);
-            return; // Return to continue the hold. The setInterval will call again.
-
-        } else { // getIsHoldingBlueBox() is true and (currentTime - holdStartTime) >= 5000
-            // 5 seconds of click-hold has passed, proceed to research check
-            updateStatus('5-second click-hold complete. Proceeding to research check.', 'info');
-            console.log('DEBUG: 5-second click-hold elapsed. Proceeding to research check.');
-
-            // PROTOCOL Step 4: Check for presence or absence of the named "research blob"
-            updateStatus('Checking for research blob...', 'info');
-            console.log('DEBUG: Capturing screen for research blob detection.');
-            const currentScreenDataUrl = await captureScreenRegion();
-            const redBlobDetections = await redBlobDetectorDetect(currentScreenDataUrl, iphoneMirroringRegion);
-            const researchBlobFound = redBlobDetections.some(blob => blob.name === "research blob");
-            console.log(`DEBUG: Research blob found: ${researchBlobFound}. Current isHoldingBlueBox: ${getIsHoldingBlueBox()}`);
-
+            // Step 4a: if found, call function to do research (click research button, etc...)
             if (researchBlobFound) {
-                // PROTOCOL Step 4b: if present, stop click-holding on build
-                console.log('DEBUG: Research blob IS present. Handling research cycle.');
-                if (getIsHoldingBlueBox() && blueBoxCoords) {
-                    updateStatus('Research blob present. Releasing click-hold on blue box.', 'info');
-                    console.log(`DEBUG: Attempting to call clickUp(${blueBoxCoords.x}, ${blueBoxCoords.y}).`);
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    await clickUp(blueBoxCoords.x, blueBoxCoords.y);
-                    setIsHoldingBlueBox(false);
-                    updateStatus('Click-hold on blue box released.', 'success');
-                }
-
-                // PROTOCOL Step 5: Click on "open/close research"
-                updateStatus('Clicking open/close research window.', 'info');
-                await performClick(CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW.x, CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW.y);
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // PROTOCOL Step 6: Click on "individual research" 10x rapidly, with 100ms delay between clicks
-                updateStatus('Performing rapid clicks on individual research.', 'info');
-                for (let i = 0; i < 10; i++) {
-                    await performClick(CLICK_AREAS.INDIVIDUAL_RESEARCH.x, CLICK_AREAS.INDIVIDUAL_RESEARCH.y);
-                    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between clicks
-                }
-                await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after rapid clicks
-
-                // PROTOCOL Step 7: Click on "open/close research"
-                updateStatus('Clicking open/close research window again.', 'info');
-                await performClick(CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW.x, CLICK_AREAS.OPEN_CLOSE_RESEARCH_WINDOW.y);
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // PROTOCOL Step 8: After completing research clicks, immediately initiate a new 5-second click-hold on the blue build box, then go back to #2
-                updateStatus('Research cycle complete. Initiating next 5-second click-hold on blue box.', 'success');
-                console.log('DEBUG: Research cycle complete. Initiating next 5-second click-hold immediately.');
-
-                // First, ensure any previous hold is released before initiating the new one
-                if (getIsHoldingBlueBox() && blueBoxCoords) {
-                    updateStatus('Releasing previous click-hold before new post-research 5-second hold.', 'info');
-                    console.log(`DEBUG: Releasing previous click-hold at (${blueBoxCoords.x}, ${blueBoxCoords.y}) after research.`);
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    await clickUp(blueBoxCoords.x, blueBoxCoords.y);
-                    setIsHoldingBlueBox(false);
-                }
-
-                // Immediately initiate a new 5-second click-hold for the next cycle
-                updateStatus('Initiating new 5-second click-hold on blue box for next cycle.', 'info');
-                console.log(`DEBUG: Initiating new 5-second click-hold at (${blueBoxCoords.x}, ${blueBoxCoords.y}) for next cycle.`);
-                await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before clickDown
-                await clickDown(blueBoxCoords.x, blueBoxCoords.y);
-                setIsHoldingBlueBox(true);
-                holdStartTime = currentTime; // Record the start time of this new hold
-                setlastBlueBoxClickCoords(blueBoxCoords); // Important for mouse interruption to release
-                console.log(`DEBUG: New 5-second click-hold started. isHoldingBlueBox: ${getIsHoldingBlueBox()}, holdStartTime: ${holdStartTime}`);
-
-            } else {
-                // PROTOCOL Step 4a: if absent, go back to #2 (continue click-holding)
-                console.log('DEBUG: Research blob IS NOT present. Click-hold remains active for next cycle.');
-                updateStatus('Research blob absent. Continuing 5-second click-hold on blue box.', 'info');
-                // The hold continues. We need to reset holdStartTime to restart the 5-second countdown for the next cycle's check
-                holdStartTime = currentTime; // Reset holdStartTime to now to ensure a fresh 5s hold for the next cycle
+                await doResearch(dependencies);
             }
-        }
+            // Step 4b: if absent, continue click hold (handled implicitly by the holdBlueBox function in next loop iteration)
 
+            // Step 2: Start loop over (implicit, as it's an infinite while loop)
+        }
     } catch (error) {
         console.error('Error in runBuildProtocol:', error);
         updateStatus(`Protocol error: ${error.message}`, 'error');
-        if (getIsHoldingBlueBox() && blueBoxCoords) {
+        // Ensure any active hold is released on error
+        if (dependencies.getIsHoldingBlueBox() && blueBoxCoords && blueBoxCoords.x !== null && blueBoxCoords.y !== null) {
             await new Promise(resolve => setTimeout(resolve, 50));
-            await clickUp(blueBoxCoords.x, blueBoxCoords.y);
+            await dependencies.clickUp(blueBoxCoords.x, blueBoxCoords.y);
         }
-        setIsHoldingBlueBox(false);
+        dependencies.setIsHoldingBlueBox(false);
         blueBoxCoords = null;
-        setlastBlueBoxClickCoords(null);
+        dependencies.setlastBlueBoxClickCoords(null);
         lastBlueBoxFound = false;
-        holdStartTime = null; // Reset hold start time on error
     }
 }
 

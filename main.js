@@ -13,12 +13,12 @@ const finishBuildAutomation = require('./src/automation/finishBuild');
 let mainWindow;
 let isCapturing = false;
 let captureInterval;
-let finishBuildInterval; // Declare finishBuildInterval
 let lastBlueBoxClickCoords = null; // Store last detected blue box click coordinates
 let pauseTimeout = null;
 const STATUS_MESSAGE_LIMIT = 5; // Limit to 5 status messages
 let statusMessageHistory = []; // Store recent status messages
 let isHoldingBlueBox = false; // Add state to track if a blue box is being held
+let isAutomationRunning = false; // New flag to control the automation loop in finishBuild.js
 
 // Define named click areas
 const CLICK_AREAS = {
@@ -61,20 +61,36 @@ async function clickUp(x, y) {
   }
 }
 
-async function clickAndHold(x, y, duration) {
-  console.log(`Clicking and holding at (${x}, ${y}) for ${duration}ms.`);
+async function clickAndHold(x, y, duration, getIsAutomationRunning) {
+  console.log(`DEBUG: Clicking and holding at (${x}, ${y}) for ${duration}ms.`);
   const resultDown = await clickDown(x, y);
   if (!resultDown.success) return resultDown;
-  await new Promise(resolve => setTimeout(resolve, duration));
-  const resultUp = await clickUp(x, y);
-  return resultUp;
+
+  const startTime = Date.now();
+  let heldDuration = 0;
+  const checkInterval = 100; // Check every 100ms
+
+  while (heldDuration < duration && getIsAutomationRunning()) {
+    await new Promise(resolve => setTimeout(resolve, Math.min(checkInterval, duration - heldDuration)));
+    heldDuration = Date.now() - startTime;
+  }
+
+  // Only click up if automation is still running or if we specifically stopped during the hold
+  if (getIsAutomationRunning() || heldDuration >= duration) {
+    const resultUp = await clickUp(x, y);
+    return resultUp;
+  } else {
+    // Automation was stopped during the hold, just ensure click is released
+    const resultUp = await clickUp(x, y);
+    return resultUp;
+  }
 }
 
 async function performRapidClicks(x, y, count) {
   console.log(`Performing ${count} rapid clicks at (${x}, ${y}).`);
   for (let i = 0; i < count; i++) {
     await performClick(x, y);
-    await new Promise(resolve => setTimeout(resolve, 200)); // Increased delay between rapid clicks
+    await new Promise(resolve => setTimeout(resolve, 10)); // Increased delay between rapid clicks
   }
   return { success: true };
 }
@@ -317,18 +333,10 @@ ipcMain.handle('detect-blue-box', async () => {
 
 // Function to start the Finish Build automation loop
 async function startFinishBuildAutomationLoop() {
-  if (finishBuildInterval) { // Prevent multiple intervals
-    return;
-  }
-
   console.log('Starting Finish Build automation loop internally.');
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('finish-build-status', 'Starting automation loop...', 'info');
   }
-
-  // Bring the iPhone Mirroring app to the front once at the start
-  await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
-  await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after activation
 
   // Dependencies for the automation protocol
   const automationDependencies = {
@@ -357,97 +365,69 @@ async function startFinishBuildAutomationLoop() {
     setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
     getIsHoldingBlueBox: () => isHoldingBlueBox, // Pass getter for the state
     setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; }, // Pass setter for the state
+    getIsAutomationRunning: () => isAutomationRunning, // Pass getter for the automation running state
     // For pausing/resuming based on user input, the main loop manages this part
   };
 
-  // Removed: Initial call to runBuildProtocol. The setInterval will now initiate the first cycle.
-  // await finishBuildAutomation.runBuildProtocol(automationDependencies);
-
-  finishBuildInterval = setInterval(async () => {
-    try {
-      if (!finishBuildInterval || !mainWindow || mainWindow.isDestroyed()) {
-        clearInterval(finishBuildInterval);
-        finishBuildInterval = null;
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('finish-build-status', 'Automation stopped unexpectedly.', 'error');
-        }
-        return;
-      }
-
-      // Execute the new automation protocol from finishBuild.js
-      await finishBuildAutomation.runBuildProtocol(automationDependencies);
-
-    } catch (error) {
-      console.error('Error during Finish Build automation:', error);
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('finish-build-status', `Automation error: ${error.message}`, 'error');
-      }
-      clearInterval(finishBuildInterval);
-      finishBuildInterval = null;
-    }
-  }, 10000); // Back to 10 seconds for the main cycle
+  // Start the automation loop in finishBuild.js
+  finishBuildAutomation.runBuildProtocol(automationDependencies);
 }
 
 ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
   console.log(`DEBUG: toggle-finish-build IPC handler called with isRunning: ${isRunning}`);
+
   if (isRunning) {
-    console.log('Starting Finish Build automation.');
+    isAutomationRunning = isRunning; // Update the global flag
+    console.log('DEBUG: Starting Finish Build automation via IPC.');
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('finish-build-status', 'Starting automation loop...', 'info');
+      mainWindow.webContents.send('finish-build-status', 'Starting Finish Build automation...', 'info');
     }
-    // Removed: currentAutomationPhase = 'detect_and_hold_start'; // Initialize phase on start
+    // Bring the iPhone Mirroring app to the front once at the start of automation
+    await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
+    await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after activation
 
-    try {
-      await startFinishBuildAutomationLoop();
-      console.log('DEBUG: startFinishBuildAutomationLoop completed.');
-    } catch (error) {
-      console.error(`ERROR: startFinishBuildAutomationLoop failed: ${error.message}`);
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('finish-build-status', `Failed to start automation: ${error.message}`, 'error');
-      }
-      return { success: false, message: `Failed to start automation: ${error.message}` };
-    }
-
-    return { success: true, message: 'Finish Build automation started.' };
+    startFinishBuildAutomationLoop();
   } else {
-    console.log('Stopping Finish Build automation.');
-    if (finishBuildInterval) {
-      clearInterval(finishBuildInterval);
-      finishBuildInterval = null;
-      console.log('DEBUG: finishBuildInterval cleared on stop.');
+    isAutomationRunning = isRunning; // Update the global flag to false
+    console.log('DEBUG: Stopping Finish Build automation via IPC.');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('finish-build-status', 'Stopping Finish Build automation...', 'info');
     }
     if (pauseTimeout) {
       clearTimeout(pauseTimeout);
       pauseTimeout = null;
-      console.log('DEBUG: pauseTimeout cleared on stop.');
+      console.log('DEBUG: pauseTimeout cleared during stop.');
     }
-    lastBlueBoxClickCoords = null; // Clear stored coordinates when stopping
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('finish-build-status', 'Finish Build automation stopped.', 'success');
-    }
-    // Ensure all automation-related state is reset when stopping
-    finishBuildAutomation.resetAutomationState();
-    // Removed: currentAutomationPhase = 'detect_and_hold_start'; // Reset phase on stop
-    console.log('DEBUG: finishBuildAutomation.resetAutomationState() called on stop.');
-    return { success: true, message: 'Finish Build automation stopped.' };
+    // Call the stopAutomation function in finishBuild.js
+    await finishBuildAutomation.stopAutomation({
+      updateStatus: (message, type) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          statusMessageHistory.push({ message, type, timestamp: new Date().toLocaleTimeString() });
+          if (statusMessageHistory.length > STATUS_MESSAGE_LIMIT) {
+            statusMessageHistory.shift();
+          }
+          mainWindow.webContents.send('finish-build-status', message, type);
+          mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
+        }
+      },
+      setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; },
+      clickUp: clickUp,
+      getlastBlueBoxClickCoords: () => lastBlueBoxClickCoords,
+      setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
+    });
   }
 });
 
 ipcMain.handle('pause-automation-on-mouse-move', async () => {
-  console.log(`DEBUG: Mouse movement detected. Current state: finishBuildInterval: ${!!finishBuildInterval}, pauseTimeout: ${!!pauseTimeout}, isHoldingBlueBox: ${isHoldingBlueBox}`);
+  console.log(`DEBUG: Mouse movement detected. Current state: isAutomationRunning: ${isAutomationRunning}, pauseTimeout: ${!!pauseTimeout}, isHoldingBlueBox: ${isHoldingBlueBox}`);
 
-  // Only act if automation is actually running (finishBuildInterval is active)
-  if (!finishBuildInterval) {
-    console.log('Automation not running, ignoring mouse move.');
-    return { success: true, message: 'Automation not running.' };
+  if (!isAutomationRunning) { // Only pause if automation is actually running
+    console.log('DEBUG: Automation not running, ignoring mouse move.');
+    return;
   }
 
-  // Immediately clear the interval to stop the current cycle
-  if (finishBuildInterval) {
-    clearInterval(finishBuildInterval);
-    finishBuildInterval = null;
-    console.log('DEBUG: finishBuildInterval cleared on mouse move.');
-  }
+  isAutomationRunning = false; // Temporarily stop the loop in finishBuild.js
+  console.log('DEBUG: Automation loop in finishBuild.js will stop.');
 
   // If we were holding a click, explicitly release it
   if (isHoldingBlueBox && lastBlueBoxClickCoords) {
@@ -460,7 +440,6 @@ ipcMain.handle('pause-automation-on-mouse-move', async () => {
 
   // Reset automation state in finishBuild.js on pause
   finishBuildAutomation.resetAutomationState();
-  // Removed: currentAutomationPhase = 'detect_and_hold_start'; // Reset phase on pause
   console.log('Finish Build automation paused due to mouse movement.');
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('finish-build-status', 'Paused: Mouse moved (resuming in 5s)...', 'warning');
@@ -469,9 +448,9 @@ ipcMain.handle('pause-automation-on-mouse-move', async () => {
   // Clear any existing pause timeout to restart the 5-second countdown
   if (pauseTimeout) {
     clearTimeout(pauseTimeout);
-    console.log('DEBUG: Existing pauseTimeout cleared.');
+    console.log('DEBUG: Existing pauseTimeout cleared. Restarting pause timer.');
   }
-
+  console.log('DEBUG: Setting pauseTimeout for 5 seconds.');
   pauseTimeout = setTimeout(async () => {
     console.log('Resuming Finish Build automation after pause.');
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -480,6 +459,7 @@ ipcMain.handle('pause-automation-on-mouse-move', async () => {
     // Blue box re-detection is now handled by finishBuild.js when !blueBoxCoords or !lastBlueBoxFound
     // lastBlueBoxClickCoords is not reset here to allow finishBuild.js to use its own blueBoxCoords
 
+    isAutomationRunning = true; // Set to true BEFORE calling startFinishBuildAutomationLoop
     await startFinishBuildAutomationLoop();
     pauseTimeout = null;
     console.log('DEBUG: pauseTimeout nulled after resume.');

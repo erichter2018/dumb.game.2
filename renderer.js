@@ -125,48 +125,18 @@ stopLiveViewBtn.addEventListener('click', async () => {
 
 // Handle toggle finish build button click
 toggleFinishBuildBtn.addEventListener('click', async () => {
-    console.log('DEBUG: Toggle Finish Build button clicked. Current state: isFinishBuildRunning:', isFinishBuildRunning);
-    try {
-        isFinishBuildRunning = !isFinishBuildRunning;
-        if (isFinishBuildRunning) {
-            updateStatus('Starting Finish Build...', 'info');
-            toggleFinishBuildBtn.textContent = 'Stop Finish Build';
-            toggleFinishBuildBtn.classList.remove('btn-secondary');
-            toggleFinishBuildBtn.classList.add('btn-warning');
-            console.log('DEBUG: Invoking toggle-finish-build with true.');
-            const result = await ipcRenderer.invoke('toggle-finish-build', true);
-            console.log('DEBUG: toggle-finish-build IPC result:', result);
-            if (result.success) {
-                updateStatus(result.message, 'success');
-            } else {
-                updateStatus(`Error starting: ${result.error}`, 'error');
-                isFinishBuildRunning = false; // Revert state on error
-                toggleFinishBuildBtn.textContent = 'Start Finish Build';
-                toggleFinishBuildBtn.classList.remove('btn-warning');
-                toggleFinishBuildBtn.classList.add('btn-secondary');
-            }
-        } else {
-            updateStatus('Stopping Finish Build...', 'info');
-            toggleFinishBuildBtn.textContent = 'Start Finish Build';
-            toggleFinishBuildBtn.classList.remove('btn-warning');
-            toggleFinishBuildBtn.classList.add('btn-secondary');
-            console.log('DEBUG: Invoking toggle-finish-build with false.');
-            const result = await ipcRenderer.invoke('toggle-finish-build', false);
-            console.log('DEBUG: toggle-finish-build IPC result:', result);
-            if (result.success) {
-                updateStatus(result.message, 'success');
-            } else {
-                updateStatus(`Error stopping: ${result.error}`, 'error');
-            }
-        }
-    } catch (error) {
-        console.error(`ERROR: Error toggling Finish Build: ${error.message}`, error);
-        updateStatus(`Error toggling Finish Build: ${error.message}`, 'error');
-        isFinishBuildRunning = false; // Ensure state is consistent
+    isFinishBuildRunning = !isFinishBuildRunning;
+    if (isFinishBuildRunning) {
+        toggleFinishBuildBtn.textContent = 'Stop Finish Build';
+        toggleFinishBuildBtn.classList.remove('btn-secondary');
+        toggleFinishBuildBtn.classList.add('btn-danger');
+    } else {
         toggleFinishBuildBtn.textContent = 'Start Finish Build';
-        toggleFinishBuildBtn.classList.remove('btn-warning');
+        toggleFinishBuildBtn.classList.remove('btn-danger');
         toggleFinishBuildBtn.classList.add('btn-secondary');
     }
+    console.log(`DEBUG: Toggling finish build automation to: ${isFinishBuildRunning}`);
+    await ipcRenderer.invoke('toggle-finish-build', isFinishBuildRunning);
 });
 
 // Helper to display detection results

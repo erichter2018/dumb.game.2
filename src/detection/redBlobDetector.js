@@ -172,6 +172,10 @@ async function detect(imageDataUrl, captureRegion) {
             if (Math.abs(blob.x - 48) <= exclusionTolerance && Math.abs(blob.y - 206) <= exclusionTolerance) {
                 shouldExclude = true;
             }
+            // Blob at X:386, Y:207 (new exclusion)
+            if (Math.abs(blob.x - 386) <= exclusionTolerance && Math.abs(blob.y - 207) <= exclusionTolerance) {
+                shouldExclude = true;
+            }
             // Blob 2 (e.g., x:48, y:280)
             if (Math.abs(blob.x - 48) <= exclusionTolerance && Math.abs(blob.y - 280) <= exclusionTolerance) {
                 shouldExclude = true;
