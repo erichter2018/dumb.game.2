@@ -77,6 +77,10 @@ function startAutomation(dependencies) {
                 updateStatus('Finish Build reported MAX build. Exiting prepBuild.', 'success');
                 console.log('DEBUG: Finish Build reported MAX build. Exiting prepBuild.');
                 return 'max_build_achieved'; // Exit prepBuild but let Finish Level loop continue
+            } else if (buildResult === 'no_blue_box_found') { // New: Handle explicit no blue box found
+                updateStatus('Finish Build failed to find blue box. Exiting prepBuild to allow red blob detection.', 'warn');
+                console.log('DEBUG: Finish Build reported no blue box found. Exiting prepBuild.');
+                return 'finish_build_failed_no_blue_box'; // New return status
             }
             if (!getIsAutomationRunning()) return 'stopped';
             updateStatus('Finish Build automation completed. Exiting prepBuild.', 'success');
@@ -341,7 +345,7 @@ function startAutomation(dependencies) {
                             redBlobsTried.clear(); // Reset tried blobs if finishBuild was launched successfully
                             updateStatus('Finish Build automation successfully launched from prepBuild after red blob click.', 'info');
                             console.log('DEBUG: Finish Build automation successfully launched after red blob click.');
-                        } else if (prepBuildResult === 'no_blue_build' || prepBuildResult === 'no_red_blobs_found') {
+                        } else if (prepBuildResult === 'no_blue_build' || prepBuildResult === 'no_red_blobs_found' || prepBuildResult === 'finish_build_failed_no_blue_box') {
                             redBlobsTried.add(JSON.stringify(highestYBlob));
                             updateStatus('No blue build or red blobs found after red blob click. Trying another red blob.', 'warn');
                             console.log('DEBUG: No blue build or red blobs found after red blob click. Marking as tried.');
