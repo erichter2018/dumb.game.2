@@ -496,6 +496,15 @@ async function detect(imageDataUrl, captureRegion) {
             const finalBoxImage = sharp(Buffer.from(base64Data, 'base64'));
             const finalBoxImageMetadata = await finalBoxImage.metadata();
 
+            // Permanent exclusion for X:154, Y:906 (the research button)
+            const exclusionCoords = { x: 154, y: 906 };
+            const exclusionTolerance = 10; // Pixels
+            if (Math.abs(box.x - exclusionCoords.x) <= exclusionTolerance &&
+                Math.abs(box.y - exclusionCoords.y) <= exclusionTolerance) {
+                console.log(`DEBUG: Excluding blue box at x:${box.x}, y:${box.y} (near ${exclusionCoords.x}, ${exclusionCoords.y}) due to permanent exclusion.`);
+                continue; // Skip this box
+            }
+
             if (box.width <= 0 || box.height <= 0 ||
                 box.x < 0 || box.y < 0 ||
                 box.x + box.width > finalBoxImageMetadata.width ||

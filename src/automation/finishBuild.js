@@ -152,7 +152,7 @@ async function doResearch(dependencies) {
 async function findBlueBoxWithRetry(dependencies) {
     const { captureScreenRegion, detectBlueBoxes, iphoneMirroringRegion, updateStatus, getIsAutomationRunning } = dependencies;
     
-    const MAX_RETRIES = 10; // New: Maximum number of retries
+    const MAX_RETRIES = 3; // Changed: Maximum number of retries from 10 to 3
     let retryCount = 0; // New: Counter for retries
 
     if (!getIsAutomationRunning()) {
@@ -212,8 +212,8 @@ async function runBuildProtocol(dependencies) {
         let initialDetectedBox = await findBlueBoxWithRetry(dependencies);
         
         if (!initialDetectedBox) {
-            updateStatus('Automation cannot start: No clickable build box found after retries.', 'error');
-            return; // Cannot proceed without an initial clickable box
+            updateStatus('Automation cannot start: No clickable build box found after retries. Treating as MAX build.', 'error');
+            return 'max_build_achieved'; // Treat failure to find blue box as MAX build
         }
 
         if (initialDetectedBox.state === 'grey_max') {
@@ -234,14 +234,9 @@ async function runBuildProtocol(dependencies) {
             const currentDetectedBox = await findBlueBoxWithRetry(dependencies); // This will retry until a box is found or automation stops
 
             if (!currentDetectedBox) {
-                updateStatus('No clickable build box detected, continuing with last known coordinates.', 'warn');
-                console.log('DEBUG: No clickable build box found in current cycle. Continuing with last known coords.');
-                // In this case, we continue with the last known blueBoxCoords (which should be set by initial detection or previous loop iteration)
-                if (!blueBoxCoords) { // This should ideally not happen if initial detection worked
-                    updateStatus('No blue box coordinates to hold. Stopping automation.', 'error');
-                    dependencies.setIsAutomationRunning(false);
-                    return;
-                }
+                updateStatus('No clickable build box detected in current cycle. Treating as MAX build.', 'warn');
+                console.log('DEBUG: No clickable build box found in current cycle. Treating as MAX build.');
+                return 'max_build_achieved'; // Treat failure to find blue box as MAX build
             } else if (currentDetectedBox.state === 'grey_max') {
                 updateStatus('MAX build achieved. Stopping automation.', 'success');
                 console.log('DEBUG: MAX build achieved. Stopping automation.');
