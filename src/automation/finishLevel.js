@@ -168,35 +168,30 @@ function startAutomation(dependencies) {
         const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning } = dependencies;
 
         updateStatus('Starting "Exit and Start New Level" routine.', 'info');
-        console.log('DEBUG: Starting "Exit and Start New Level" routine.');
-
-        if (!getIsAutomationRunning()) {
-            updateStatus('Automation stopped during "Exit and Start New Level" routine.', 'warn');
-            return;
-        }
-
-        // Click at "start exiting"
+        console.log('DEBUG: Starting "Exit and Start New Level" routine. Performing initial click at "Start Exiting".');
         await performClick(CLICK_AREAS.START_EXITING.x, CLICK_AREAS.START_EXITING.y);
         updateStatus('Clicked "Start Exiting".', 'info');
-        console.log(`DEBUG: Clicked "Start Exiting" at (${CLICK_AREAS.START_EXITING.x}, ${CLICK_AREAS.START_EXITING.y}).`);
+        console.log(`DEBUG: Finished click at "Start Exiting" at (${CLICK_AREAS.START_EXITING.x}, ${CLICK_AREAS.START_EXITING.y}). Waiting 500ms.`);
 
         // Wait 500ms
         await new Promise(resolve => setTimeout(resolve, 500));
         if (!getIsAutomationRunning()) { return; }
 
         // Click at "confirm exit"
+        console.log('DEBUG: Continuing "Exit and Start New Level" routine. Performing click at "Confirm Exit".');
         await performClick(CLICK_AREAS.CONFIRM_EXIT.x, CLICK_AREAS.CONFIRM_EXIT.y);
         updateStatus('Clicked "Confirm Exit".', 'info');
-        console.log(`DEBUG: Clicked "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}).`);
+        console.log(`DEBUG: Finished click at "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}). Waiting 10,000ms.`);
 
         // Wait 10,000ms
         await new Promise(resolve => setTimeout(resolve, 10000));
         if (!getIsAutomationRunning()) { return; }
 
         // Click at "start level"
+        console.log('DEBUG: Continuing "Exit and Start New Level" routine. Performing click at "Start Level".');
         await performClick(CLICK_AREAS.START_LEVEL.x, CLICK_AREAS.START_LEVEL.y);
         updateStatus('Clicked "Start Level".', 'info');
-        console.log(`DEBUG: Clicked "Start Level" at (${CLICK_AREAS.START_LEVEL.x}, ${CLICK_AREAS.START_LEVEL.y}).`);
+        console.log(`DEBUG: Finished click at "Start Level" at (${CLICK_AREAS.START_LEVEL.x}, ${CLICK_AREAS.START_LEVEL.y}). Routine complete.`);
 
         updateStatus('"Exit and Start New Level" routine completed.', 'success');
         console.log('DEBUG: "Exit and Start New Level" routine completed.');
@@ -261,6 +256,29 @@ function startAutomation(dependencies) {
                 console.log('DEBUG: No blue build box found. Detecting red blobs.');
                 const redBlobs = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
                 if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during redBlobDetectorDetect
+
+                // Check for the 'exit level' blob immediately after detection
+                const exitLevelBlobFound = redBlobs.some(blob => blob.name === 'exit level');
+
+                if (exitLevelBlobFound) {
+                    updateStatus('"Exit level" red blob detected. Initiating exit and restart.', 'info');
+                    console.log('DEBUG: "Exit level" red blob detected. Calling exitAndStartNewLevel.');
+                    await exitAndStartNewLevel(dependencies);
+                    if (!getIsAutomationRunning()) {
+                        updateStatus('Finish Level automation stopped during exit and new level start.', 'warn');
+                        break;
+                    }
+                    continue; // After exiting and starting a new level, the loop continues to re-detect
+                }
+
+                // If no red blobs are found at all (after checking for exit level blob)
+                if (redBlobs.length === 0) {
+                    updateStatus('No red blobs found (excluding named exit level blob if present). Trying again in 1 second...', 'warn');
+                    console.log('DEBUG: No red blobs found (excluding named exit level blob if present). Trying again in 1 second...');
+                    redBlobsTried.clear(); // Clear tried blobs if no red blobs are found at all
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before re-attempting
+                    continue; // Continue the loop to re-detect from scratch
+                }
 
                 if (redBlobs.length > 0) {
                     let untriedRedBlobs = redBlobs.filter(blob => !redBlobsTried.has(JSON.stringify(blob)) && !blob.name);
