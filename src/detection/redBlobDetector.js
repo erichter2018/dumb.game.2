@@ -28,6 +28,20 @@ async function detect(imageDataUrl, captureRegion) {
 
         const visited = new Set();
 
+        // Helper function to remove the 'image' property from blob objects for logging
+        function omitImageFromLog(obj) {
+            if (Array.isArray(obj)) {
+                return obj.map(item => {
+                    const { image, ...rest } = item;
+                    return rest;
+                });
+            } else if (obj && typeof obj === 'object') {
+                const { image, ...rest } = obj;
+                return rest;
+            }
+            return obj;
+        }
+
         function getPixel(x, y) {
             if (x < 0 || x >= info.width || y < 0 || y >= info.height) return null;
             const idx = (info.width * y + x) * info.channels;
@@ -156,10 +170,10 @@ async function detect(imageDataUrl, captureRegion) {
             }
         }
 
-        console.log(`Detected blobs before exclusion: ${JSON.stringify(detectedBlobs)}`);
+        console.log(`Detected blobs before exclusion: ${JSON.stringify(omitImageFromLog(detectedBlobs))}`);
 
         const filteredAndNamedBlobs = [];
-        const exclusionTolerance = 5; // Pixels
+        const exclusionTolerance = 10; // Increased to 10 pixels for more lenient exclusion
 
         for (let i = 0; i < detectedBlobs.length; i++) {
             const blob = detectedBlobs[i];
@@ -185,15 +199,24 @@ async function detect(imageDataUrl, captureRegion) {
             if (Math.abs(blob.x - 300) <= exclusionTolerance && Math.abs(blob.y - 894) <= exclusionTolerance) {
                 shouldExclude = true;
             }
-            // New exclusion for 'exit level' blob (x:51, y:890)
+            // New naming for 'exit level' blob (x:51, y:890)
             if (Math.abs(blob.x - 51) <= exclusionTolerance && Math.abs(blob.y - 890) <= exclusionTolerance) {
-                shouldExclude = true;
+                newBlob.name = "exit level";
+                console.log(`Naming blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as "exit level".`);
+                // This blob is named but NOT excluded, so it can be identified by name.
             }
 
             // Check for naming (blob 5 from previous logs - e.g., x:368, y:893)
             if (Math.abs(blob.x - 368) <= exclusionTolerance && Math.abs(blob.y - 893) <= exclusionTolerance) {
                 newBlob.name = "research blob";
                 console.log(`Naming blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as "research blob".`);
+            }
+
+            if (shouldExclude) {
+                // If a blob has been named, it should not be excluded.
+                if (newBlob.name === "exit level" || newBlob.name === "research blob") {
+                    shouldExclude = false;
+                }
             }
 
             if (shouldExclude) {
@@ -204,7 +227,7 @@ async function detect(imageDataUrl, captureRegion) {
             filteredAndNamedBlobs.push(newBlob);
         }
 
-        console.log(`Filtered and named blobs for extraction: ${JSON.stringify(filteredAndNamedBlobs)}`);
+        console.log(`Filtered and named blobs for extraction: ${JSON.stringify(omitImageFromLog(filteredAndNamedBlobs))}`);
 
         // Now, extract images for the detected blobs from the original full screen image
         let blobCounter = 1;

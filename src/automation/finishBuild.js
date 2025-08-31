@@ -21,6 +21,20 @@ function resetAutomationState() {
   lastBlueBoxFound = false; // Ensure blue box is re-detected after pause/stop
 }
 
+    // Helper function to remove the 'image' property from blob objects for logging
+    function omitImageFromLog(obj) {
+        if (Array.isArray(obj)) {
+            return obj.map(item => {
+                const { image, ...rest } = item;
+                return rest;
+            });
+        } else if (obj && typeof obj === 'object') {
+            const { image, ...rest } = obj;
+            return rest;
+        }
+        return obj;
+    }
+
 async function stopAutomation(dependencies) {
     const { updateStatus, setIsHoldingBlueBox, clickUp, getlastBlueBoxClickCoords, setlastBlueBoxClickCoords } = dependencies;
 
@@ -48,7 +62,7 @@ async function findAndGetBlueBoxClickCoordinates(imageDataUrl, captureRegion) {
             const firstBlueBox = detections[0];
             const clickX = Math.round(firstBlueBox.x + firstBlueBox.width / 2);
             const clickY = Math.round(firstBlueBox.y + firstBlueBox.height / 2);
-            console.log(`Found blue box at (${firstBlueBox.x}, ${firstBlueBox.y}) with dimensions ${firstBlueBox.width}x${firstBlueBox.height}. Calculated click coordinates: (${clickX}, ${clickY})`);
+            console.log(`Found blue box at (${firstBlueBox.x}, ${firstBlueBox.y}) with dimensions ${firstBlueBox.width}x${firstBlueBox.height}. Calculated click coordinates: (${clickX}, ${clickY}). Details: ${JSON.stringify(omitImageFromLog(firstBlueBox))}`);
             return { x: clickX, y: clickY };
         } else {
             console.log('No blue boxes detected.');
@@ -101,7 +115,7 @@ async function checkResearchBlob(dependencies) {
     }
 
     const detections = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
-    console.log(`DEBUG: Red blob detections in checkResearchBlob: ${JSON.stringify(detections)}`);
+    console.log(`DEBUG: Red blob detections in checkResearchBlob: ${JSON.stringify(omitImageFromLog(detections))}`);
 
     const researchBlobFound = detections.some(blob => blob.name === 'research blob');
     console.log(`DEBUG: Research blob found: ${researchBlobFound}`);
@@ -173,6 +187,7 @@ async function findBlueBoxWithRetry(dependencies) {
                 y: Math.round(firstDetectedBox.y + firstDetectedBox.height / 2),
             };
             // Return the full box object with its state and calculated click coordinates
+            console.log(`DEBUG: Detected blue box: ${JSON.stringify(omitImageFromLog(firstDetectedBox))}`);
             return { ...firstDetectedBox, coords }; 
         } else {
             updateStatus('No blue boxes detected. Retrying in 2 seconds...', 'info');
@@ -211,7 +226,7 @@ async function runBuildProtocol(dependencies) {
         blueBoxCoords = initialDetectedBox.coords;
         lastBlueBoxFound = true; // Mark as found for subsequent checks
         updateStatus(`Initial build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${initialDetectedBox.state})`, 'info');
-        console.log(`DEBUG: Initial build box found: ${JSON.stringify(initialDetectedBox)}`);
+        console.log(`DEBUG: Initial build box found: ${JSON.stringify(omitImageFromLog(initialDetectedBox))}`);
 
         // Step 2: Start a loop
         while (getIsAutomationRunning()) {
@@ -243,7 +258,7 @@ async function runBuildProtocol(dependencies) {
             } else { // It's a blue_build, grey_build, or other_grey box
                 blueBoxCoords = currentDetectedBox.coords; // Use the click coords from the newly detected box
                 updateStatus(`Build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${currentDetectedBox.state})`, 'info');
-                console.log(`DEBUG: Build box found in current cycle: ${JSON.stringify(currentDetectedBox)}`);
+                console.log(`DEBUG: Build box found in current cycle: ${JSON.stringify(omitImageFromLog(currentDetectedBox))}`);
             }
 
             // Step 3: Call a function to hold down in the middle of the current blue box for 5 seconds

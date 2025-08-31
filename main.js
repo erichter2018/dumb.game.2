@@ -30,6 +30,7 @@ const CLICK_AREAS = {
   "START_EXITING": { x: 49, y: 940 },
   "CONFIRM_EXIT": { x: 238, y: 745 },
   "START_LEVEL": { x: 232, y: 631 },
+  "EXIT_LEVEL": { x: 51, y: 890 }, // New: Named click area for the exit level red blob
 };
 
 // New functions for click and hold using cliclick
@@ -96,8 +97,9 @@ async function performRapidClicks(x, y, count) {
   console.log(`Performing ${count} rapid clicks at (${x}, ${y}).`);
   for (let i = 0; i < count; i++) {
     await performClick(x, y);
-    await new Promise(resolve => setTimeout(resolve, 10)); // Increased delay between rapid clicks
+    await new Promise(resolve => setTimeout(resolve, 5)); // Changed delay between rapid clicks to 5ms
   }
+  await new Promise(resolve => setTimeout(resolve, 200)); // Added 200ms delay after the 10th click
   return { success: true };
 }
 

@@ -6,6 +6,20 @@ function startAutomation(dependencies) {
 
     let redBlobsTried = new Set(); // To keep track of red blobs already tried in the current cycle
 
+    // Helper function to remove the 'image' property from blob objects for logging
+    function omitImageFromLog(obj) {
+        if (Array.isArray(obj)) {
+            return obj.map(item => {
+                const { image, ...rest } = item;
+                return rest;
+            });
+        } else if (obj && typeof obj === 'object') {
+            const { image, ...rest } = obj;
+            return rest;
+        }
+        return obj;
+    }
+
     async function prepBuild(redBlobCoords) {
         updateStatus('Executing prepBuild function...', 'info');
         console.log('DEBUG: Executing prepBuild function...', 'info');
@@ -15,11 +29,11 @@ function startAutomation(dependencies) {
         if (!getIsAutomationRunning()) return 'stopped';
         let blueBoxes = await detectBlueBoxes(fullScreenDataUrl, iphoneMirroringRegion);
         if (!getIsAutomationRunning()) return 'stopped';
-        console.log('DEBUG: All blue boxes detected (before filtering for blue_build):', JSON.stringify(blueBoxes));
+        console.log('DEBUG: All blue boxes detected (before filtering for blue_build):', JSON.stringify(omitImageFromLog(blueBoxes)));
         // Consider 'blue_build' or 'unknown' states as valid blue build boxes for prepBuild
         let blueBuildBox = blueBoxes.find(box => box.state === 'blue_build' || box.state === 'unknown');
         if (!getIsAutomationRunning()) return 'stopped';
-        console.log('DEBUG: blueBuildBox object (after filtering):', blueBuildBox);
+        console.log('DEBUG: blueBuildBox object (after filtering):', omitImageFromLog(blueBuildBox));
         // Only log this if blueBuildBox is not null to avoid TypeError
         if (blueBuildBox) {
             console.log(`DEBUG: Blue build box coordinates before single click: X:${blueBuildBox.x}, Y:${blueBuildBox.y}.`);
@@ -51,7 +65,7 @@ function startAutomation(dependencies) {
         if (!getIsAutomationRunning()) return 'stopped';
         let blueBuildBoxAfterClick = blueBoxesAfterClick.find(box => box.state === 'blue_build' || box.state === 'unknown');
         if (!getIsAutomationRunning()) return 'stopped';
-        console.log('DEBUG: blueBuildBoxAfterClick object:', blueBuildBoxAfterClick);
+        console.log('DEBUG: blueBuildBoxAfterClick object:', omitImageFromLog(blueBuildBoxAfterClick));
 
         if (blueBuildBoxAfterClick) {
             updateStatus('Blue build still found after first click. Launching Finish Build automation.', 'info');
@@ -86,7 +100,7 @@ function startAutomation(dependencies) {
                     targetRedBlob = redBlobsForDoubleClick.reduce((prev, current) =>
                         (prev.y > current.y) ? prev : current
                     );
-                    console.log('DEBUG: Found red blob for double click:', JSON.stringify(targetRedBlob));
+                    console.log('DEBUG: Found red blob for double click:', JSON.stringify(omitImageFromLog(targetRedBlob)));
                 } else {
                     updateStatus('No red blobs found for double click after first blue build click.', 'error');
                     console.error('ERROR: No red blobs found for double click.');
@@ -126,7 +140,7 @@ function startAutomation(dependencies) {
             if (!getIsAutomationRunning()) return 'stopped';
             let blueBuildBoxAfterDoubleClick = blueBoxesAfterDoubleClick.find(box => box.state === 'blue_build' || box.state === 'unknown');
             if (!getIsAutomationRunning()) return 'stopped';
-            console.log('DEBUG: blueBuildBoxAfterDoubleClick object:', blueBuildBoxAfterDoubleClick);
+            console.log('DEBUG: blueBuildBoxAfterDoubleClick object:', omitImageFromLog(blueBuildBoxAfterDoubleClick));
 
             if (blueBuildBoxAfterDoubleClick) {
                 updateStatus('Blue build found after double click. Launching Finish Build automation.', 'info');
@@ -150,6 +164,44 @@ function startAutomation(dependencies) {
         }
     }
 
+    async function exitAndStartNewLevel(dependencies) {
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning } = dependencies;
+
+        updateStatus('Starting "Exit and Start New Level" routine.', 'info');
+        console.log('DEBUG: Starting "Exit and Start New Level" routine.');
+
+        if (!getIsAutomationRunning()) {
+            updateStatus('Automation stopped during "Exit and Start New Level" routine.', 'warn');
+            return;
+        }
+
+        // Click at "start exiting"
+        await performClick(CLICK_AREAS.START_EXITING.x, CLICK_AREAS.START_EXITING.y);
+        updateStatus('Clicked "Start Exiting".', 'info');
+        console.log(`DEBUG: Clicked "Start Exiting" at (${CLICK_AREAS.START_EXITING.x}, ${CLICK_AREAS.START_EXITING.y}).`);
+
+        // Wait 500ms
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!getIsAutomationRunning()) { return; }
+
+        // Click at "confirm exit"
+        await performClick(CLICK_AREAS.CONFIRM_EXIT.x, CLICK_AREAS.CONFIRM_EXIT.y);
+        updateStatus('Clicked "Confirm Exit".', 'info');
+        console.log(`DEBUG: Clicked "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}).`);
+
+        // Wait 10,000ms
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        if (!getIsAutomationRunning()) { return; }
+
+        // Click at "start level"
+        await performClick(CLICK_AREAS.START_LEVEL.x, CLICK_AREAS.START_LEVEL.y);
+        updateStatus('Clicked "Start Level".', 'info');
+        console.log(`DEBUG: Clicked "Start Level" at (${CLICK_AREAS.START_LEVEL.x}, ${CLICK_AREAS.START_LEVEL.y}).`);
+
+        updateStatus('"Exit and Start New Level" routine completed.', 'success');
+        console.log('DEBUG: "Exit and Start New Level" routine completed.');
+    }
+
     async function runFinishLevelProtocol() {
         while (getIsAutomationRunning()) {
             updateStatus('Checking for blue build box...', 'info');
@@ -163,6 +215,27 @@ function startAutomation(dependencies) {
                 redBlobsTried.clear(); // Reset tried blobs if a blue box is found and build is about to start
                 const result = await prepBuild(null);
                 if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during prepBuild
+
+                // After prepBuild, check for "exit level" red blob
+                updateStatus('Checking for "exit level" red blob after prepBuild (blue box found).', 'info');
+                console.log('DEBUG: Checking for "exit level" red blob (blue box found).');
+                const fullScreenDataUrlAfterBuild = await captureScreenRegion();
+                const redBlobsAfterBuild = await redBlobDetectorDetect(fullScreenDataUrlAfterBuild, iphoneMirroringRegion);
+                console.log(`DEBUG: Red blobs detected after prepBuild for exit level check (blue box found): ${JSON.stringify(omitImageFromLog(redBlobsAfterBuild))}`);
+                const exitLevelBlobFound = redBlobsAfterBuild.some(blob => blob.name === 'exit level');
+
+                if (exitLevelBlobFound) {
+                    updateStatus('"Exit level" red blob detected. Initiating exit and restart.', 'info');
+                    console.log('DEBUG: "Exit level" red blob detected. Calling exitAndStartNewLevel.');
+                    await exitAndStartNewLevel(dependencies); // Pass dependencies here
+                    if (!getIsAutomationRunning()) { // Check if automation was stopped during exitAndStartNewLevel
+                        updateStatus('Finish Level automation stopped during exit and new level start.', 'warn');
+                        break;
+                    }
+                    // After exiting and starting a new level, the loop continues to re-detect from scratch
+                    continue;
+                }
+
                 if (result === 'max_build_achieved') {
                     updateStatus('Finish Build reported MAX build. Finish Level continuing loop.', 'success');
                     console.log('DEBUG: Finish Build reported MAX build. Finish Level continuing loop.');
@@ -209,29 +282,51 @@ function startAutomation(dependencies) {
                         console.log(`DEBUG: Clicking near red blob at X:${Math.round(clickX)}, Y:${Math.round(clickY)}`);
                         await performClick(Math.round(clickX), Math.round(clickY));
                         if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during performClick
-                        const result = await prepBuild(highestYBlob);
+                        const prepBuildResult = await prepBuild(highestYBlob ? { x: highestYBlob.x, y: highestYBlob.y, width: highestYBlob.width, height: highestYBlob.height } : null, dependencies);
                         if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during prepBuild
 
-                        if (result === 'no_blue_build' || result === 'no_red_blobs_found') {
-                            redBlobsTried.add(JSON.stringify(highestYBlob));
-                            updateStatus('No blue build or red blobs found after red blob click. Trying another red blob.', 'warn');
-                            console.log('DEBUG: No blue build or red blobs found after red blob click. Marking as tried.');
-                        } else if (result === 'max_build_achieved') {
-                            updateStatus('Finish Build reported MAX build. Finish Level continuing loop.', 'success');
-                            console.log('DEBUG: Finish Build reported MAX build. Finish Level continuing loop.');
-                            // Do not break; continue the loop
-                        } else if (result === 'finish_build_launched') {
+                        if (!getIsAutomationRunning()) {
+                            updateStatus('Finish Level automation stopped during prepBuild processing.', 'warn');
+                            break;
+                        }
+
+                        // After prepBuild, check for "exit level" red blob
+                        updateStatus('Checking for "exit level" red blob after prepBuild (red blob clicked).', 'info');
+                        console.log('DEBUG: Checking for "exit level" red blob (red blob clicked).');
+                        const fullScreenDataUrlAfterBuild = await captureScreenRegion();
+                        const redBlobsAfterBuild = await redBlobDetectorDetect(fullScreenDataUrlAfterBuild, iphoneMirroringRegion);
+                        console.log(`DEBUG: Red blobs detected after prepBuild for exit level check (red blob clicked): ${JSON.stringify(omitImageFromLog(redBlobsAfterBuild))}`);
+                        const exitLevelBlobFound = redBlobsAfterBuild.some(blob => blob.name === 'exit level');
+
+                        if (exitLevelBlobFound) {
+                            updateStatus('"Exit level" red blob detected. Initiating exit and restart.', 'info');
+                            console.log('DEBUG: "Exit level" red blob detected. Calling exitAndStartNewLevel.');
+                            await exitAndStartNewLevel(dependencies); // Pass dependencies here
+                            if (!getIsAutomationRunning()) { // Check if automation was stopped during exitAndStartNewLevel
+                                updateStatus('Finish Level automation stopped during exit and new level start.', 'warn');
+                                break;
+                            }
+                            // After exiting and starting a new level, the loop continues to re-detect from scratch
+                            continue; 
+                        }
+
+                        if (prepBuildResult === 'max_build_achieved') {
+                            updateStatus('Finish Build reported MAX build. Continuing Finish Level loop.', 'info');
+                            console.log('DEBUG: prepBuild reported MAX build, continuing Finish Level loop.');
+                            // Continue the loop, allowing Finish Level to re-evaluate for blue/red blobs
+                            continue;
+                        } else if (prepBuildResult === 'error' || prepBuildResult === 'stopped') {
+                            updateStatus('PrepBuild encountered an error or was stopped. Stopping Finish Level.', 'error');
+                            console.error('ERROR: PrepBuild returned an error or stopped state. Stopping Finish Level.');
+                            break; // Stop the loop on error
+                        } else if (prepBuildResult === 'finish_build_launched') {
                             redBlobsTried.clear(); // Reset tried blobs if finishBuild was launched successfully
                             updateStatus('Finish Build automation successfully launched from prepBuild after red blob click.', 'info');
                             console.log('DEBUG: Finish Build automation successfully launched after red blob click.');
-                        } else if (result === 'error') {
-                            updateStatus('PrepBuild encountered an error. Continuing Finish Level loop.', 'error');
-                            console.error('ERROR: PrepBuild returned an error state. Continuing Finish Level loop.');
-                            // Do not break; continue the loop to find other red blobs or blue build
-                        } else if (result === 'stopped') {
-                            updateStatus('Finish Level automation stopped during prepBuild.', 'info');
-                            console.log('DEBUG: Finish Level automation stopped during prepBuild.');
-                            break; // Exit the loop if automation was stopped
+                        } else if (prepBuildResult === 'no_blue_build' || prepBuildResult === 'no_red_blobs_found') {
+                            redBlobsTried.add(JSON.stringify(highestYBlob));
+                            updateStatus('No blue build or red blobs found after red blob click. Trying another red blob.', 'warn');
+                            console.log('DEBUG: No blue build or red blobs found after red blob click. Marking as tried.');
                         }
                     } else {
                         updateStatus('No untried red blobs found after reset. Continuing...', 'warn');
