@@ -246,7 +246,7 @@ function startAutomation(dependencies) {
             updateStatus('Checking for blue build box...', 'info');
             const fullScreenDataUrl = await captureScreenRegion();
             const blueBoxes = await detectBlueBoxes(fullScreenDataUrl, iphoneMirroringRegion);
-            const blueBuildBox = blueBoxes.find(box => box.state === 'blue_build' || box.state === 'grey_build');
+            const blueBuildBox = blueBoxes.find(box => box.state === 'blue_build' || box.state === 'grey_build' || box.state === 'unknown');
 
             if (blueBuildBox) {
                 detectionAttemptCount = 0; // Reset on success

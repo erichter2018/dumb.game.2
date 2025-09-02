@@ -10,6 +10,7 @@ const robot = require('robotjs'); // Import robotjs
 // Import detector modules
 const redBlobDetector = require('./src/detection/redBlobDetector');
 const blueBoxDetector = require('./src/detection/blueBoxDetector');
+const redBlobDetectorCutoff = require('./src/detection/redBlobDetectorCutoff');
 const finishBuildAutomation = require('./src/automation/finishBuild');
 const finishLevelAutomation = require('./src/automation/finishLevel');
 
@@ -335,8 +336,16 @@ ipcMain.handle('detect-red-blob', async () => {
     const metadata = await sharpImage.metadata();
     console.log(`Captured full screen image dimensions: ${metadata.width}x${metadata.height}`);
 
-    const detections = await redBlobDetector.detect(fullScreenDataUrl, iphoneMirroringRegion);
-    return { success: true, detections };
+    const mainDetections = await redBlobDetector.detect(fullScreenDataUrl, iphoneMirroringRegion);
+    const cutoffDetections = await redBlobDetectorCutoff.detect(fullScreenDataUrl, iphoneMirroringRegion);
+
+    // Add source property to each detection
+    const allDetections = [
+      ...mainDetections.map(d => ({ ...d, source: 'main' })),
+      ...cutoffDetections.map(d => ({ ...d, source: 'cutoff' }))
+    ];
+
+    return { success: true, detections: allDetections };
   } catch (error) {
     console.error('Error detecting red blobs:', error);
     return { success: false, error: error.message };

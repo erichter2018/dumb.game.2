@@ -535,6 +535,13 @@ async function detect(imageDataUrl, captureRegion) {
             finalBoxCounter++;
         }
 
+        // New filtering logic: if a 'blue_build' box is found, suppress all 'unknown' boxes
+        const hasBlueBuildBox = detections.some(box => box.state === 'blue_build');
+        if (hasBlueBuildBox) {
+            console.log('DEBUG: A \'blue_build\' box was detected. Filtering out all \'unknown\' boxes.');
+            return detections.filter(box => box.state !== 'unknown');
+        }
+
     } catch (error) {
         console.error('Error in blue box detection with Sharp:', error);
     }

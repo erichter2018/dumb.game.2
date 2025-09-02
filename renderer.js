@@ -225,6 +225,9 @@ function displayDetections(resultsContainer, detections) {
         if (item.state) {
             displayText += `<span> (${item.state})</span>`;
         }
+        if (item.source) {
+            displayText += `<span> [Source: ${item.source}]</span>`;
+        }
         resultDiv.innerHTML = displayText;
         
         if (item.image) {

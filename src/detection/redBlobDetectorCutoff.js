@@ -1,5 +1,4 @@
 const sharp = require('sharp');
-const redBlobDetectorCutoff = require('./redBlobDetectorCutoff');
 
 async function detect(imageDataUrl, captureRegion) {
     console.log('Detecting red blobs with Sharp...', { captureRegion });
@@ -141,10 +140,10 @@ async function detect(imageDataUrl, captureRegion) {
 
                     if (area >= expectedMinArea * 0.5 && area <= expectedMaxArea * 1.5 && 
                         blobWidth >= blobSizeMin * 0.5 && blobWidth <= blobSizeMax * 1.5 && 
-                        blobHeight >= blobSizeMin * 0.5 && blobHeight <= blobSizeMax * 1.5) {
+                        blobHeight >= blobSizeMin * 0.3 && blobHeight <= blobSizeMax * 1.5) { // Relaxed blobHeightMin to 0.3
 
                         const aspectRatio = blobWidth / blobHeight;
-                        if (aspectRatio > 0.7 && aspectRatio < 1.3) { 
+                        if (aspectRatio > 0.5 && aspectRatio < 1.5) { // Widened aspect ratio tolerance
 
                             // For arrow detection, refine the white pixel check in the upper middle
                             let hasWhiteArrow = false;
@@ -232,20 +231,6 @@ async function detect(imageDataUrl, captureRegion) {
 
         console.log(`Filtered and named blobs for extraction: ${JSON.stringify(omitImageFromLog(filteredAndNamedBlobs))}`);
 
-        // If no blobs are found by the main detector, try the cutoff detector
-        if (filteredAndNamedBlobs.length === 0) {
-            console.log('DEBUG: No blobs found by main detector, attempting with redBlobDetectorCutoff.');
-            let cutoffDetections = await redBlobDetectorCutoff.detect(imageDataUrl, captureRegion);
-
-            // Remove the 'source' property from cutoffDetections before returning
-            const cleanedCutoffDetections = cutoffDetections.map(d => {
-                const { source, ...rest } = d;
-                return rest;
-            });
-            console.log(`DEBUG: Red blobs found by cutoff detector (cleaned): ${JSON.stringify(omitImageFromLog(cleanedCutoffDetections))}`);
-            return cleanedCutoffDetections; // Return blobs from cutoff detector
-        }
-
         // Now, extract images for the detected blobs from the original full screen image
         let blobCounter = 1;
         for (const blob of filteredAndNamedBlobs) {
@@ -285,7 +270,8 @@ async function detect(imageDataUrl, captureRegion) {
                 width: blob.width,
                 height: blob.height,
                 name: blob.name || undefined,
-                image: `data:image/png;base64,${croppedBlobBuffer.toString('base64')}`
+                image: `data:image/png;base64,${croppedBlobBuffer.toString('base64')}`,
+                source: 'cutoff'
             });
             blobCounter++;
         }
