@@ -1,9 +1,11 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, screen, desktopCapturer } = require('electron');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const sharp = require('sharp'); // Import sharp
+const robot = require('robotjs'); // Import robotjs
 
 // Import detector modules
 const redBlobDetector = require('./src/detection/redBlobDetector');
@@ -95,12 +97,36 @@ async function clickAndHold(x, y, duration, getIsAutomationRunning) {
 
 async function performRapidClicks(x, y, count) {
   console.log(`Performing ${count} rapid clicks at (${x}, ${y}).`);
+  // Commenting out the original loop
+  // for (let i = 0; i < count; i++) {
+  //   await performClick(x, y);
+  //   await new Promise(resolve => setTimeout(resolve, 5)); // Changed delay between rapid clicks to 5ms
+  // }
+  // await new Promise(resolve => setTimeout(resolve, 200)); // Added 200ms delay after the 10th click
+
+  // Construct a single cliclick command for rapid sequential clicks with a 100ms wait
+  const clickCommands = [];
   for (let i = 0; i < count; i++) {
-    await performClick(x, y);
-    await new Promise(resolve => setTimeout(resolve, 5)); // Changed delay between rapid clicks to 5ms
+    clickCommands.push(`c:${x},${y}`);
+    if (i < count - 1) {
+      clickCommands.push(`w:10`); // 10ms wait between clicks
+    }
   }
-  await new Promise(resolve => setTimeout(resolve, 200)); // Added 200ms delay after the 10th click
-  return { success: true };
+  const fullCommand = `cliclick ${clickCommands.join(' ')}`;
+
+  try {
+    console.log(`Executing rapid clicks via cliclick: ${fullCommand}`);
+    const { stdout, stderr } = await execAsync(fullCommand);
+    if (stderr) {
+      console.error(`cliclick rapid clicks stderr: ${stderr}`);
+    }
+    console.log(`cliclick rapid clicks stdout: ${stdout}`);
+    console.log(`Successfully performed ${count} rapid clicks at: (${x}, ${y})`);
+    return { success: true };
+  } catch (error) {
+    console.error(`Error performing rapid clicks at (${x}, ${y}):`, error);
+    return { success: false, error: error.message };
+  }
 }
 
 // New function to perform the click, called internally by main process
@@ -544,6 +570,86 @@ ipcMain.handle('pause-automation-on-mouse-move', async () => {
 ipcMain.handle('simulate-click', async (event, x, y) => {
   return performClick(x, y);
 });
+
+ipcMain.handle('activate-iphone-mirroring', async () => {
+  console.log('DEBUG: Activating iPhone Mirroring app via IPC.');
+  await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
+  await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after activation
+  return { success: true };
+});
+
+ipcMain.handle('scroll-down', async (event, x, y, distance) => {
+  return scrollDown(x, y, distance);
+});
+
+ipcMain.handle('scroll-up', async (event, x, y, distance) => {
+  return scrollUp(x, y, distance);
+});
+
+ipcMain.handle('scroll-to-bottom', async (event, x, y, distance, count) => {
+  return scrollToBottom(x, y, distance, count);
+});
+
+// New functions for scrolling vertically
+async function scrollDown(x, y, distance) {
+  console.log(`Attempting smooth click-drag down from (${x}, ${y}) by ${distance} pixels using RobotJS.`);
+  try {
+    // 1. Move mouse to start point
+    robot.moveMouse(x, y);
+    await new Promise(resolve => setTimeout(resolve, 50)); 
+
+    // 2. Press and hold left mouse button
+    robot.mouseToggle('down', 'left');
+    await new Promise(resolve => setTimeout(resolve, 50)); 
+
+    // 3. Drag mouse to end point
+    robot.dragMouse(x, y - distance); // Drag upwards to scroll down
+    await new Promise(resolve => setTimeout(resolve, 50)); 
+
+    // 4. Release left mouse button
+    robot.mouseToggle('up', 'left');
+    console.log(`Successfully performed smooth click-drag down from (${x}, ${y}) by ${distance} pixels.`);
+    return { success: true };
+  } catch (error) {
+    console.error(`Error executing RobotJS scroll down: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+async function scrollUp(x, y, distance) {
+  console.log(`Attempting smooth click-drag up from (${x}, ${y}) by ${distance} pixels using RobotJS.`);
+  try {
+    // 1. Move mouse to start point
+    robot.moveMouse(x, y);
+    await new Promise(resolve => setTimeout(resolve, 50)); 
+
+    // 2. Press and hold left mouse button
+    robot.mouseToggle('down', 'left');
+    await new Promise(resolve => setTimeout(resolve, 50)); 
+
+    // 3. Drag mouse to end point
+    robot.dragMouse(x, y + distance); // Drag downwards to scroll up
+    await new Promise(resolve => setTimeout(resolve, 50)); 
+
+    // 4. Release left mouse button
+    robot.mouseToggle('up', 'left');
+    console.log(`Successfully performed smooth click-drag up from (${x}, ${y}) by ${distance} pixels.`);
+    return { success: true };
+  } catch (error) {
+    console.error(`Error executing RobotJS scroll up: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+async function scrollToBottom(x, y, distance, count) {
+  console.log(`Attempting to scroll to bottom at (${x}, ${y}).`);
+  for (let i = 0; i < count; i++) {
+    await scrollDown(x, y, distance);
+    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between scrolls
+  }
+  console.log(`Successfully scrolled to bottom at (${x}, ${y}).`);
+  return { success: true };
+}
 
 // Helper function to start the capture interval
 async function startCaptureInterval(interval = 500) {

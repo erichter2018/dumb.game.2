@@ -20,6 +20,11 @@ const finishBuildStatus = document.getElementById('finishBuildStatus');
 const finishBuildStatusList = document.getElementById('finishBuildStatusList');
 const toggleFinishLevelBtn = document.getElementById('toggleFinishLevelBtn');
 
+// New DOM Elements for Scrolling Controls
+const scrollDownBtn = document.getElementById('scrollDownBtn');
+const scrollUpBtn = document.getElementById('scrollUpBtn');
+const scrollToBottomBtn = document.getElementById('scrollToBottomBtn');
+
 // Canvas context
 const ctx = previewCanvas.getContext('2d');
 
@@ -155,6 +160,52 @@ toggleFinishLevelBtn.addEventListener('click', async () => {
     }
     console.log(`DEBUG: Toggling finish level automation to: ${isFinishLevelRunning}`);
     await ipcRenderer.invoke('toggle-finish-level', isFinishLevelRunning);
+});
+
+// Event listeners for new scrolling buttons
+scrollDownBtn.addEventListener('click', async () => {
+    updateStatus('Scrolling down...', 'info');
+    try {
+        await ipcRenderer.invoke('activate-iphone-mirroring'); // Activate app before scroll
+        const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
+        const centerX = regionX + regionWidth / 2;
+        const centerY = regionY + regionHeight / 2;
+        console.log(`DEBUG: Scroll Down initiated at centerX: ${centerX}, centerY: ${centerY}`);
+        await ipcRenderer.invoke('scroll-down', centerX, centerY, 100); // Scroll 100 pixels
+        updateStatus('Scrolled down.', 'success');
+    } catch (error) {
+        updateStatus(`Failed to scroll down: ${error.message}`, 'error');
+    }
+});
+
+scrollUpBtn.addEventListener('click', async () => {
+    updateStatus('Scrolling up...', 'info');
+    try {
+        await ipcRenderer.invoke('activate-iphone-mirroring'); // Activate app before scroll
+        const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
+        const centerX = regionX + regionWidth / 2;
+        const centerY = regionY + regionHeight / 2;
+        console.log(`DEBUG: Scroll Up initiated at centerX: ${centerX}, centerY: ${centerY}`);
+        await ipcRenderer.invoke('scroll-up', centerX, centerY, 100); // Scroll 100 pixels
+        updateStatus('Scrolled up.', 'success');
+    } catch (error) {
+        updateStatus(`Failed to scroll up: ${error.message}`, 'error');
+    }
+});
+
+scrollToBottomBtn.addEventListener('click', async () => {
+    updateStatus('Scrolling to bottom...', 'info');
+    try {
+        await ipcRenderer.invoke('activate-iphone-mirroring'); // Activate app before scroll
+        const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
+        const centerX = regionX + regionWidth / 2;
+        const centerY = regionY + regionHeight / 2;
+        console.log(`DEBUG: Scroll to Bottom initiated at centerX: ${centerX}, centerY: ${centerY}`);
+        await ipcRenderer.invoke('scroll-to-bottom', centerX, centerY, 100, 10); // Scroll 100 pixels, 10 times
+        updateStatus('Scrolled to bottom.', 'success');
+    } catch (error) {
+        updateStatus(`Failed to scroll to bottom: ${error.message}`, 'error');
+    }
 });
 
 // Helper to display detection results

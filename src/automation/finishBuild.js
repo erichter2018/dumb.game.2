@@ -15,10 +15,14 @@ Protocol for Finish Build Automation (Simplified):
 // These are global within this module but managed by main.js through setters/getters
 let blueBoxCoords = null; // Store blue box coordinates for repeated clicks
 let lastBlueBoxFound = false; // New flag to track if a blue box was found in the previous cycle
+let lastConfirmedBlueBoxCoords = null; // Stores the coordinates of the blue box confirmed after multiple checks
+let consecutiveNewBoxDetectionsCount = 0; // Counts how many times a new box is detected consecutively
 
 function resetAutomationState() {
   blueBoxCoords = null; // Ensure blue box is re-detected after pause/stop
   lastBlueBoxFound = false; // Ensure blue box is re-detected after pause/stop
+  lastConfirmedBlueBoxCoords = null; // Reset confirmed coords
+  consecutiveNewBoxDetectionsCount = 0; // Reset counter
 }
 
     // Helper function to remove the 'image' property from blob objects for logging
@@ -34,6 +38,13 @@ function resetAutomationState() {
         }
         return obj;
     }
+
+// Helper to check if two coordinate sets are similar within a tolerance
+function areCoordsSimilar(coords1, coords2, tolerance = 10) {
+    if (!coords1 || !coords2) return false;
+    return Math.abs(coords1.x - coords2.x) <= tolerance &&
+           Math.abs(coords1.y - coords2.y) <= tolerance;
+}
 
 async function stopAutomation(dependencies) {
     const { updateStatus, setIsHoldingBlueBox, clickUp, getlastBlueBoxClickCoords, setlastBlueBoxClickCoords } = dependencies;
@@ -149,7 +160,7 @@ async function doResearch(dependencies) {
     console.log('DEBUG: Research cycle completed.');
 }
 
-async function findBlueBoxWithRetry(dependencies) {
+async function findBlueBoxWithRetry(dependencies, preferredCoords = null) {
     const { captureScreenRegion, detectBlueBoxes, iphoneMirroringRegion, updateStatus, getIsAutomationRunning } = dependencies;
     
     const MAX_RETRIES = 3; // Changed: Maximum number of retries from 10 to 3
@@ -224,9 +235,17 @@ async function runBuildProtocol(dependencies) {
 
         // If we found any valid box (blue_build, grey_build, other_grey), set its coords as current
         blueBoxCoords = initialDetectedBox.coords;
+        lastConfirmedBlueBoxCoords = initialDetectedBox.coords; // Initialize lastConfirmedBlueBoxCoords
         lastBlueBoxFound = true; // Mark as found for subsequent checks
         updateStatus(`Initial build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${initialDetectedBox.state})`, 'info');
         console.log(`DEBUG: Initial build box found: ${JSON.stringify(omitImageFromLog(initialDetectedBox))}`);
+
+        // Helper function to compare coordinates with a tolerance
+        const areCoordsSimilar = (coords1, coords2, tolerance = 5) => {
+            if (!coords1 || !coords2) return false;
+            return Math.abs(coords1.x - coords2.x) <= tolerance &&
+                   Math.abs(coords1.y - coords2.y) <= tolerance;
+        };
 
         // Step 2: Start a loop
         while (getIsAutomationRunning()) {
@@ -251,9 +270,29 @@ async function runBuildProtocol(dependencies) {
 
                 return 'max_build_achieved'; // Return status to indicate MAX build
             } else { // It's a blue_build, grey_build, or other_grey box
-                blueBoxCoords = currentDetectedBox.coords; // Use the click coords from the newly detected box
-                updateStatus(`Build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${currentDetectedBox.state})`, 'info');
-                console.log(`DEBUG: Build box found in current cycle: ${JSON.stringify(omitImageFromLog(currentDetectedBox))}`);
+                // Compare current detection with last confirmed blue box
+                if (lastConfirmedBlueBoxCoords && areCoordsSimilar(currentDetectedBox.coords, lastConfirmedBlueBoxCoords)) {
+                    consecutiveNewBoxDetectionsCount = 0; // Reset counter if the same box is detected
+                    blueBoxCoords = currentDetectedBox.coords; // Update with current coords (even if similar, might be slight shifts)
+                    updateStatus(`Build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${currentDetectedBox.state})`, 'info');
+                    console.log(`DEBUG: Build box found in current cycle: ${JSON.stringify(omitImageFromLog(currentDetectedBox))}`);
+                } else {
+                    consecutiveNewBoxDetectionsCount++;
+                    console.log(`DEBUG: Detected a different blue box. Consecutive different detections: ${consecutiveNewBoxDetectionsCount}. Current detected: ${JSON.stringify(omitImageFromLog(currentDetectedBox))}, Last confirmed: ${JSON.stringify(omitImageFromLog(lastConfirmedBlueBoxCoords))}`);
+
+                    if (consecutiveNewBoxDetectionsCount >= 3) {
+                        updateStatus(`New build box confirmed after ${consecutiveNewBoxDetectionsCount} consecutive detections. Switching to new box.`, 'info');
+                        lastConfirmedBlueBoxCoords = currentDetectedBox.coords; // Confirm new box
+                        blueBoxCoords = currentDetectedBox.coords; // Use new box coords
+                        consecutiveNewBoxDetectionsCount = 0; // Reset counter
+                        console.log(`DEBUG: Switched to new blue box at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y}.`);
+                    } else {
+                        updateStatus(`Detected a different blue box, but sticking to last confirmed for now. (${consecutiveNewBoxDetectionsCount}/3)`, 'warn');
+                        // Stick to lastConfirmedBlueBoxCoords for now
+                        blueBoxCoords = lastConfirmedBlueBoxCoords; 
+                        console.log(`DEBUG: Sticking to last confirmed blue box at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y}.`);
+                    }
+                }
             }
 
             // Step 3: Call a function to hold down in the middle of the current blue box for 5 seconds

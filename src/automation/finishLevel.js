@@ -5,6 +5,7 @@ function startAutomation(dependencies) {
     console.log('Finish Level Automation Started');
 
     let redBlobsTried = new Set(); // To keep track of red blobs already tried in the current cycle
+    let lastRedBlobCoords = null; // To store the coordinates of the last successfully clicked red blob
 
     // Helper function to remove the 'image' property from blob objects for logging
     function omitImageFromLog(obj) {
@@ -280,6 +281,7 @@ function startAutomation(dependencies) {
                     updateStatus('No red blobs found (excluding named exit level blob if present). Trying again in 1 second...', 'warn');
                     console.log('DEBUG: No red blobs found (excluding named exit level blob if present). Trying again in 1 second...');
                     redBlobsTried.clear(); // Clear tried blobs if no red blobs are found at all
+                    lastRedBlobCoords = null; // Clear if no red blobs are found at all
                     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before re-attempting
                     continue; // Continue the loop to re-detect from scratch
                 }
@@ -287,24 +289,50 @@ function startAutomation(dependencies) {
                 if (redBlobs.length > 0) {
                     let untriedRedBlobs = redBlobs.filter(blob => !redBlobsTried.has(JSON.stringify(blob)) && !blob.name);
 
-                    if (untriedRedBlobs.length === 0) {
-                        console.log('DEBUG: All red blobs tried or all remaining are named. Resetting and re-attempting with all unnamed blobs.', 'info');
-                        redBlobsTried.clear();
-                        untriedRedBlobs = redBlobs.filter(blob => !blob.name); // Reset with only unnamed blobs
+                    let targetBlob = null;
+
+                    // Prioritize the last red blob if it's still present and not a named blob
+                    if (lastRedBlobCoords) {
+                        const foundLastBlob = untriedRedBlobs.find(blob =>
+                            Math.abs(blob.x - lastRedBlobCoords.x) < 5 &&
+                            Math.abs(blob.y - lastRedBlobCoords.y) < 5 &&
+                            !blob.name // Ensure it's not a named blob
+                        );
+                        if (foundLastBlob) {
+                            targetBlob = foundLastBlob;
+                            updateStatus('Prioritizing last clicked red blob.', 'info');
+                            console.log('DEBUG: Prioritizing last clicked red blob:', JSON.stringify(omitImageFromLog(targetBlob)));
+                        } else {
+                            lastRedBlobCoords = null; // Clear if not found
+                            console.log('DEBUG: Last clicked red blob not found or is a named blob. Clearing lastRedBlobCoords.');
+                        }
                     }
 
-                    if (untriedRedBlobs.length > 0) {
-                        // Select the one with the highest Y-axis from untried blobs
-                        const highestYBlob = untriedRedBlobs.reduce((prev, current) =>
-                            (prev.y > current.y) ? prev : current
-                        );
-                        const clickX = highestYBlob.x + highestYBlob.width / 2 + 25;
-                        const clickY = highestYBlob.y + highestYBlob.height / 2 + 25;
+                    if (!targetBlob) {
+                        if (untriedRedBlobs.length === 0) {
+                            console.log('DEBUG: All red blobs tried or all remaining are named. Resetting and re-attempting with all unnamed blobs.', 'info');
+                            redBlobsTried.clear();
+                            untriedRedBlobs = redBlobs.filter(blob => !blob.name); // Reset with only unnamed blobs
+                        }
+
+                        if (untriedRedBlobs.length > 0) {
+                            // Select the one with the highest Y-axis from untried blobs
+                            targetBlob = untriedRedBlobs.reduce((prev, current) =>
+                                (prev.y > current.y) ? prev : current
+                            );
+                            updateStatus('No last clicked red blob or not found, selecting highest Y-axis untried red blob.', 'info');
+                            console.log('DEBUG: No last clicked red blob or not found, selecting highest Y-axis untried red blob:', JSON.stringify(omitImageFromLog(targetBlob)));
+                        }
+                    }
+
+                    if (targetBlob) {
+                        const clickX = targetBlob.x + targetBlob.width / 2 + 25;
+                        const clickY = targetBlob.y + targetBlob.height / 2 + 25;
                         updateStatus(`Clicking near red blob at X:${Math.round(clickX)}, Y:${Math.round(clickY)}`, 'info');
                         console.log(`DEBUG: Clicking near red blob at X:${Math.round(clickX)}, Y:${Math.round(clickY)}`);
                         await performClick(Math.round(clickX), Math.round(clickY));
                         if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during performClick
-                        const prepBuildResult = await prepBuild(highestYBlob ? { x: highestYBlob.x, y: highestYBlob.y, width: highestYBlob.width, height: highestYBlob.height } : null, dependencies);
+                        const prepBuildResult = await prepBuild(targetBlob ? { x: targetBlob.x, y: targetBlob.y, width: targetBlob.width, height: targetBlob.height } : null);
                         if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during prepBuild
 
                         if (!getIsAutomationRunning()) {
@@ -343,10 +371,12 @@ function startAutomation(dependencies) {
                             break; // Stop the loop on error
                         } else if (prepBuildResult === 'finish_build_launched') {
                             redBlobsTried.clear(); // Reset tried blobs if finishBuild was launched successfully
+                            lastRedBlobCoords = targetBlob; // Store the last successfully clicked red blob
                             updateStatus('Finish Build automation successfully launched from prepBuild after red blob click.', 'info');
                             console.log('DEBUG: Finish Build automation successfully launched after red blob click.');
                         } else if (prepBuildResult === 'no_blue_build' || prepBuildResult === 'no_red_blobs_found' || prepBuildResult === 'finish_build_failed_no_blue_box') {
-                            redBlobsTried.add(JSON.stringify(highestYBlob));
+                            redBlobsTried.add(JSON.stringify(targetBlob));
+                            lastRedBlobCoords = null; // Clear if not successful
                             updateStatus('No blue build or red blobs found after red blob click. Trying another red blob.', 'warn');
                             console.log('DEBUG: No blue build or red blobs found after red blob click. Marking as tried.');
                         }
@@ -359,6 +389,7 @@ function startAutomation(dependencies) {
                     updateStatus('No red blobs found. Trying again in 1 second...', 'warn');
                     console.log('DEBUG: No red blobs found. Trying again in 1 second...');
                     redBlobsTried.clear(); // Clear tried blobs if no red blobs are found at all
+                    lastRedBlobCoords = null; // Clear if no red blobs are found
                     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before re-attempting
                     // Do not `continue` here, let the main loop handle the 2-second delay for consistency.
                 }
