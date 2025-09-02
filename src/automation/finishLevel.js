@@ -21,6 +21,8 @@ function startAutomation(dependencies) {
         return obj;
     }
 
+    let hasFinishedBuildOnce = false;
+
     async function prepBuild(redBlobCoords) {
         updateStatus('Executing prepBuild function...', 'info');
         console.log('DEBUG: Executing prepBuild function...', 'info');
@@ -74,6 +76,16 @@ function startAutomation(dependencies) {
             // Launch finishBuild automation
             const buildResult = await dependencies.finishBuildAutomationRunBuildProtocol(dependencies); // Corrected dependency call
             if (!getIsAutomationRunning()) return 'stopped';
+
+            if ((buildResult === 'max_build_achieved' || buildResult === 'finish_build_launched') && !hasFinishedBuildOnce) {
+                console.log('DEBUG: First successful Finish Build detected. Scrolling to bottom.');
+                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                await scrollToBottom(scrollX, scrollY, 100, 20);
+                if (!getIsAutomationRunning()) return 'stopped';
+                hasFinishedBuildOnce = true;
+            }
+
             if (buildResult === 'max_build_achieved') {
                 updateStatus('Finish Build reported MAX build. Exiting prepBuild.', 'success');
                 console.log('DEBUG: Finish Build reported MAX build. Exiting prepBuild.');
@@ -152,6 +164,16 @@ function startAutomation(dependencies) {
                 console.log('DEBUG: Blue build found after double click. Launching Finish Build.');
                 const buildResult = await dependencies.finishBuildAutomationRunBuildProtocol(dependencies); // Corrected dependency call
                 if (!getIsAutomationRunning()) return 'stopped';
+
+                if ((buildResult === 'max_build_achieved' || buildResult === 'finish_build_launched') && !hasFinishedBuildOnce) {
+                    console.log('DEBUG: First successful Finish Build detected. Scrolling to bottom.');
+                    const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                    const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                    await scrollToBottom(scrollX, scrollY, 100, 20);
+                    if (!getIsAutomationRunning()) return 'stopped';
+                    hasFinishedBuildOnce = true;
+                }
+
                 if (buildResult === 'max_build_achieved') {
                     updateStatus('Finish Build reported MAX build. Exiting prepBuild.', 'success');
                     console.log('DEBUG: Finish Build reported MAX build. Exiting prepBuild.');
@@ -201,9 +223,9 @@ function startAutomation(dependencies) {
         console.log('DEBUG: Performing extra click at "Start Level" after 100ms.');
         await new Promise(resolve => setTimeout(resolve, 100));
         if (!getIsAutomationRunning()) { return; }
-        await performClick(CLICK_AREAS.START_LEVEL.x, CLICK_AREAS.START_LEVEL.y);
+        await performClick(230, 676);
         updateStatus('Performed extra click at "Start Level".', 'info');
-        console.log(`DEBUG: Extra click performed at "Start Level" at (${CLICK_AREAS.START_LEVEL.x}, ${CLICK_AREAS.START_LEVEL.y}). Routine complete.`);
+        console.log(`DEBUG: Extra click performed at "Start Level" at (230, 676). Routine complete.`);
 
         updateStatus('"Exit and Start New Level" routine completed.', 'success');
         console.log('DEBUG: "Exit and Start New Level" routine completed.');
@@ -413,6 +435,15 @@ function startAutomation(dependencies) {
                             lastRedBlobCoords = targetBlob; // Store the last successfully clicked red blob
                             updateStatus('Finish Build automation successfully launched from prepBuild after red blob click.', 'info');
                             console.log('DEBUG: Finish Build automation successfully launched after red blob click.');
+
+                            if (!hasFinishedBuildOnce) {
+                                console.log('DEBUG: First successful Finish Build detected after red blob click. Scrolling to bottom.');
+                                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                                await scrollToBottom(scrollX, scrollY, 100, 20);
+                                if (!getIsAutomationRunning()) break;
+                                hasFinishedBuildOnce = true;
+                            }
                         } else if (prepBuildResult === 'no_blue_build' || prepBuildResult === 'no_red_blobs_found' || prepBuildResult === 'finish_build_failed_no_blue_box') {
                             redBlobsTried.add(JSON.stringify(targetBlob));
                             lastRedBlobCoords = null; // Clear if not successful
