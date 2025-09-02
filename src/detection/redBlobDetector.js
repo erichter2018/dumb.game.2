@@ -28,6 +28,15 @@ async function detect(imageDataUrl, captureRegion) {
 
         const visited = new Set();
 
+        // Define new rectangular exclusion zones
+        const EXCLUSION_RECTS = [
+            { x: 0, y: 0, width: 100, height: 480 },
+            { x: 0, y: 0, width: 450, height: 300 },
+            { x: 320, y: 0, width: 130, height: 480 },
+            { x: 0, y: 800, width: 100, height: 200 },
+            { x: 0, y: 860, width: 450, height: 140 },
+        ];
+
         // Helper function to remove the 'image' property from blob objects for logging
         function omitImageFromLog(obj) {
             if (Array.isArray(obj)) {
@@ -173,37 +182,32 @@ async function detect(imageDataUrl, captureRegion) {
         console.log(`Detected blobs before exclusion: ${JSON.stringify(omitImageFromLog(detectedBlobs))}`);
 
         const filteredAndNamedBlobs = [];
-        const exclusionTolerance = 10; // Increased to 10 pixels for more lenient exclusion
+        const exclusionTolerance = 10; // This tolerance is now less relevant for rectangular exclusions
 
         for (let i = 0; i < detectedBlobs.length; i++) {
             const blob = detectedBlobs[i];
             const originalBlobId = i + 1; // Corresponds to the ID from previous logs
             const newBlob = { ...blob }; // Initialize newBlob here
 
-            // Check for exclusion (blobs 1, 2, 6 from previous logs)
             let shouldExclude = false;
 
-            // Blob 1 (e.g., x:48, y:206)
-            if (Math.abs(blob.x - 48) <= exclusionTolerance && Math.abs(blob.y - 206) <= exclusionTolerance) {
-                shouldExclude = true;
+            // Check for exclusion within the new rectangular zones
+            const blobCenterX = blob.x + blob.width / 2;
+            const blobCenterY = blob.y + blob.height / 2;
+
+            for (const rect of EXCLUSION_RECTS) {
+                if (blobCenterX >= rect.x && blobCenterX <= (rect.x + rect.width) &&
+                    blobCenterY >= rect.y && blobCenterY <= (rect.y + rect.height)) {
+                    shouldExclude = true;
+                    break; // Exclude if it falls into any rectangle
+                }
             }
-            // Blob at X:386, Y:207 (new exclusion)
-            if (Math.abs(blob.x - 386) <= exclusionTolerance && Math.abs(blob.y - 207) <= exclusionTolerance) {
-                shouldExclude = true;
-            }
-            // Blob 2 (e.g., x:48, y:280)
-            if (Math.abs(blob.x - 48) <= exclusionTolerance && Math.abs(blob.y - 280) <= exclusionTolerance) {
-                shouldExclude = true;
-            }
-            // Blob 6 (e.g., x:300, y:894)
-            if (Math.abs(blob.x - 300) <= exclusionTolerance && Math.abs(blob.y - 894) <= exclusionTolerance) {
-                shouldExclude = true;
-            }
+
+            // Existing naming logic (unchanged)
             // New naming for 'exit level' blob (x:51, y:890)
             if (Math.abs(blob.x - 51) <= exclusionTolerance && Math.abs(blob.y - 890) <= exclusionTolerance) {
                 newBlob.name = "exit level";
                 console.log(`Naming blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as "exit level".`);
-                // This blob is named but NOT excluded, so it can be identified by name.
             }
 
             // Check for naming (blob 5 from previous logs - e.g., x:368, y:893)
@@ -212,15 +216,13 @@ async function detect(imageDataUrl, captureRegion) {
                 console.log(`Naming blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as "research blob".`);
             }
 
-            if (shouldExclude) {
-                // If a blob has been named, it should not be excluded.
-                if (newBlob.name === "exit level" || newBlob.name === "research blob") {
-                    shouldExclude = false;
-                }
+            // Ensure named blobs are NEVER excluded
+            if (newBlob.name === "exit level" || newBlob.name === "research blob") {
+                shouldExclude = false; // Override any exclusion if it's a named blob
             }
 
             if (shouldExclude) {
-                console.log(`Excluding blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as per instructions.`);
+                console.log(`Excluding blob (original ID: ${originalBlobId}) at x:${blob.x}, y:${blob.y} as per rectangular exclusion rules.`);
                 continue; // Skip this blob
             }
 
