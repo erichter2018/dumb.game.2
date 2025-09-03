@@ -64,6 +64,7 @@ async function detect(imageDataUrl, captureRegion) {
         const boxWidthMax = 180; // Allow some tolerance for 160
         const boxHeightMin = 50; // Allow some tolerance for 60
         const boxHeightMax = 70; // Allow some tolerance for 60
+        const greenPixelThreshold = 0.10; // Max 10% green pixels allowed for a non-green box
         const detectedBoxes = [];
 
         const visited = new Set();
@@ -110,6 +111,16 @@ async function detect(imageDataUrl, captureRegion) {
             const tolerance = 30; // Increased tolerance for RGB closeness
             return hsv.s < 25 && hsv.v > 40 && hsv.v < 85 && 
                    Math.abs(r - g) < tolerance && Math.abs(r - b) < tolerance && Math.abs(g - b) < tolerance;
+        }
+
+        function isGreen(pixel) {
+            const { r, g, b } = pixel;
+            const hsv = rgbToHsv(r, g, b);
+            // Define a range for green hue and saturation/brightness to consider it "significant green"
+            const isHueGreen = (hsv.h >= 70 && hsv.h <= 170); // Broader green hue range
+            const isSaturatedGreen = hsv.s > 40; // Only consider if it's somewhat saturated
+            const isBrightGreen = hsv.v > 30; // Only consider if it's somewhat bright
+            return isHueGreen && isSaturatedGreen && isBrightGreen && g > r + 10 && g > b + 10; // Ensure green dominance
         }
 
         function isRedText(pixel) {
@@ -411,6 +422,7 @@ async function detect(imageDataUrl, captureRegion) {
             // Calculate average color for the box
             let averageColor = { r: 0, g: 0, b: 0 };
             let totalPixels = 0;
+            let greenPixelCount = 0; // New: Count green pixels
             for (let py = box.y_relative_to_cropped; py < box.y_relative_to_cropped + box.height; py++) {
                 for (let px = box.x_relative_to_cropped; px < box.x_relative_to_cropped + box.width; px++) {
                     const pixel = getPixel(px, py);
@@ -419,6 +431,9 @@ async function detect(imageDataUrl, captureRegion) {
                         averageColor.r += pixel.r;
                         averageColor.g += pixel.g;
                         averageColor.b += pixel.b;
+                        if (isGreen(pixel)) { // Check for green pixels
+                            greenPixelCount++;
+                        }
                     }
                 }
             }
@@ -426,8 +441,14 @@ async function detect(imageDataUrl, captureRegion) {
             averageColor.g /= (totalPixels || 1);
             averageColor.b /= (totalPixels || 1);
 
+            const greenPixelDensity = (totalPixels > 0) ? (greenPixelCount / totalPixels) : 0; // New: Calculate green pixel density
+            console.log(`DEBUG: Box at x:${box.x}, y:${box.y} - Green Pixel Density: ${greenPixelDensity.toFixed(2)}`);
+
             // Determine box state more directly after sub-detections
-            if (isGrey(averageColor)) {
+            if (greenPixelDensity > greenPixelThreshold) {
+                boxState = 'green_excluded'; // Exclude if too much green
+                console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as GREEN_EXCLUDED (density: ${greenPixelDensity.toFixed(2)}).`);
+            } else if (isGrey(averageColor)) {
                 console.log(`DEBUG: Box at x:${box.x}, y:${box.y} is generally Grey. Avg RGB: (${averageColor.r.toFixed(0)}, ${averageColor.g.toFixed(0)}, ${averageColor.b.toFixed(0)}). hasRedText: ${hasRedTextResult}, hasWhiteText: ${hasWhiteText}.`);
                 if (!hasRedTextResult && hasWhiteText) {
                     boxState = 'grey_max';
@@ -538,9 +559,12 @@ async function detect(imageDataUrl, captureRegion) {
         // New filtering logic: if a 'blue_build' box is found, suppress all 'unknown' boxes
         const hasBlueBuildBox = detections.some(box => box.state === 'blue_build');
         if (hasBlueBuildBox) {
-            console.log('DEBUG: A \'blue_build\' box was detected. Filtering out all \'unknown\' boxes.');
-            return detections.filter(box => box.state !== 'unknown');
+            console.log('DEBUG: A \'blue_build\' box was detected. Filtering out all \'unknown\' and \'green_excluded\' boxes.');
+            return detections.filter(box => box.state !== 'unknown' && box.state !== 'green_excluded');
         }
+
+        // Also filter out green_excluded boxes if no blue_build box is present
+        return detections.filter(box => box.state !== 'green_excluded');
 
     } catch (error) {
         console.error('Error in blue box detection with Sharp:', error);
