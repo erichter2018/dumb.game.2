@@ -1,5 +1,5 @@
 function startAutomation(dependencies) {
-    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollToBottom } = dependencies;
+    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts } = dependencies;
 
     updateStatus('Finish Level Automation Started', 'info');
     console.log('Finish Level Automation Started');

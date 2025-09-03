@@ -24,6 +24,10 @@ const toggleFinishLevelBtn = document.getElementById('toggleFinishLevelBtn');
 const scrollDownBtn = document.getElementById('scrollDownBtn');
 const scrollUpBtn = document.getElementById('scrollUpBtn');
 const scrollToBottomBtn = document.getElementById('scrollToBottomBtn');
+// New DOM Elements for Scroll Settings
+const scrollSwipeDistanceInput = document.getElementById('scrollSwipeDistance');
+const scrollToBottomIterationsInput = document.getElementById('scrollToBottomIterations');
+const scrollUpAttemptsInput = document.getElementById('scrollUpAttempts');
 
 // Canvas context
 const ctx = previewCanvas.getContext('2d');
@@ -159,7 +163,10 @@ toggleFinishLevelBtn.addEventListener('click', async () => {
         toggleFinishLevelBtn.classList.add('btn-secondary');
     }
     console.log(`DEBUG: Toggling finish level automation to: ${isFinishLevelRunning}`);
-    await ipcRenderer.invoke('toggle-finish-level', isFinishLevelRunning);
+    const scrollSwipeDistance = parseInt(scrollSwipeDistanceInput.value, 10);
+    const scrollToBottomIterations = parseInt(scrollToBottomIterationsInput.value, 10);
+    const scrollUpAttempts = parseInt(scrollUpAttemptsInput.value, 10);
+    await ipcRenderer.invoke('toggle-finish-level', isFinishLevelRunning, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts);
 });
 
 // Event listeners for new scrolling buttons
@@ -170,8 +177,9 @@ scrollDownBtn.addEventListener('click', async () => {
         const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
         const centerX = regionX + regionWidth / 2;
         const centerY = regionY + regionHeight / 2;
-        console.log(`DEBUG: Scroll Down initiated at centerX: ${centerX}, centerY: ${centerY}`);
-        await ipcRenderer.invoke('scroll-down', centerX, centerY, 100); // Scroll 100 pixels
+        const scrollDistance = parseInt(scrollSwipeDistanceInput.value, 10);
+        console.log(`DEBUG: Scroll Down initiated at centerX: ${centerX}, centerY: ${centerY}, distance: ${scrollDistance}`);
+        await ipcRenderer.invoke('scroll-down', centerX, centerY, scrollDistance); // Use configurable distance
         updateStatus('Scrolled down.', 'success');
     } catch (error) {
         updateStatus(`Failed to scroll down: ${error.message}`, 'error');
@@ -185,8 +193,9 @@ scrollUpBtn.addEventListener('click', async () => {
         const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
         const centerX = regionX + regionWidth / 2;
         const centerY = regionY + regionHeight / 2;
-        console.log(`DEBUG: Scroll Up initiated at centerX: ${centerX}, centerY: ${centerY}`);
-        await ipcRenderer.invoke('scroll-up', centerX, centerY, 100); // Scroll 100 pixels
+        const scrollDistance = parseInt(scrollSwipeDistanceInput.value, 10);
+        console.log(`DEBUG: Scroll Up initiated at centerX: ${centerX}, centerY: ${centerY}, distance: ${scrollDistance}`);
+        await ipcRenderer.invoke('scroll-up', centerX, centerY, scrollDistance); // Use configurable distance
         updateStatus('Scrolled up.', 'success');
     } catch (error) {
         updateStatus(`Failed to scroll up: ${error.message}`, 'error');
@@ -200,8 +209,10 @@ scrollToBottomBtn.addEventListener('click', async () => {
         const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
         const centerX = regionX + regionWidth / 2;
         const centerY = regionY + regionHeight / 2;
-        console.log(`DEBUG: Scroll to Bottom initiated at centerX: ${centerX}, centerY: ${centerY}`);
-        await ipcRenderer.invoke('scroll-to-bottom', centerX, centerY, 100, 10); // Scroll 100 pixels, 10 times
+        const scrollDistance = parseInt(scrollSwipeDistanceInput.value, 10);
+        const scrollIterations = parseInt(scrollToBottomIterationsInput.value, 10);
+        console.log(`DEBUG: Scroll to Bottom initiated at centerX: ${centerX}, centerY: ${centerY}, distance: ${scrollDistance}, iterations: ${scrollIterations}`);
+        await ipcRenderer.invoke('scroll-to-bottom', centerX, centerY, scrollDistance, scrollIterations); // Use configurable distance and iterations
         updateStatus('Scrolled to bottom.', 'success');
     } catch (error) {
         updateStatus(`Failed to scroll to bottom: ${error.message}`, 'error');

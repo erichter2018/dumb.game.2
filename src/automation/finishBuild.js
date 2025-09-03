@@ -215,7 +215,10 @@ async function findBlueBoxWithRetry(dependencies, preferredCoords = null) {
 }
 
 async function runBuildProtocol(dependencies) {
-    const { updateStatus, getIsAutomationRunning } = dependencies;
+    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance } = dependencies;
+
+    const startTime = Date.now();
+    const timeoutDuration = 10 * 60 * 1000; // 10 minutes in milliseconds
 
     try {
         // Step 1: Call check blue build box until one is found, every 2 seconds
@@ -249,6 +252,15 @@ async function runBuildProtocol(dependencies) {
 
         // Step 2: Start a loop
         while (getIsAutomationRunning()) {
+            if (Date.now() - startTime > timeoutDuration) {
+                updateStatus('Finish Build routine exceeded 10 minutes. Scrolling to bottom and exiting.', 'warn');
+                console.log('DEBUG: Finish Build routine exceeded 10 minutes. Scrolling to bottom and exiting.');
+                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, 20); // Use 20 for now, as it's a fixed exit action
+                dependencies.setIsAutomationRunning(false); // Gracefully exit
+                return 'timeout';
+            }
             // Perform blue box detection once per cycle to get the latest state
             const currentDetectedBox = await findBlueBoxWithRetry(dependencies); // This will retry until a box is found or automation stops
 

@@ -30,6 +30,21 @@
                         <button id="scrollUpBtn" class="btn btn-info">Scroll Up</button>
                         <button id="scrollToBottomBtn" class="btn btn-info">Scroll to Bottom</button>
                     </div>
+                    <div class="scroll-controls-settings">
+                        <h3>Scroll Settings</h3>
+                        <div class="control-group">
+                            <label for="scrollSwipeDistance">Scroll Swipe Distance (px):</label>
+                            <input type="number" id="scrollSwipeDistance" value="100" min="10">
+                        </div>
+                        <div class="control-group">
+                            <label for="scrollToBottomIterations">Scroll to Bottom Iterations:</label>
+                            <input type="number" id="scrollToBottomIterations" value="20" min="1">
+                        </div>
+                        <div class="control-group">
+                            <label for="scrollUpAttempts">Scroll Up Attempts Before Reset:</label>
+                            <input type="number" id="scrollUpAttempts" value="20" min="1">
+                        </div>
+                    </div>
                     <div class="status-info">
                         <div><span id="statusText">Ready</span></div>
                         <div><span id="coordinates">Mouse: (0, 0)</span></div>

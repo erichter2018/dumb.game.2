@@ -110,7 +110,7 @@ async function performRapidClicks(x, y, count) {
   for (let i = 0; i < count; i++) {
     clickCommands.push(`c:${x},${y}`);
     if (i < count - 1) {
-      clickCommands.push(`w:10`); // 10ms wait between clicks
+      clickCommands.push(`w:1`); // 1ms wait between clicks
     }
   }
   const fullCommand = `cliclick ${clickCommands.join(' ')}`;
@@ -411,6 +411,8 @@ async function startFinishBuildAutomationLoop() {
     setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; }, // Pass setter for the state
     getIsAutomationRunning: () => isAutomationRunning, // Pass getter for the automation running state
     setIsAutomationRunning: (state) => { isAutomationRunning = state; }, // Pass setter for automation running state
+    scrollToBottom: scrollToBottom, // Pass scrollToBottom function
+    scrollSwipeDistance: scrollSwipeDistance, // Pass scroll swipe distance
     // For pausing/resuming based on user input, the main loop manages this part
   };
 
@@ -464,7 +466,7 @@ ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
   }
 });
 
-ipcMain.handle('toggle-finish-level', async (event, isRunning) => {
+ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts) => {
   if (isAutomationRunning) {
     console.log('ERROR: Finish Build automation is already running. Cannot start Finish Level.');
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -474,7 +476,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning) => {
   }
 
   isFinishLevelRunning = isRunning;
-  console.log(`DEBUG: toggle-finish-level IPC handler called with isRunning: ${isRunning}`);
+  console.log(`DEBUG: toggle-finish-level IPC handler called with isRunning: ${isRunning}, scrollSwipeDistance: ${scrollSwipeDistance}, scrollToBottomIterations: ${scrollToBottomIterations}, scrollUpAttempts: ${scrollUpAttempts}`);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('finish-build-status', `Finish Level Automation ${isRunning ? 'Started' : 'Stopped'}.`, 'info');
   }
@@ -509,7 +511,10 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning) => {
     finishBuildAutomationRunBuildProtocol: finishBuildAutomation.runBuildProtocol, // Pass the runBuildProtocol from finishBuildAutomation
     scrollDown: scrollDown, // New: Pass scrollDown function
     scrollUp: scrollUp,     // New: Pass scrollUp function
-    scrollToBottom: scrollToBottom // New: Pass scrollToBottom function
+    scrollToBottom: scrollToBottom, // New: Pass scrollToBottom function
+    scrollSwipeDistance: scrollSwipeDistance, // New: Pass scroll swipe distance
+    scrollToBottomIterations: scrollToBottomIterations, // New: Pass scroll to bottom iterations
+    scrollUpAttempts: scrollUpAttempts // New: Pass scroll up attempts
   };
 
   if (isRunning) {
@@ -655,7 +660,7 @@ async function scrollUp(x, y, distance) {
 
 async function scrollToBottom(x, y, distance, count) {
   console.log(`Attempting to scroll to bottom at (${x}, ${y}).`);
-  for (let i = 0; i < 20; i++) { // Changed from count to fixed 20 scrolls
+  for (let i = 0; i < count; i++) { // Use configurable count
     await scrollDown(x, y, distance);
     await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between scrolls
   }
