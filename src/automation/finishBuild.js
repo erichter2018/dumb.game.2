@@ -14,9 +14,13 @@ Protocol for Finish Build Automation (Simplified):
 
 // These are global within this module but managed by main.js through setters/getters
 let blueBoxCoords = null; // Store blue box coordinates for repeated clicks
+let consecutiveNoBoxDetections = 0; // New: Counter for consecutive cycles without detecting an active build box
+
+const BLUE_BOX_PROXIMITY_THRESHOLD = 150; // Max distance in pixels between red blob and blue box center
 
 function resetAutomationState() {
   blueBoxCoords = null; // Ensure blue box is re-detected after pause/stop
+  consecutiveNoBoxDetections = 0; // Reset counter
 }
 
     // Helper function to remove the 'image' property from blob objects for logging
@@ -38,6 +42,14 @@ function areCoordsSimilar(coords1, coords2, tolerance = 10) {
     if (!coords1 || !coords2) return false;
     return Math.abs(coords1.x - coords2.x) <= tolerance &&
            Math.abs(coords1.y - coords2.y) <= tolerance;
+}
+
+// New helper to calculate distance between two points
+function calculateDistance(coords1, coords2) {
+    if (!coords1 || !coords2) return Infinity;
+    const dx = coords1.x - coords2.x;
+    const dy = coords1.y - coords2.y;
+    return Math.sqrt(dx * dx + dy * dy);
 }
 
 async function stopAutomation(dependencies) {
@@ -95,6 +107,7 @@ async function holdBlueBox(coords, duration, dependencies) {
     setlastBlueBoxClickCoords(coords); // Store coords to be able to release on interruption
     setIsHoldingBlueBox(true); // Indicate that a click-hold is active
     
+    console.log(`DEBUG: Attempting to click down at (${coords.x}, ${coords.y}) for holdBlueBox.`); // New log
     // Use the interruptible clickAndHold from main.js
     await clickAndHold(coords.x, coords.y, duration, getIsAutomationRunning);
     
@@ -154,10 +167,10 @@ async function doResearch(dependencies) {
     console.log('DEBUG: Research cycle completed.');
 }
 
-async function findBlueBoxWithRetry(dependencies) {
+async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
     const { captureScreenRegion, detectBlueBoxes, iphoneMirroringRegion, updateStatus, getIsAutomationRunning } = dependencies;
     
-    const MAX_RETRIES = 3; // Changed: Maximum number of retries from 10 to 3
+    const MAX_RETRIES = 2; // Changed: Maximum number of retries from 3 to 2
     let retryCount = 0; // New: Counter for retries
 
     if (!getIsAutomationRunning()) {
@@ -187,11 +200,12 @@ async function findBlueBoxWithRetry(dependencies) {
 
         if (detections && detections.length > 0) {
             // Filter for relevant states: blue_build, grey_build, other_grey, grey_max
-            const relevantBoxes = detections.filter(box => 
-                box.state === 'blue_build' || 
-                box.state === 'grey_build' || 
+            const relevantBoxes = detections.filter(box =>
+                (box.state === 'blue_build' ||
+                box.state === 'grey_build' ||
                 box.state === 'other_grey' ||
-                box.state === 'grey_max'
+                box.state === 'grey_max') &&
+                (originalRedBlobCoords ? calculateDistance(originalRedBlobCoords, { x: box.x + box.width / 2, y: box.y + box.height / 2 }) <= BLUE_BOX_PROXIMITY_THRESHOLD : true)
             );
 
             if (relevantBoxes.length > 0) {
@@ -223,15 +237,25 @@ async function findBlueBoxWithRetry(dependencies) {
 }
 
 async function runBuildProtocol(dependencies) {
-    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance } = dependencies;
+    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance, updateCurrentFunction, originalRedBlobCoords } = dependencies;
 
+    updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
-    const timeoutDuration = 10 * 60 * 1000; // 10 minutes in milliseconds
+    const timeoutDuration = 7 * 60 * 1000; // 7 minutes in milliseconds
+    let timerInterval = null; // To hold the interval ID for clearing
 
     try {
+        // Set up an interval to update the timer in the UI
+        timerInterval = setInterval(() => {
+            const elapsedTime = Date.now() - startTime;
+            const minutes = Math.floor(elapsedTime / 60000);
+            const seconds = Math.floor((elapsedTime % 60000) / 1000);
+            updateCurrentFunction(`runBuildProtocol (${minutes}m ${seconds}s)`);
+        }, 1000); // Update every second
+
         // Step 1: Call check blue build box until one is found, every 2 seconds
         // This initial call needs to establish valid blueBoxCoords for the first hold.
-        let initialDetectedBox = await findBlueBoxWithRetry(dependencies);
+        let initialDetectedBox = await findBlueBoxWithRetry(dependencies, originalRedBlobCoords);
         
         if (!initialDetectedBox) {
             updateStatus('Automation cannot start: No clickable build box found after retries. Exiting.', 'error');
@@ -261,13 +285,21 @@ async function runBuildProtocol(dependencies) {
                 return 'timeout';
             }
             // Perform blue box detection once per cycle to get the latest state
-            const currentDetectedBox = await findBlueBoxWithRetry(dependencies); // This will retry until a box is found or automation stops
+            const currentDetectedBox = await findBlueBoxWithRetry(dependencies, blueBoxCoords);
 
             if (!currentDetectedBox) {
-                updateStatus('No active build box detected after retries. Continuing to click last known coordinates.', 'warn');
-                console.log('DEBUG: No active build box found in current cycle after retries. Continuing to click last known coordinates.');
+                consecutiveNoBoxDetections++;
+                updateStatus(`No active build box detected after retries (${consecutiveNoBoxDetections}/2). Continuing to click last known coordinates.`, 'warn');
+                console.log(`DEBUG: No active build box found in current cycle after retries (${consecutiveNoBoxDetections}/2). Continuing to click last known coordinates.`);
+                if (consecutiveNoBoxDetections >= 2) { // Changed: Threshold from 3 to 2
+                    updateStatus('No active build box detected for 2 consecutive cycles. Exiting Finish Build.', 'error');
+                    console.log('DEBUG: Exiting Finish Build due to consecutive failures to detect active build box.');
+                    dependencies.setIsAutomationRunning(false); // Gracefully exit
+                    return 'no_build_box_exceeded_retries'; // New exit status
+                }
                 // If no box is detected, continue to use the last known blueBoxCoords (which would be from initialDetectedBox or a previous cycle)
             } else if (currentDetectedBox.state === 'grey_max') {
+                consecutiveNoBoxDetections = 0; // Reset counter if MAX build is achieved
                 updateStatus('MAX build achieved. Stopping automation.', 'success');
                 console.log('DEBUG: MAX build achieved. Stopping automation.');
                 
@@ -281,6 +313,7 @@ async function runBuildProtocol(dependencies) {
 
                 return 'max_build_achieved'; // Return status to indicate MAX build
             } else { // It's a blue_build, grey_build, or other_grey box
+                consecutiveNoBoxDetections = 0; // Reset counter if a valid box (not grey_max) is detected
                 // blueBoxCoords = currentDetectedBox.coords; // No longer update blueBoxCoords here, stick to initial
                 updateStatus(`Build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${currentDetectedBox.state}). Continuing with established build coordinates.`, 'info');
                 console.log(`DEBUG: Build box found in current cycle: ${JSON.stringify(omitImageFromLog(currentDetectedBox))}. Continuing with established build coordinates.`);
@@ -311,6 +344,11 @@ async function runBuildProtocol(dependencies) {
         dependencies.setIsHoldingBlueBox(false);
         blueBoxCoords = null;
         dependencies.setlastBlueBoxClickCoords(null);
+    } finally {
+        // Clear the interval when the automation finishes or stops
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
     }
 }
 

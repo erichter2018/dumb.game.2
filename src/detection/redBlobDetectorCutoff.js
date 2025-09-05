@@ -134,16 +134,18 @@ async function detect(imageDataUrl, captureRegion) {
                     const blobHeight = maxY - minY + 1;
                     const area = blobWidth * blobHeight;
 
+                    console.log(`DEBUG: Candidate blob dimensions - Width: ${blobWidth}, Height: ${blobHeight}, Area: ${area}, AspectRatio: ${blobWidth / blobHeight}`); // New debug log
+
                     // Filter by size (24x24 to 34x34 pixels) and a more precise round shape check
                     const expectedMinArea = blobSizeMin * blobSizeMin; 
                     const expectedMaxArea = blobSizeMax * blobSizeMax; 
 
                     if (area >= expectedMinArea * 0.5 && area <= expectedMaxArea * 1.5 && 
                         blobWidth >= blobSizeMin * 0.5 && blobWidth <= blobSizeMax * 1.5 && 
-                        blobHeight >= blobSizeMin * 0.3 && blobHeight <= blobSizeMax * 1.5) { // Relaxed blobHeightMin to 0.3
+                        blobHeight >= blobSizeMin * 0.15 && blobHeight <= blobSizeMax * 1.5) { // Relaxed blobHeightMin to 0.15
 
                         const aspectRatio = blobWidth / blobHeight;
-                        if (aspectRatio > 0.5 && aspectRatio < 1.5) { // Widened aspect ratio tolerance
+                        if (aspectRatio > 0.5 && aspectRatio < 2.0) { // Widened aspect ratio tolerance to 2.0
 
                             // For arrow detection, refine the white pixel check in the upper middle
                             let hasWhiteArrow = false;

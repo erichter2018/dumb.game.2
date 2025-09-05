@@ -97,11 +97,17 @@ async function detect(imageDataUrl, captureRegion) {
             const { r, g, b } = pixel;
             const hsv = rgbToHsv(r, g, b);
 
-            const isHueRedOrange = (hsv.h >= 5 && hsv.h <= 55); // Wider red-orange hue range
-            const isRedOrangeSufficientlySaturated = hsv.s > 60; // Restore original saturation
-            const isRedOrangeSufficientlyBright = hsv.v > 60; // Restore original brightness
+            // DEBUG: Log pixel data for red/orange detection
+            console.log(`DEBUG: isRedOrange check for RGB(${r},${g},${b}) HSV(${hsv.h.toFixed(0)},${hsv.s.toFixed(0)},${hsv.v.toFixed(0)})`);
 
-            return isHueRedOrange && isRedOrangeSufficientlySaturated && isRedOrangeSufficientlyBright;
+            const isHueRedOrange = (hsv.h >= 20 && hsv.h <= 90); // Adjusted hue range for gold/orange
+            const isRedOrangeSufficientlySaturated = hsv.s > 40; // Adjusted saturation for gold
+            const isRedOrangeSufficientlyBright = hsv.v > 40; // Adjusted brightness for gold
+
+            // New: RGB-based check for gold/orange
+            const isRGBSufficientlyGold = r > 150 && g > 100 && b < 100 && Math.abs(r - g) < 80;
+
+            return (isHueRedOrange && isRedOrangeSufficientlySaturated && isRedOrangeSufficientlyBright) || isRGBSufficientlyGold;
         }
 
         function isGrey(pixel) {
@@ -258,10 +264,10 @@ async function detect(imageDataUrl, captureRegion) {
             let hasWhiteText = false;
 
             // --- Sub-region for red/orange circle ---
-            const circleDetectRegionRelativeX = Math.floor(box.width * 0.05);
-            const circleDetectRegionRelativeY = Math.floor(box.height * 0.1);
-            const circleDetectRegionRelativeWidth = Math.floor(box.width * 0.35);
-            const circleDetectRegionRelativeHeight = Math.floor(box.height * 0.8);
+            const circleDetectRegionRelativeX = Math.floor(box.width * 0.02); // Shifted left
+            const circleDetectRegionRelativeY = Math.floor(box.height * 0.05); // Slightly higher start
+            const circleDetectRegionRelativeWidth = Math.floor(box.width * 0.4); // Wider
+            const circleDetectRegionRelativeHeight = Math.floor(box.height * 0.9); // Taller
 
             const intendedCircleLeft = box.x_relative_to_cropped + circleDetectRegionRelativeX;
             const intendedCircleTop = box.y_relative_to_cropped + circleDetectRegionRelativeY;
@@ -279,6 +285,8 @@ async function detect(imageDataUrl, captureRegion) {
                 width: Math.max(1, clippedCircleRight - clippedCircleLeft + 1),
                 height: Math.max(1, clippedCircleBottom - clippedCircleTop + 1)
             };
+
+            // console.log(`DEBUG: Circle sub-region for box at x:${box.x}, y:${box.y}: ${JSON.stringify(circleSubRegionRelative)}`);
 
             if (circleSubRegionRelative.width > 0 && circleSubRegionRelative.height > 0) {
                 const circleCroppedBuffer = await sharp(Buffer.from(base64Data, 'base64')).extract({
@@ -339,7 +347,9 @@ async function detect(imageDataUrl, captureRegion) {
                             const circleHeight = cmaxY - cminY + 1;
                             const circleAspectRatio = circleWidth / circleHeight;
 
-                            if (currentBlobPixels > 100 && currentBlobPixels < 1000 && circleAspectRatio > 0.8 && circleAspectRatio < 1.2) {
+                            console.log(`DEBUG: Red/Orange Circle detected - currentBlobPixels: ${currentBlobPixels}, circleWidth: ${circleWidth}, circleHeight: ${circleHeight}, circleAspectRatio: ${circleAspectRatio.toFixed(2)}`);
+
+                            if (currentBlobPixels > 20 && currentBlobPixels < 1000 && circleAspectRatio > 0.5 && circleAspectRatio < 1.5) {
                                 hasRedOrangeCircle = true;
                                 break;
                             }
@@ -461,6 +471,7 @@ async function detect(imageDataUrl, captureRegion) {
                     console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as OTHER GREY (no specific text).`);
                 }
             } else if (hasRedOrangeCircle && hasWhiteText) { // Blue build box criteria
+                console.log(`DEBUG: Blue build box check - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}.`);
                 // Additional check for blue dominance in the main body if it's not grey
                 let bluePixelCountInBody = 0;
                 let totalPixelsInBody = 0;
@@ -499,6 +510,7 @@ async function detect(imageDataUrl, captureRegion) {
                         }
                     }
                     const blueDensity = (totalPixelsInBody > 0) ? (bluePixelCountInBody / totalPixelsInBody) : 0;
+                    console.log(`DEBUG: Main body blue density check - bluePixelCountInBody: ${bluePixelCountInBody}, totalPixelsInBody: ${totalPixelsInBody}, blueDensity: ${blueDensity.toFixed(2)}`);
                     if (blueDensity > 0.3) { // If predominantly blue
                         boxState = 'blue_build';
                         console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as BLUE BUILD (blue density: ${blueDensity.toFixed(2)}).`);

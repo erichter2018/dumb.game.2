@@ -24,6 +24,87 @@ let statusMessageHistory = []; // Store recent status messages
 let isHoldingBlueBox = false; // Add state to track if a blue box is being held
 let isAutomationRunning = false; // New flag to control the automation loop in finishBuild.js
 let isFinishLevelRunning = false; // For Finish Level automation
+let currentLevelStartTime = null; // New: To track the start time of the current level
+let previousLevelDurationMs = null; // New: To store the duration of the previous level
+let longestLevelDurationMs = null; // New: To store the longest level duration
+let shortestLevelDurationMs = null; // New: To store the shortest level duration
+let levelsFinishedCount = 0; // New: To track the number of levels finished
+let totalLevelsDurationMs = 0; // New: To accumulate total duration for average calculation
+
+// Function to send current active function to renderer
+function updateCurrentFunction(functionName) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-current-function', functionName);
+  }
+}
+
+// Function to send current active function to renderer
+function updateCurrentLevelDuration(durationMs) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        const minutes = Math.floor(durationMs / 60000);
+        const seconds = Math.floor((durationMs % 60000) / 1000);
+        mainWindow.webContents.send('update-current-level-duration', `${minutes}m ${seconds}s`);
+    }
+}
+
+// Function to send current active function to renderer
+function updatePreviousLevelDuration(durationMs) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        if (durationMs === null) {
+            mainWindow.webContents.send('update-previous-level-duration', 'N/A');
+        } else {
+            const minutes = Math.floor(durationMs / 60000);
+            const seconds = Math.floor((durationMs % 60000) / 1000);
+            mainWindow.webContents.send('update-previous-level-duration', `${minutes}m ${seconds}s`);
+        }
+    }
+}
+
+// New: Function to send longest level duration to renderer
+function updateLongestLevelDuration(durationMs) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        if (durationMs === null) {
+            mainWindow.webContents.send('update-longest-level-duration', 'N/A');
+        } else {
+            const minutes = Math.floor(durationMs / 60000);
+            const seconds = Math.floor((durationMs % 60000) / 1000);
+            mainWindow.webContents.send('update-longest-level-duration', `${minutes}m ${seconds}s`);
+        }
+    }
+}
+
+// New: Function to send shortest level duration to renderer
+function updateShortestLevelDuration(durationMs) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        if (durationMs === null) {
+            mainWindow.webContents.send('update-shortest-level-duration', 'N/A');
+        } else {
+            const minutes = Math.floor(durationMs / 60000);
+            const seconds = Math.floor((durationMs % 60000) / 1000);
+            mainWindow.webContents.send('update-shortest-level-duration', `${minutes}m ${seconds}s`);
+        }
+    }
+}
+
+// New: Function to send levels finished count to renderer
+function updateLevelsFinishedCount(count) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-levels-finished-count', count);
+    }
+}
+
+// New: Function to send average level duration to renderer
+function updateAverageLevelDuration(durationMs) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        if (durationMs === null) {
+            mainWindow.webContents.send('update-average-level-duration', 'N/A');
+        } else {
+            const minutes = Math.floor(durationMs / 60000);
+            const seconds = Math.floor((durationMs % 60000) / 1000);
+            mainWindow.webContents.send('update-average-level-duration', `${minutes}m ${seconds}s`);
+        }
+    }
+}
 
 // Define named click areas
 const CLICK_AREAS = {
@@ -378,6 +459,7 @@ ipcMain.handle('detect-blue-box', async () => {
 // Function to start the Finish Build automation loop
 async function startFinishBuildAutomationLoop() {
   console.log('Starting Finish Build automation loop internally.');
+  updateCurrentFunction('startFinishBuildAutomationLoop'); // Update current function
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('finish-build-status', 'Starting automation loop...', 'info');
   }
@@ -404,6 +486,7 @@ async function startFinishBuildAutomationLoop() {
         mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
       }
     },
+    updateCurrentFunction: updateCurrentFunction, // Pass the new function
     iphoneMirroringRegion: iphoneMirroringRegion, // Pass the current region
     getlastBlueBoxClickCoords: () => lastBlueBoxClickCoords,
     setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
@@ -414,6 +497,14 @@ async function startFinishBuildAutomationLoop() {
     scrollToBottom: scrollToBottom, // Pass scrollToBottom function
     scrollSwipeDistance: scrollSwipeDistance, // Pass scroll swipe distance
     // For pausing/resuming based on user input, the main loop manages this part
+    // New: Pass functions to update level durations
+    updateCurrentLevelDuration: updateCurrentLevelDuration,
+    updatePreviousLevelDuration: updatePreviousLevelDuration,
+    updateLongestLevelDuration: updateLongestLevelDuration, // New: Pass new function
+    updateShortestLevelDuration: updateShortestLevelDuration, // New: Pass new function
+    updateLevelsFinishedCount: updateLevelsFinishedCount, // New: Pass new function
+    updateAverageLevelDuration: updateAverageLevelDuration, // New: Pass new function
+    finishBuildAutomationRunBuildProtocol: finishBuildAutomation.runBuildProtocol, // Pass the runBuildProtocol from finishBuildAutomation
   };
 
   // Start the automation loop in finishBuild.js
@@ -424,6 +515,7 @@ ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
   console.log(`DEBUG: toggle-finish-build IPC handler called with isRunning: ${isRunning}`);
 
   if (isRunning) {
+    updateCurrentFunction('toggle-finish-build'); // Update current function
     isAutomationRunning = isRunning; // Update the global flag
     console.log('DEBUG: Starting Finish Build automation via IPC.');
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -477,6 +569,25 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
 
   isFinishLevelRunning = isRunning;
   console.log(`DEBUG: toggle-finish-level IPC handler called with isRunning: ${isRunning}, scrollSwipeDistance: ${scrollSwipeDistance}, scrollToBottomIterations: ${scrollToBottomIterations}, scrollUpAttempts: ${scrollUpAttempts}`);
+  if (isRunning) {
+    updateCurrentFunction('toggle-finish-level'); // Update current function
+    currentLevelStartTime = Date.now(); // Start timer for current level
+    updatePreviousLevelDuration(previousLevelDurationMs); // Display previous level duration
+    updateLongestLevelDuration(longestLevelDurationMs); // New: Display longest level duration
+    updateShortestLevelDuration(shortestLevelDurationMs); // New: Display shortest level duration
+    updateLevelsFinishedCount(levelsFinishedCount); // New: Display levels finished count
+    updateAverageLevelDuration(totalLevelsDurationMs > 0 && levelsFinishedCount > 0 ? totalLevelsDurationMs / levelsFinishedCount : null); // New: Display average duration
+    // Start an interval to update the current level duration
+    const levelTimerInterval = setInterval(() => {
+        if (isFinishLevelRunning) {
+            const elapsedTime = Date.now() - currentLevelStartTime;
+            updateCurrentLevelDuration(elapsedTime);
+        } else {
+            clearInterval(levelTimerInterval);
+            updateCurrentLevelDuration(0); // Reset display when stopped
+        }
+    }, 1000); // Update every second
+  }
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('finish-build-status', `Finish Level Automation ${isRunning ? 'Started' : 'Stopped'}.`, 'info');
   }
@@ -501,6 +612,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
         mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
       }
     },
+    updateCurrentFunction: updateCurrentFunction, // Pass the new function
     iphoneMirroringRegion: iphoneMirroringRegion,
     getlastBlueBoxClickCoords: () => lastBlueBoxClickCoords,
     setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
@@ -514,7 +626,33 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     scrollToBottom: scrollToBottom, // New: Pass scrollToBottom function
     scrollSwipeDistance: scrollSwipeDistance, // New: Pass scroll swipe distance
     scrollToBottomIterations: scrollToBottomIterations, // New: Pass scroll to bottom iterations
-    scrollUpAttempts: scrollUpAttempts // New: Pass scroll up attempts
+    scrollUpAttempts: scrollUpAttempts, // New: Pass scroll up attempts
+    // New: Functions to handle level duration updates
+    updateCurrentLevelDuration: updateCurrentLevelDuration,
+    updatePreviousLevelDuration: (duration) => {
+        previousLevelDurationMs = duration;
+        // Update longest and shortest durations
+        if (longestLevelDurationMs === null || duration > longestLevelDurationMs) {
+            longestLevelDurationMs = duration;
+        }
+        if (shortestLevelDurationMs === null || duration < shortestLevelDurationMs) {
+            shortestLevelDurationMs = duration;
+        }
+        levelsFinishedCount++; // Increment count of finished levels
+        totalLevelsDurationMs += duration; // Add to total duration
+
+        updatePreviousLevelDuration(duration);
+        updateLongestLevelDuration(longestLevelDurationMs); // Update display
+        updateShortestLevelDuration(shortestLevelDurationMs); // Update display
+        updateLevelsFinishedCount(levelsFinishedCount); // Update display
+        updateAverageLevelDuration(totalLevelsDurationMs / levelsFinishedCount); // Update display
+        currentLevelStartTime = Date.now(); // Reset current level timer
+    },
+    updateLongestLevelDuration: updateLongestLevelDuration, // New: Pass new function
+    updateShortestLevelDuration: updateShortestLevelDuration, // New: Pass new function
+    updateLevelsFinishedCount: updateLevelsFinishedCount, // New: Pass new function
+    updateAverageLevelDuration: updateAverageLevelDuration, // New: Pass new function
+    currentLevelStartTime: currentLevelStartTime, // Pass the current level start time
   };
 
   if (isRunning) {
@@ -609,6 +747,7 @@ ipcMain.handle('scroll-to-bottom', async (event, x, y, distance, count) => {
 
 // New functions for scrolling vertically
 async function scrollDown(x, y, distance) {
+  updateCurrentFunction('scrollDown'); // Update current function
   console.log(`Attempting smooth click-drag down from (${x}, ${y}) by ${distance} pixels using RobotJS.`);
   try {
     // 1. Move mouse to start point
@@ -634,6 +773,7 @@ async function scrollDown(x, y, distance) {
 }
 
 async function scrollUp(x, y, distance) {
+  updateCurrentFunction('scrollUp'); // Update current function
   console.log(`Attempting smooth click-drag up from (${x}, ${y}) by ${distance} pixels using RobotJS.`);
   try {
     // 1. Move mouse to start point
@@ -659,6 +799,7 @@ async function scrollUp(x, y, distance) {
 }
 
 async function scrollToBottom(x, y, distance, count) {
+  updateCurrentFunction('scrollToBottom'); // Update current function
   console.log(`Attempting to scroll to bottom at (${x}, ${y}).`);
   for (let i = 0; i < count; i++) { // Use configurable count
     await scrollDown(x, y, distance);
@@ -717,6 +858,12 @@ app.whenReady().then(() => {
   // Auto-start live view when the window is ready
   mainWindow.webContents.on('did-finish-load', async () => {
     await startCaptureInterval();
+    updateCurrentLevelDuration(0); // Initialize current level duration display
+    updatePreviousLevelDuration(null); // Initialize previous level duration display
+    updateLongestLevelDuration(null); // New: Initialize longest level duration display
+    updateShortestLevelDuration(null); // New: Initialize shortest level duration display
+    updateLevelsFinishedCount(0); // New: Initialize levels finished count
+    updateAverageLevelDuration(null); // New: Initialize average level duration
   });
   
   // Register global shortcuts

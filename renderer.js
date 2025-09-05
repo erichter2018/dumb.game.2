@@ -20,6 +20,15 @@ const finishBuildStatus = document.getElementById('finishBuildStatus');
 const finishBuildStatusList = document.getElementById('finishBuildStatusList');
 const toggleFinishLevelBtn = document.getElementById('toggleFinishLevelBtn');
 
+// New DOM Elements for Function Display
+const currentFunctionDisplay = document.getElementById('currentFunction');
+const currentLevelDurationDisplay = document.getElementById('currentLevelDuration'); // New
+const previousLevelDurationDisplay = document.getElementById('previousLevelDuration'); // New
+const longestLevelDurationDisplay = document.getElementById('longestLevelDuration'); // New
+const shortestLevelDurationDisplay = document.getElementById('shortestLevelDuration'); // New
+const levelsFinishedCountDisplay = document.getElementById('levelsFinishedCount'); // New
+const averageLevelDurationDisplay = document.getElementById('averageLevelDuration'); // New
+
 // New DOM Elements for Scrolling Controls
 const scrollDownBtn = document.getElementById('scrollDownBtn');
 const scrollUpBtn = document.getElementById('scrollUpBtn');
@@ -390,6 +399,55 @@ ipcRenderer.on('shortcut-stop', async () => {
     await stopLiveViewBtn.click();
 });
 
+// IPC listener for current function updates
+ipcRenderer.on('update-current-function', (event, functionName) => {
+    if (currentFunctionDisplay) {
+        currentFunctionDisplay.textContent = functionName ? `Current Function: ${functionName}` : 'Idle';
+    }
+});
+
+// IPC listener for current level duration updates
+ipcRenderer.on('update-current-level-duration', (event, durationText) => {
+    if (currentLevelDurationDisplay) {
+        currentLevelDurationDisplay.textContent = `Current Level: ${durationText}`;
+    }
+});
+
+// IPC listener for previous level duration updates
+ipcRenderer.on('update-previous-level-duration', (event, durationText) => {
+    if (previousLevelDurationDisplay) {
+        previousLevelDurationDisplay.textContent = `Previous Level: ${durationText}`;
+    }
+});
+
+// New: IPC listener for longest level duration updates
+ipcRenderer.on('update-longest-level-duration', (event, durationText) => {
+    if (longestLevelDurationDisplay) {
+        longestLevelDurationDisplay.textContent = `Longest Level: ${durationText}`;
+    }
+});
+
+// New: IPC listener for shortest level duration updates
+ipcRenderer.on('update-shortest-level-duration', (event, durationText) => {
+    if (shortestLevelDurationDisplay) {
+        shortestLevelDurationDisplay.textContent = `Shortest Level: ${durationText}`;
+    }
+});
+
+// New: IPC listener for levels finished count updates
+ipcRenderer.on('update-levels-finished-count', (event, count) => {
+    if (levelsFinishedCountDisplay) {
+        levelsFinishedCountDisplay.textContent = `Levels Finished: ${count}`;
+    }
+});
+
+// New: IPC listener for average level duration updates
+ipcRenderer.on('update-average-level-duration', (event, durationText) => {
+    if (averageLevelDurationDisplay) {
+        averageLevelDurationDisplay.textContent = `Average Duration: ${durationText}`;
+    }
+});
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DEBUG: DOMContentLoaded event fired in renderer.js.');
@@ -411,6 +469,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     isCapturing = true; // Assume live view starts automatically
     startLiveViewBtn.style.display = 'none';
     stopLiveViewBtn.style.display = 'block';
-    updateStatus('Live view started automatically', 'success');
     console.log('DEBUG: DOMContentLoaded handler finished.');
 });

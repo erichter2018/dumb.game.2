@@ -42,10 +42,17 @@
                         </div>
                         <div class="control-group">
                             <label for="scrollUpAttempts">Scroll Up Attempts Before Reset:</label>
-                            <input type="number" id="scrollUpAttempts" value="20" min="1">
+                            <input type="number" id="scrollUpAttempts" value="15" min="1">
                         </div>
                     </div>
                     <div class="status-info">
+                        <div><span id="currentFunction">Idle</span></div>
+                        <div><span id="currentLevelDuration">Current Level: 0m 0s</span></div>
+                        <div><span id="previousLevelDuration">Previous Level: N/A</span></div>
+                        <div><span id="longestLevelDuration">Longest Level: N/A</span></div>
+                        <div><span id="shortestLevelDuration">Shortest Level: N/A</span></div>
+                        <div><span id="levelsFinishedCount">Levels Finished: 0</span></div>
+                        <div><span id="averageLevelDuration">Average Duration: N/A</span></div>
                         <div><span id="statusText">Ready</span></div>
                         <div><span id="coordinates">Mouse: (0, 0)</span></div>
                         <div><span id="finishBuildStatus">Idle</span></div>
