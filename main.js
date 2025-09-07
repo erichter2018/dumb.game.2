@@ -31,6 +31,13 @@ let shortestLevelDurationMs = null; // New: To store the shortest level duration
 let levelsFinishedCount = 0; // New: To track the number of levels finished
 let totalLevelsDurationMs = 0; // New: To accumulate total duration for average calculation
 
+// Helper function to generate a random integer between min and max (inclusive)
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 // Function to send current active function to renderer
 function updateCurrentFunction(functionName) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -120,14 +127,11 @@ const CLICK_AREAS = {
 // New functions for click and hold using cliclick
 async function clickDown(x, y) {
   try {
-    console.log(`Attempting cliclick down at (${x}, ${y}).`);
     await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before cliclick
     const { stdout, stderr } = await execAsync(`cliclick dd:${x},${y}`); // 'dd' for drag down (mouse button down)
     if (stderr) {
       console.error(`cliclick dd stderr: ${stderr}`);
     }
-    console.log(`cliclick dd stdout: ${stdout}`);
-    console.log(`Successfully attempted cliclick down at: (${x}, ${y})`);
     return { success: true };
   } catch (error) {
     console.error(`Error cliclick down at (${x}, ${y}):`, error);
@@ -137,14 +141,11 @@ async function clickDown(x, y) {
 
 async function clickUp(x, y) {
   try {
-    console.log(`Attempting cliclick up at (${x}, ${y}).`);
     await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before cliclick
     const { stdout, stderr } = await execAsync(`cliclick du:${x},${y}`); // 'du' for drag up (mouse button up)
     if (stderr) {
       console.error(`cliclick du stderr: ${stderr}`);
     }
-    console.log(`cliclick du stdout: ${stdout}`);
-    console.log(`Successfully attempted cliclick up at: (${x}, ${y})`);
     return { success: true };
   } catch (error) {
     console.error(`Error cliclick up at (${x}, ${y}):`, error);
@@ -153,7 +154,6 @@ async function clickUp(x, y) {
 }
 
 async function clickAndHold(x, y, duration, getIsAutomationRunning) {
-  console.log(`DEBUG: Clicking and holding at (${x}, ${y}) for ${duration}ms.`);
   const resultDown = await clickDown(x, y);
   if (!resultDown.success) return resultDown;
 
@@ -178,7 +178,6 @@ async function clickAndHold(x, y, duration, getIsAutomationRunning) {
 }
 
 async function performRapidClicks(x, y, count) {
-  console.log(`Performing ${count} rapid clicks at (${x}, ${y}).`);
   // Commenting out the original loop
   // for (let i = 0; i < count; i++) {
   //   await performClick(x, y);
@@ -197,13 +196,10 @@ async function performRapidClicks(x, y, count) {
   const fullCommand = `cliclick ${clickCommands.join(' ')}`;
 
   try {
-    console.log(`Executing rapid clicks via cliclick: ${fullCommand}`);
     const { stdout, stderr } = await execAsync(fullCommand);
     if (stderr) {
       console.error(`cliclick rapid clicks stderr: ${stderr}`);
     }
-    console.log(`cliclick rapid clicks stdout: ${stdout}`);
-    console.log(`Successfully performed ${count} rapid clicks at: (${x}, ${y})`);
     return { success: true };
   } catch (error) {
     console.error(`Error performing rapid clicks at (${x}, ${y}):`, error);
@@ -213,8 +209,8 @@ async function performRapidClicks(x, y, count) {
 
 // New function to perform the click, called internally by main process
 async function performClick(x, y) {
+  console.log(`DEBUG: Performing click at X:${x}, Y:${y}`);
   try {
-    console.log(`Attempting to simulate click at (${x}, ${y}) using cliclick.`);
     // Removed app activation from here, it will be done once at automation start
     // await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
     // No delay needed here as activation is handled at start
@@ -224,8 +220,6 @@ async function performClick(x, y) {
     if (stderr) {
       console.error(`cliclick stderr: ${stderr}`);
     }
-    console.log(`cliclick stdout: ${stdout}`);
-    console.log(`Successfully simulated click at: (${x}, ${y})`);
     return { success: true };
   } catch (error) {
     console.error(`Error simulating click at (${x}, ${y}):`, error);
@@ -240,8 +234,6 @@ function createWindow() {
     // Calculate the desired starting X position, offsetting by 100 pixels
     const startX = Math.round((width - 1200) / 2) + 100; // Center then shift right
     const startY = Math.round((height - 800) / 2); // Center vertically
-
-    console.log(`Creating window at X: ${startX}, Y: ${startY}, Width: 1200, Height: 800`);
 
     mainWindow = new BrowserWindow({
         width: 1200,
@@ -327,7 +319,6 @@ async function autoDetectIPhoneMirroring() {
     const windowInfo = await findIPhoneMirroringWindow();
     if (windowInfo) {
       iphoneMirroringRegion = windowInfo;
-      console.log('Auto-detected iPhone Mirroring window:', windowInfo);
       return windowInfo;
     }
     
@@ -339,7 +330,6 @@ async function autoDetectIPhoneMirroring() {
     
     const suggestedRegion = { x, y, width: suggestedWidth, height: suggestedHeight };
     iphoneMirroringRegion = suggestedRegion;
-    console.log('Suggested region based on screen size:', suggestedRegion);
     return suggestedRegion;
   } catch (error) {
     console.error('Error auto-detecting iPhone Mirroring:', error);
@@ -408,14 +398,12 @@ ipcMain.handle('capture-iphone-mirroring', async () => {
 // IPC handlers for detection
 ipcMain.handle('detect-red-blob', async () => {
   try {
-    console.log('Attempting red blob detection with region:', iphoneMirroringRegion);
     const fullScreenDataUrl = await captureScreenRegion();
     
     // Log captured image dimensions for debugging
     const imageBuffer = Buffer.from(fullScreenDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64');
     const sharpImage = sharp(imageBuffer);
     const metadata = await sharpImage.metadata();
-    console.log(`Captured full screen image dimensions: ${metadata.width}x${metadata.height}`);
 
     const mainDetections = await redBlobDetector.detect(fullScreenDataUrl, iphoneMirroringRegion);
     const cutoffDetections = await redBlobDetectorCutoff.detect(fullScreenDataUrl, iphoneMirroringRegion);
@@ -435,20 +423,14 @@ ipcMain.handle('detect-red-blob', async () => {
 
 ipcMain.handle('detect-blue-box', async () => {
   try {
-    console.log('Attempting blue box detection with region:', iphoneMirroringRegion);
     const fullScreenDataUrl = await captureScreenRegion();
 
     // Log captured image dimensions for debugging
     const imageBuffer = Buffer.from(fullScreenDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64');
     const sharpImage = sharp(imageBuffer);
     const metadata = await sharpImage.metadata();
-    console.log(`Captured full screen image dimensions: ${metadata.width}x${metadata.height}`);
-    console.log(`fullScreenDataUrl length: ${fullScreenDataUrl.length}`);
-    console.log(`imageBuffer size: ${imageBuffer.byteLength} bytes`);
-    console.log(`iPhone Mirroring Region: ${JSON.stringify(iphoneMirroringRegion)}`);
 
     const detections = await blueBoxDetector.detect(fullScreenDataUrl, iphoneMirroringRegion);
-    console.log(`DEBUG: Blue box detection result for UI: ${JSON.stringify(detections)}`);
     return { success: true, detections };
   } catch (error) {
     console.error('Error detecting blue boxes:', error);
@@ -458,7 +440,6 @@ ipcMain.handle('detect-blue-box', async () => {
 
 // Function to start the Finish Build automation loop
 async function startFinishBuildAutomationLoop() {
-  console.log('Starting Finish Build automation loop internally.');
   updateCurrentFunction('startFinishBuildAutomationLoop'); // Update current function
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('finish-build-status', 'Starting automation loop...', 'info');
@@ -512,12 +493,9 @@ async function startFinishBuildAutomationLoop() {
 }
 
 ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
-  console.log(`DEBUG: toggle-finish-build IPC handler called with isRunning: ${isRunning}`);
-
   if (isRunning) {
     updateCurrentFunction('toggle-finish-build'); // Update current function
     isAutomationRunning = isRunning; // Update the global flag
-    console.log('DEBUG: Starting Finish Build automation via IPC.');
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('finish-build-status', 'Starting Finish Build automation...', 'info');
     }
@@ -528,14 +506,12 @@ ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
     startFinishBuildAutomationLoop();
   } else {
     isAutomationRunning = isRunning; // Update the global flag to false
-    console.log('DEBUG: Stopping Finish Build automation via IPC.');
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('finish-build-status', 'Stopping Finish Build automation...', 'info');
     }
     if (pauseTimeout) {
       clearTimeout(pauseTimeout);
       pauseTimeout = null;
-      console.log('DEBUG: pauseTimeout cleared during stop.');
     }
     // Call the stopAutomation function in finishBuild.js
     await finishBuildAutomation.stopAutomation({
@@ -568,7 +544,6 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
   }
 
   isFinishLevelRunning = isRunning;
-  console.log(`DEBUG: toggle-finish-level IPC handler called with isRunning: ${isRunning}, scrollSwipeDistance: ${scrollSwipeDistance}, scrollToBottomIterations: ${scrollToBottomIterations}, scrollUpAttempts: ${scrollUpAttempts}`);
   if (isRunning) {
     updateCurrentFunction('toggle-finish-level'); // Update current function
     currentLevelStartTime = Date.now(); // Start timer for current level
@@ -648,11 +623,8 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
         updateAverageLevelDuration(totalLevelsDurationMs / levelsFinishedCount); // Update display
         currentLevelStartTime = Date.now(); // Reset current level timer
     },
-    updateLongestLevelDuration: updateLongestLevelDuration, // New: Pass new function
-    updateShortestLevelDuration: updateShortestLevelDuration, // New: Pass new function
-    updateLevelsFinishedCount: updateLevelsFinishedCount, // New: Pass new function
-    updateAverageLevelDuration: updateAverageLevelDuration, // New: Pass new function
-    currentLevelStartTime: currentLevelStartTime, // Pass the current level start time
+    // New: Pass a getter function for the current level start time
+    getCurrentLevelStartTime: () => currentLevelStartTime,
   };
 
   if (isRunning) {
@@ -666,35 +638,25 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
 });
 
 ipcMain.handle('pause-automation-on-mouse-move', async () => {
-  console.log(`DEBUG: Mouse movement detected. Current state: isAutomationRunning: ${isAutomationRunning}, isFinishLevelRunning: ${isFinishLevelRunning}, pauseTimeout: ${!!pauseTimeout}, isHoldingBlueBox: ${isHoldingBlueBox}`);
-
-  // If Finish Level automation is running, do not pause it on mouse move.
-  // Instead, only consider pausing Finish Build automation.
   if (isFinishLevelRunning && !isAutomationRunning) {
-    console.log('DEBUG: Finish Level automation is running and Finish Build is not. Ignoring mouse move for pausing Finish Level.');
     return; 
   }
   
   if (!isAutomationRunning) { // Only pause if Finish Build automation is actually running
-    console.log('DEBUG: Finish Build automation not running, ignoring mouse move.');
     return;
   }
 
   isAutomationRunning = false; // Temporarily stop the loop in finishBuild.js
-  console.log('DEBUG: Finish Build automation loop in finishBuild.js will stop.');
 
   // If we were holding a click, explicitly release it
   if (isHoldingBlueBox && lastBlueBoxClickCoords) {
-    console.log(`DEBUG: Attempting to release click-hold on mouse move at (${lastBlueBoxClickCoords.x}, ${lastBlueBoxClickCoords.y}).`);
     await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before clickUp
     await clickUp(lastBlueBoxClickCoords.x, lastBlueBoxClickCoords.y);
     isHoldingBlueBox = false; // Update state in main process
-    console.log('DEBUG: Click-hold released on mouse move.');
   }
 
   // Reset automation state in finishBuild.js on pause
   finishBuildAutomation.resetAutomationState();
-  console.log('Finish Build automation paused due to mouse movement.');
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('finish-build-status', 'Paused: Mouse moved (resuming in 5s)...', 'warning');
   }
@@ -702,11 +664,8 @@ ipcMain.handle('pause-automation-on-mouse-move', async () => {
   // Clear any existing pause timeout to restart the 5-second countdown
   if (pauseTimeout) {
     clearTimeout(pauseTimeout);
-    console.log('DEBUG: Existing pauseTimeout cleared. Restarting pause timer.');
   }
-  console.log('DEBUG: Setting pauseTimeout for 5 seconds.');
   pauseTimeout = setTimeout(async () => {
-    console.log('Resuming Finish Build automation after pause.');
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('finish-build-status', 'Resuming automation...', 'info');
     }
@@ -716,7 +675,6 @@ ipcMain.handle('pause-automation-on-mouse-move', async () => {
     isAutomationRunning = true; // Set to true BEFORE calling startFinishBuildAutomationLoop
     await startFinishBuildAutomationLoop();
     pauseTimeout = null;
-    console.log('DEBUG: pauseTimeout nulled after resume.');
   }, 5000); // Pause for 5 seconds
 
   return { success: true, message: 'Automation paused.' };
@@ -727,7 +685,6 @@ ipcMain.handle('simulate-click', async (event, x, y) => {
 });
 
 ipcMain.handle('activate-iphone-mirroring', async () => {
-  console.log('DEBUG: Activating iPhone Mirroring app via IPC.');
   await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
   await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after activation
   return { success: true };
@@ -748,7 +705,6 @@ ipcMain.handle('scroll-to-bottom', async (event, x, y, distance, count) => {
 // New functions for scrolling vertically
 async function scrollDown(x, y, distance) {
   updateCurrentFunction('scrollDown'); // Update current function
-  console.log(`Attempting smooth click-drag down from (${x}, ${y}) by ${distance} pixels using RobotJS.`);
   try {
     // 1. Move mouse to start point
     robot.moveMouse(x, y);
@@ -764,7 +720,6 @@ async function scrollDown(x, y, distance) {
 
     // 4. Release left mouse button
     robot.mouseToggle('up', 'left');
-    console.log(`Successfully performed smooth click-drag down from (${x}, ${y}) by ${distance} pixels.`);
     return { success: true };
   } catch (error) {
     console.error(`Error executing RobotJS scroll down: ${error.message}`);
@@ -772,25 +727,42 @@ async function scrollDown(x, y, distance) {
   }
 }
 
-async function scrollUp(x, y, distance) {
+async function scrollUp(x, y) {
   updateCurrentFunction('scrollUp'); // Update current function
-  console.log(`Attempting smooth click-drag up from (${x}, ${y}) by ${distance} pixels using RobotJS.`);
   try {
+    console.log(`DEBUG: scrollUp - Starting at X:${x}, Y:${y}`);
     // 1. Move mouse to start point
     robot.moveMouse(x, y);
     await new Promise(resolve => setTimeout(resolve, 50)); 
+    console.log(`DEBUG: scrollUp - Mouse moved to X:${x}, Y:${y}`);
+
+    // Click off before scrolling up
+    console.log(`DEBUG: scrollUp - Clicking off at X:${CLICK_AREAS.CLICK_OFF.x}, Y:${CLICK_AREAS.CLICK_OFF.y}`);
+    await performClick(CLICK_AREAS.CLICK_OFF.x, CLICK_AREAS.CLICK_OFF.y);
+    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay after click off
+    console.log(`DEBUG: scrollUp - Click off completed.`);
+
+    // Re-adjust mouse to original scroll point after click off
+    robot.moveMouse(x, y);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    console.log(`DEBUG: scrollUp - Mouse re-adjusted to X:${x}, Y:${y} for drag.`);
 
     // 2. Press and hold left mouse button
     robot.mouseToggle('down', 'left');
     await new Promise(resolve => setTimeout(resolve, 50)); 
+    console.log(`DEBUG: scrollUp - Mouse button down.`);
 
     // 3. Drag mouse to end point
-    robot.dragMouse(x, y + distance); // Drag downwards to scroll up
+    const scrollDistance = getRandomInt(80, 100);
+    const targetY = y + scrollDistance;
+    console.log(`DEBUG: scrollUp - Generated scroll distance: ${scrollDistance}. Dragging to X:${x}, Y:${targetY}`);
+    robot.dragMouse(x, targetY); // Drag downwards to scroll up
     await new Promise(resolve => setTimeout(resolve, 50)); 
+    console.log(`DEBUG: scrollUp - Mouse dragged.`);
 
     // 4. Release left mouse button
     robot.mouseToggle('up', 'left');
-    console.log(`Successfully performed smooth click-drag up from (${x}, ${y}) by ${distance} pixels.`);
+    console.log(`DEBUG: scrollUp - Mouse button up.`);
     return { success: true };
   } catch (error) {
     console.error(`Error executing RobotJS scroll up: ${error.message}`);
@@ -800,12 +772,10 @@ async function scrollUp(x, y, distance) {
 
 async function scrollToBottom(x, y, distance, count) {
   updateCurrentFunction('scrollToBottom'); // Update current function
-  console.log(`Attempting to scroll to bottom at (${x}, ${y}).`);
   for (let i = 0; i < count; i++) { // Use configurable count
     await scrollDown(x, y, distance);
     await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between scrolls
   }
-  console.log(`Successfully scrolled to bottom at (${x}, ${y}).`);
   return { success: true };
 }
 
