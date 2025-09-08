@@ -5,7 +5,7 @@ async function clickAround(dependencies) {
   const { updateStatus, detectRedBlobs, performClick, performBatchedClicks, iphoneMirroringRegion, getIsClickAroundRunning, getIsClickAroundPaused, updateCurrentFunction, CLICK_AREAS, captureScreenRegion } = dependencies;
   updateStatus('Starting Click Around automation...', 'info');
 
-  const redBlobProximityThreshold = 150;
+  const redBlobProximityThreshold = 300;
 
   const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = iphoneMirroringRegion;
 
@@ -59,9 +59,35 @@ async function clickAround(dependencies) {
 
       updateStatus(`Click Around: Scroll iteration ${scrollCount + 1}/${maxScrolls}`, 'info');
 
+      // First red blob detection
       const fullScreenDataUrl = await captureScreenRegion();
       const currentRedBlobs = await detectRedBlobs(fullScreenDataUrl, iphoneMirroringRegion);
-      const redBlobPositions = currentRedBlobs.map(blob => ({ x: blob.x, y: blob.y }));
+      console.log(`DEBUG: ClickAround first detection found ${currentRedBlobs.length} red blobs`);
+      
+      // Second red blob detection to catch any missed/wiggling blobs
+      const fullScreenDataUrlSecond = await captureScreenRegion();
+      const currentRedBlobsSecond = await detectRedBlobs(fullScreenDataUrlSecond, iphoneMirroringRegion);
+      console.log(`DEBUG: ClickAround second detection found ${currentRedBlobsSecond.length} red blobs`);
+      
+      // Combine both sets of results - use a Map to avoid duplicates based on coordinates
+      const combinedBlobsMap = new Map();
+      
+      // Add first detection results
+      currentRedBlobs.forEach(blob => {
+        const key = `${blob.x},${blob.y}`;
+        combinedBlobsMap.set(key, blob);
+      });
+      
+      // Add second detection results (will overwrite if same coordinates, or add if new)
+      currentRedBlobsSecond.forEach(blob => {
+        const key = `${blob.x},${blob.y}`;
+        combinedBlobsMap.set(key, blob);
+      });
+      
+      // Convert back to array and extract positions
+      const combinedRedBlobs = Array.from(combinedBlobsMap.values());
+      const redBlobPositions = combinedRedBlobs.map(blob => ({ x: blob.x, y: blob.y }));
+      console.log(`DEBUG: ClickAround combined ${redBlobPositions.length} unique red blobs for exclusion:`, redBlobPositions);
 
       if (redBlobHistory.length === 2) {
         redBlobHistory.shift();
@@ -99,7 +125,11 @@ async function clickAround(dependencies) {
 
           const tooCloseToRedBlob = redBlobPositions.some(blob => {
             const distance = Math.sqrt(Math.pow(targetX - blob.x, 2) + Math.pow(targetY - blob.y, 2));
-            return distance <= redBlobProximityThreshold;
+            const isClose = distance <= redBlobProximityThreshold;
+            if (isClose) {
+              console.log(`DEBUG: Skipping click at (${targetX}, ${targetY}) - too close to red blob at (${blob.x}, ${blob.y}), distance: ${distance.toFixed(1)}px (threshold: ${redBlobProximityThreshold}px)`);
+            }
+            return isClose;
           });
 
           if (tooCloseToRedBlob) {
@@ -110,9 +140,12 @@ async function clickAround(dependencies) {
         }
 
         if (clicksInRow.length > 0) {
+          console.log(`DEBUG: Row ${rowCount}: Performing ${clicksInRow.length} clicks (after exclusions)`);
           // Use robotjs-based batched clicking for much faster execution
           await performBatchedClicks(clicksInRow);
           await new Promise(resolve => setTimeout(resolve, 2)); // Minimal delay between rows with robotjs
+        } else {
+          console.log(`DEBUG: Row ${rowCount}: No clicks to perform (all excluded)`);
         }
 
         rowCount++;

@@ -262,6 +262,7 @@ async function detect(imageDataUrl, captureRegion) {
             }
             let hasRedOrangeCircle = false;
             let hasWhiteText = false;
+            console.log(`DEBUG: [INIT] hasWhiteText initialized to: ${hasWhiteText}`);
 
             // --- Sub-region for red/orange circle ---
             const circleDetectRegionRelativeX = Math.floor(box.width * 0.02); // Shifted left
@@ -349,9 +350,12 @@ async function detect(imageDataUrl, captureRegion) {
 
                             console.log(`DEBUG: Red/Orange Circle detected - currentBlobPixels: ${currentBlobPixels}, circleWidth: ${circleWidth}, circleHeight: ${circleHeight}, circleAspectRatio: ${circleAspectRatio.toFixed(2)}`);
 
-                            if (currentBlobPixels > 20 && currentBlobPixels < 1000 && circleAspectRatio > 0.5 && circleAspectRatio < 1.5) {
+                            if (currentBlobPixels > 20 && currentBlobPixels < 1000 && circleAspectRatio > 0.37 && circleAspectRatio < 1.5) {
                                 hasRedOrangeCircle = true;
+                                console.log(`DEBUG: [RED CIRCLE] hasRedOrangeCircle set to TRUE (pixels: ${currentBlobPixels}, ratio: ${circleAspectRatio.toFixed(2)})`);
                                 break;
+                            } else {
+                                console.log(`DEBUG: [RED CIRCLE] Circle detected but failed criteria (pixels: ${currentBlobPixels}, ratio: ${circleAspectRatio.toFixed(2)})`);
                             }
                         }
                     }
@@ -414,6 +418,9 @@ async function detect(imageDataUrl, captureRegion) {
                 console.log(`DEBUG: White text detection for box at x:${box.x}, y:${box.y} - whitePixelCount: ${whitePixelCount}, totalPixelsInTextRegion: ${totalPixelsInTextRegion}, whitePixelDensity: ${whitePixelDensity.toFixed(2)}`);
                 if (whitePixelDensity > 0.05) { // Lowered threshold for white text presence
                     hasWhiteText = true;
+                    console.log(`DEBUG: [WHITE TEXT] hasWhiteText set to TRUE (density: ${whitePixelDensity.toFixed(3)} > 0.05)`);
+                } else {
+                    console.log(`DEBUG: [WHITE TEXT] hasWhiteText remains FALSE (density: ${whitePixelDensity.toFixed(3)} <= 0.05)`);
                 }
             }
 
@@ -454,6 +461,29 @@ async function detect(imageDataUrl, captureRegion) {
             const greenPixelDensity = (totalPixels > 0) ? (greenPixelCount / totalPixels) : 0; // New: Calculate green pixel density
             console.log(`DEBUG: Box at x:${box.x}, y:${box.y} - Green Pixel Density: ${greenPixelDensity.toFixed(2)}`);
 
+            // Calculate blue percentage for diagnostic purposes (not used in logic)
+            let diagnosticBluePixelCount = 0;
+            for (let py = box.y_relative_to_cropped; py < box.y_relative_to_cropped + box.height; py++) {
+                for (let px = box.x_relative_to_cropped; px < box.x_relative_to_cropped + box.width; px++) {
+                    const pixel = getPixel(px, py);
+                    if (pixel) {
+                        const r = pixel.r;
+                        const g = pixel.g;
+                        const b = pixel.b;
+                        
+                        // Check if pixel is blue (blue > red and blue > green, with some threshold)
+                        if (b > r + 20 && b > g + 20 && b > 100) {
+                            diagnosticBluePixelCount++;
+                        }
+                    }
+                }
+            }
+            const diagnosticBluePixelDensity = (totalPixels > 0) ? (diagnosticBluePixelCount / totalPixels) : 0;
+            console.log(`DEBUG: [BLUE %] Box at x:${box.x}, y:${box.y} - Blue Pixel Percentage: ${(diagnosticBluePixelDensity * 100).toFixed(1)}% (${diagnosticBluePixelCount}/${totalPixels} pixels) - DIAGNOSTIC ONLY`);
+
+            // Debug state before main decision logic
+            console.log(`DEBUG: [PRE-DECISION] Final state before classification - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}, isGrey: ${isGrey(averageColor)}, greenPixelDensity: ${greenPixelDensity.toFixed(3)}`);
+            
             // Determine box state more directly after sub-detections
             if (greenPixelDensity > greenPixelThreshold) {
                 boxState = 'green_excluded'; // Exclude if too much green
@@ -471,7 +501,13 @@ async function detect(imageDataUrl, captureRegion) {
                     console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as OTHER GREY (no specific text).`);
                 }
             } else if (hasRedOrangeCircle && hasWhiteText) { // Blue build box criteria
-                console.log(`DEBUG: Blue build box check - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}.`);
+                console.log(`DEBUG: [DECISION] Blue build box check - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}.`);
+                console.log(`DEBUG: [DECISION] Entering BLUE BUILD detection path`);
+                
+                // TODO: POTENTIAL FUTURE ENHANCEMENT - Add blue content requirement
+                // Uncomment the line below if we want to require >50% blue content for blue_build classification
+                // This would add an additional safety check but might be too restrictive
+                // && diagnosticBluePixelDensity > 0.5
                 // Additional check for blue dominance in the main body if it's not grey
                 let bluePixelCountInBody = 0;
                 let totalPixelsInBody = 0;
@@ -520,6 +556,8 @@ async function detect(imageDataUrl, captureRegion) {
                     }
                 }
             } else { // Neither grey nor blue build criteria met
+                console.log(`DEBUG: [DECISION] UNKNOWN path - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}`);
+                console.log(`DEBUG: [DECISION] Failed all criteria - going to UNKNOWN state`);
                 boxState = 'unknown';
                 console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as UNKNOWN state.`);
             }

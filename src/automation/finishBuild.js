@@ -289,7 +289,14 @@ async function runBuildProtocol(dependencies) {
                     updateStatus: dependencies.updateStatus,
                     detectRedBlobs: dependencies.redBlobDetectorDetect,
                     performClick: dependencies.performClick,
-                    performBatchedClicks: dependencies.performBatchedClicks || dependencies.performClick, // fallback if not available
+                    performBatchedClicks: dependencies.performBatchedClicks || (async (clickArray) => {
+                        // Fallback: if performBatchedClicks doesn't exist, iterate through array and call performClick individually
+                        if (!Array.isArray(clickArray)) return { success: false, error: 'Invalid click array' };
+                        for (const click of clickArray) {
+                            await dependencies.performClick(click.x, click.y);
+                        }
+                        return { success: true };
+                    }), // proper fallback wrapper
                     iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
                     updateCurrentFunction: dependencies.updateCurrentFunction,
                     CLICK_AREAS: dependencies.CLICK_AREAS,
