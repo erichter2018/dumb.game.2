@@ -1,5 +1,5 @@
 function startAutomation(dependencies) {
-    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, currentLevelStartTime } = dependencies;
+    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
 
     updateCurrentFunction('startAutomation'); // Update current function display
     updateStatus('Finish Level Automation Started', 'info');
@@ -24,8 +24,8 @@ function startAutomation(dependencies) {
 
     let hasFinishedBuildOnce = false;
     const MAX_RED_BLOB_CLICK_ATTEMPTS = 3; // Define max retry attempts for red blob clicks
-    const MAX_BLUE_BOX_CONFIRM_ATTEMPTS = 3; // New: Max retry attempts for confirming blue box
-    const MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION = 3; // New: Max detection attempts before a single scroll up
+    const MAX_BLUE_BOX_CONFIRM_ATTEMPTS = 1; // New: Max retry attempts for confirming blue box
+    const MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION = 2; // New: Max detection attempts before a single scroll up
     // New flag to control finishBuildAutomation when called from finishLevel
     let isFinishBuildRunningInternal = false;
 
@@ -55,7 +55,10 @@ function startAutomation(dependencies) {
                 console.log(`DEBUG: Clicking blue build box at X:${blueBoxCenterX}, Y:${blueBoxCenterY}.`);
                 await performClick(blueBoxCenterX, blueBoxCenterY);
                 if (!getIsAutomationRunning()) return null;
-                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay after click
+                await new Promise(resolve => setTimeout(resolve, 100)); // Small delay after click
+
+                // Add 200ms delay before re-detection to ensure blue build has time to disappear if unstable
+                await new Promise(resolve => setTimeout(resolve, 200));
 
                 // Re-detect to confirm it's still there after clicking
                 const fullScreenDataUrlAfterClick = await captureScreenRegion();
@@ -71,12 +74,12 @@ function startAutomation(dependencies) {
                 } else {
                     updateStatus('Blue build box disappeared after click. Retrying...', 'warn');
                     console.log('DEBUG: Blue build box disappeared after click. Retrying...');
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Longer delay before next retry
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Longer delay before next retry
                 }
             } else {
                 updateStatus('No blue build box detected. Retrying...', 'warn');
                 console.log('DEBUG: No blue build box detected. Retrying...');
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Longer delay before next retry
+                await new Promise(resolve => setTimeout(resolve, 100)); // Longer delay before next retry
             }
         }
         return confirmedBlueBuildBox;
@@ -88,6 +91,8 @@ function startAutomation(dependencies) {
         console.log('DEBUG: Executing prepBuild function...', 'info');
         if (!getIsAutomationRunning()) return 'stopped';
 
+        // Add small delay before detection to ensure screen is stable
+        await new Promise(resolve => setTimeout(resolve, 200));
         let blueBuildBoxConfirmed = await confirmAndClickBlueBuildBox(dependencies); // Try to confirm and click blue box first
         if (!getIsAutomationRunning()) return 'stopped';
 
@@ -115,21 +120,21 @@ function startAutomation(dependencies) {
             isFinishBuildRunningInternal = false;
             if (!getIsAutomationRunning()) return 'stopped';
 
-            // Modified: Check if finishBuild exits for the first time, regardless of its specific success status.
-            // Exclude 'stopped' or 'error' from prepBuild itself.
-            if (buildResult !== 'stopped' && buildResult !== 'error' && !hasFinishedBuildOnce) {
+            // Modified: Check if finishBuild exits for the first time after completing a full build cycle.
+            // Exclude 'stopped', 'error', and 'max_build_at_startup' (which means MAX was detected immediately, no build cycle completed).
+            if (buildResult !== 'stopped' && buildResult !== 'error' && buildResult !== 'max_build_at_startup' && !hasFinishedBuildOnce) {
                 console.log(`DEBUG: First exit from Finish Build (status: ${buildResult}) detected. Scrolling to bottom.`);
                 const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                 const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations);
+                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                 if (!getIsAutomationRunning()) return 'stopped'; // Changed from break to return 'stopped'
                 hasFinishedBuildOnce = true;
             }
 
-            if (buildResult === 'max_build_achieved') {
+            if (buildResult === 'max_build_achieved' || buildResult === 'max_build_at_startup') {
                 updateStatus('Finish Build reported MAX build. Exiting prepBuild.', 'success');
                 console.log('DEBUG: Finish Build reported MAX build. Exiting prepBuild.');
-                return 'max_build_achieved'; // Exit prepBuild but let Finish Level loop continue
+                return buildResult; // Exit prepBuild but let Finish Level loop continue
             } else if (buildResult === 'no_blue_box_found') { // This status isn't returned by finishBuild currently, but was discussed.
                 updateStatus('Finish Build failed to find blue box. Exiting prepBuild to allow red blob detection.', 'warn');
                 console.log('DEBUG: Finish Build reported no blue box found. Exiting prepBuild.');
@@ -177,13 +182,13 @@ function startAutomation(dependencies) {
                 await performClick(Math.round(clickX), Math.round(clickY)); // Second click of double click
                 if (!getIsAutomationRunning()) return 'stopped';
                 console.log('DEBUG: Second click of double click performed. Waiting 500ms.');
-                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay after double click
+                await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay after double click for blue build stabilization
             } else { // Subsequent retry attempts (single click)
                 console.log(`DEBUG: Single clicking red blob (attempt ${i+1}) at X:${Math.round(clickX)}, Y:${Math.round(clickY)}.`);
                 await performClick(Math.round(clickX), Math.round(clickY));
                 if (!getIsAutomationRunning()) return 'stopped';
                 console.log('DEBUG: Single click performed. Waiting 500ms.');
-                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay after click
+                await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay after click for blue build stabilization
             }
             // Log after click attempt
             console.log(`DEBUG: Red blob click attempt ${i+1} completed. Checking for blue box.`);
@@ -227,15 +232,15 @@ function startAutomation(dependencies) {
                 console.log(`DEBUG: First exit from Finish Build (status: ${buildResult}) detected after red blob click. Scrolling to bottom.`);
                 const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                 const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations);
+                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                 if (!getIsAutomationRunning()) return 'stopped'; // Changed from break to return 'stopped'
                 hasFinishedBuildOnce = true;
             }
 
-            if (buildResult === 'max_build_achieved') {
+            if (buildResult === 'max_build_achieved' || buildResult === 'max_build_at_startup') {
                 updateStatus('Finish Build reported MAX build. Exiting prepBuild.', 'success');
                 console.log('DEBUG: Finish Build reported MAX build. Exiting prepBuild.');
-                return 'max_build_achieved'; // Exit prepBuild but let Finish Level loop continue
+                return buildResult; // Exit prepBuild but let Finish Level loop continue
             }
             if (!getIsAutomationRunning()) return 'stopped';
             updateStatus('Finish Build automation completed. Exiting prepBuild.', 'success');
@@ -249,7 +254,7 @@ function startAutomation(dependencies) {
     }
 
     async function exitAndStartNewLevel(dependencies) {
-        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, currentLevelStartTime } = dependencies;
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime } = dependencies;
 
         updateCurrentFunction('exitAndStartNewLevel'); // Update current function display
         updateStatus('Starting "Exit and Start New Level" routine.', 'info');
@@ -259,7 +264,7 @@ function startAutomation(dependencies) {
         console.log(`DEBUG: Finished click at "Start Exiting" at (${CLICK_AREAS.START_EXITING.x}, ${CLICK_AREAS.START_EXITING.y}). Waiting 500ms.`);
 
         // Wait 500ms
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 100));
         if (!getIsAutomationRunning()) { return; }
 
         // Click at "confirm exit"
@@ -300,11 +305,15 @@ function startAutomation(dependencies) {
         // Using central coordinates of the iPhone mirroring region and a default scroll distance
         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations);
+        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
         if (!getIsAutomationRunning()) { return; }
 
         // After a successful exit and new level start, update the previous level duration
-        updatePreviousLevelDuration(Date.now() - currentLevelStartTime); // Use the destructured currentLevelStartTime
+        updatePreviousLevelDuration(Date.now() - getCurrentLevelStartTime()); // Use the getter function
+        
+        // Reset the flag so scroll-to-bottom will trigger after the first successful build on this new level
+        hasFinishedBuildOnce = false;
+        console.log('DEBUG: Reset hasFinishedBuildOnce to false for new level.');
     }
 
     let scrollUpCount = 0; // Counter for consecutive scroll-up attempts
@@ -413,14 +422,15 @@ function startAutomation(dependencies) {
                         updateStatus(`No objects found after ${detectionAttemptCount} attempts. Scrolling up...`, 'warn');
                         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                        await scrollUp(scrollX, scrollY, scrollSwipeDistance); // Use configurable scroll swipe distance
+                        await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt }); // Use configurable scroll swipe distance
                         scrollUpCount++;
+                        console.log(`DEBUG: Scroll up count incremented to ${scrollUpCount}, limit is ${scrollUpAttempts}.`);
                         detectionAttemptCount = 0; // Reset attempt count after scrolling
 
                         if (scrollUpCount >= scrollUpAttempts) { // Use configurable scrollUpAttempts
                             console.log(`DEBUG: Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search.`);
                             updateStatus(`Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search...`, 'warn');
-                            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations); // Use configurable values
+                            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS }); // Use configurable values
                             scrollUpCount = 0; // Reset scroll up count
                         }
                     }
@@ -428,8 +438,7 @@ function startAutomation(dependencies) {
                 }
 
                 if (redBlobs.length > 0) {
-                    detectionAttemptCount = 0; // Reset on success
-                    scrollUpCount = 0; // Reset on success
+                    // Don't reset detectionAttemptCount or scrollUpCount here - only reset when actionable blobs are found
                     let untriedRedBlobs = redBlobs.filter(blob => !redBlobsTried.has(JSON.stringify(blob)) && !blob.name);
 
                     let targetBlob = null;
@@ -456,9 +465,63 @@ function startAutomation(dependencies) {
                             console.log('DEBUG: All red blobs tried or all remaining are named. Resetting and re-attempting with all unnamed blobs.', 'info');
                             redBlobsTried.clear();
                             untriedRedBlobs = redBlobs.filter(blob => !blob.name); // Reset with only unnamed blobs
+                            
+                            // If still no untried blobs after reset (all are named), increment attempt count
+                            if (untriedRedBlobs.length === 0) {
+                                console.log(`DEBUG: No untried red blobs after reset (all are named). Incrementing detection attempt count from ${detectionAttemptCount} to ${detectionAttemptCount + 1}.`);
+                                detectionAttemptCount++;
+                                console.log(`DEBUG: Detection attempt count is now ${detectionAttemptCount}, threshold is ${MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION}.`);
+                                
+                                // Check if we should scroll up
+                                if (detectionAttemptCount >= MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION) {
+                                    // Before scrolling up, try one more red blob detection in case blobs were wiggling
+                                    console.log(`DEBUG: Performing second red blob detection before scrolling up (blobs might be wiggling).`);
+                                    updateStatus('Performing second red blob detection before scrolling up...', 'info');
+                                    const fullScreenDataUrlSecond = await captureScreenRegion();
+                                    if (!getIsAutomationRunning()) break;
+                                    
+                                    const redBlobsSecond = await redBlobDetectorDetect(fullScreenDataUrlSecond, iphoneMirroringRegion);
+                                    if (!getIsAutomationRunning()) break;
+                                    
+                                    // Check if we found any new actionable blobs on second attempt
+                                    const untriedRedBlobsSecond = redBlobsSecond.filter(blob => !blob.name && !redBlobsTried.has(`${blob.x},${blob.y}`));
+                                    
+                                    if (untriedRedBlobsSecond.length > 0) {
+                                        console.log(`DEBUG: Second detection found ${untriedRedBlobsSecond.length} new actionable red blobs. Continuing with detection loop.`);
+                                        updateStatus(`Second detection found ${untriedRedBlobsSecond.length} new red blobs. Continuing...`, 'success');
+                                        detectionAttemptCount = 0; // Reset attempt count since we found new blobs
+                                        continue; // Go back to main loop with new blobs
+                                    }
+                                    
+                                    console.log(`DEBUG: Second detection also found no new actionable blobs. Proceeding to scroll up.`);
+                                    console.log(`DEBUG: No usable red blobs found after ${detectionAttemptCount} attempts (including second detection). Scrolling up.`);
+                                    updateStatus(`No usable objects found after ${detectionAttemptCount} attempts (including second detection). Scrolling up...`, 'warn');
+                                    const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                                    const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                                    await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
+                                    scrollUpCount++;
+                                    console.log(`DEBUG: Scroll up count incremented to ${scrollUpCount}, limit is ${scrollUpAttempts}.`);
+                                    detectionAttemptCount = 0; // Reset attempt count after scrolling
+
+                                    if (scrollUpCount >= scrollUpAttempts) {
+                                        console.log(`DEBUG: Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search.`);
+                                        updateStatus(`Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search...`, 'warn');
+                                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                        scrollUpCount = 0; // Reset scroll up count
+                                    }
+                                    continue; // Skip the rest of this iteration and start fresh
+                                } else {
+                                    console.log(`DEBUG: Detection attempt count ${detectionAttemptCount} has not reached threshold ${MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION}. Continuing loop.`);
+                                    // If we haven't reached the scroll threshold, continue to next iteration
+                                    continue;
+                                }
+                            }
                         }
 
                         if (untriedRedBlobs.length > 0) {
+                            // Reset detection attempt count and scroll up count when we find actionable red blobs
+                            detectionAttemptCount = 0;
+                            scrollUpCount = 0;
                             // Find the highest Y-coordinate among untried blobs
                             const highestY = untriedRedBlobs.reduce((maxY, blob) => Math.max(maxY, blob.y), -Infinity);
 
@@ -531,7 +594,7 @@ function startAutomation(dependencies) {
                                 console.log(`DEBUG: First exit from Finish Build (status: ${prepBuildResult}) detected after red blob click. Scrolling to bottom.`);
                                 const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                                 const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations);
+                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                                 if (!getIsAutomationRunning()) return 'stopped'; // Changed from break to return 'stopped'
                                 hasFinishedBuildOnce = true;
                             }
@@ -544,6 +607,7 @@ function startAutomation(dependencies) {
                     } else {
                         updateStatus('No untried red blobs found after reset. Continuing...', 'warn');
                         console.log('DEBUG: No untried red blobs after reset.');
+                        detectionAttemptCount++; // Increment attempt count when no usable blobs are found
                     }
 
                 } else {
@@ -559,14 +623,14 @@ function startAutomation(dependencies) {
                         updateStatus(`No objects found after ${detectionAttemptCount} attempts. Scrolling up...`, 'warn');
                         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                        await scrollUp(scrollX, scrollY, 200); // Scroll up by 200 pixels
+                        await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt }); // Scroll up by 200 pixels
                         scrollUpCount++;
                         detectionAttemptCount = 0; // Reset attempt count after scrolling
 
                         if (scrollUpCount >= 2) { // Changed from 20 to 2
                             console.log(`DEBUG: Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search.`);
                             updateStatus(`Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search...`, 'warn');
-                            await scrollToBottom(scrollX, scrollY, 100, 20); // Scroll to bottom, then the loop restarts from top
+                            await scrollToBottom(scrollX, scrollY, 100, 20, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS }); // Scroll to bottom, then the loop restarts from top
                             scrollUpCount = 0; // Reset scroll up count
                         }
                     }
@@ -574,7 +638,7 @@ function startAutomation(dependencies) {
                 }
             }
             if (!getIsAutomationRunning()) break; // Check if automation stopped before next delay
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Small delay before next loop iteration
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay before next loop iteration
             if (!getIsAutomationRunning()) break; // Check if automation stopped after delay
         }
         updateStatus('Finish Level Automation loop stopped.', 'info');

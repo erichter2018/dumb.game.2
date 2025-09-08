@@ -13,6 +13,8 @@ const blueBoxDetector = require('./src/detection/blueBoxDetector');
 const redBlobDetectorCutoff = require('./src/detection/redBlobDetectorCutoff');
 const finishBuildAutomation = require('./src/automation/finishBuild');
 const finishLevelAutomation = require('./src/automation/finishLevel');
+const scrollingFunctions = require('./src/automation/scrolling');
+const clickAroundFunctions = require('./src/automation/clickAround');
 
 let mainWindow;
 let isCapturing = false;
@@ -24,6 +26,8 @@ let statusMessageHistory = []; // Store recent status messages
 let isHoldingBlueBox = false; // Add state to track if a blue box is being held
 let isAutomationRunning = false; // New flag to control the automation loop in finishBuild.js
 let isFinishLevelRunning = false; // For Finish Level automation
+let isClickAroundRunning = false; // For Click Around automation
+let isClickAroundPaused = false; // For pausing Click Around on mouse movement
 let currentLevelStartTime = null; // New: To track the start time of the current level
 let previousLevelDurationMs = null; // New: To store the duration of the previous level
 let longestLevelDurationMs = null; // New: To store the longest level duration
@@ -31,12 +35,6 @@ let shortestLevelDurationMs = null; // New: To store the shortest level duration
 let levelsFinishedCount = 0; // New: To track the number of levels finished
 let totalLevelsDurationMs = 0; // New: To accumulate total duration for average calculation
 
-// Helper function to generate a random integer between min and max (inclusive)
-function getRandomInt(min, max) {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 // Function to send current active function to renderer
 function updateCurrentFunction(functionName) {
@@ -124,81 +122,74 @@ const CLICK_AREAS = {
   "EXIT_LEVEL": { x: 51, y: 890 }, // New: Named click area for the exit level red blob
 };
 
-// New functions for click and hold using cliclick
+// New functions for click and hold using robotjs
 async function clickDown(x, y) {
   try {
-    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before cliclick
-    const { stdout, stderr } = await execAsync(`cliclick dd:${x},${y}`); // 'dd' for drag down (mouse button down)
-    if (stderr) {
-      console.error(`cliclick dd stderr: ${stderr}`);
-    }
+    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before robotjs
+    robot.moveMouse(x, y);
+    robot.mouseToggle('down', 'left');
     return { success: true };
   } catch (error) {
-    console.error(`Error cliclick down at (${x}, ${y}):`, error);
+    console.error(`Error robotjs down at (${x}, ${y}):`, error);
     return { success: false, error: error.message };
   }
 }
 
 async function clickUp(x, y) {
   try {
-    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before cliclick
-    const { stdout, stderr } = await execAsync(`cliclick du:${x},${y}`); // 'du' for drag up (mouse button up)
-    if (stderr) {
-      console.error(`cliclick du stderr: ${stderr}`);
-    }
+    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before robotjs
+    robot.moveMouse(x, y);
+    robot.mouseToggle('up', 'left');
     return { success: true };
   } catch (error) {
-    console.error(`Error cliclick up at (${x}, ${y}):`, error);
+    console.error(`Error robotjs up at (${x}, ${y}):`, error);
     return { success: false, error: error.message };
   }
 }
 
 async function clickAndHold(x, y, duration, getIsAutomationRunning) {
-  const resultDown = await clickDown(x, y);
-  if (!resultDown.success) return resultDown;
+  try {
+    // Move mouse to position and press down using robotjs
+    robot.moveMouse(x, y);
+    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before mouse down
+    robot.mouseToggle('down', 'left');
 
-  const startTime = Date.now();
-  let heldDuration = 0;
-  const checkInterval = 100; // Check every 100ms
+    const startTime = Date.now();
+    let heldDuration = 0;
+    const checkInterval = 100; // Check every 100ms
 
-  while (heldDuration < duration && getIsAutomationRunning()) {
-    await new Promise(resolve => setTimeout(resolve, Math.min(checkInterval, duration - heldDuration)));
-    heldDuration = Date.now() - startTime;
-  }
+    // Hold the mouse button down for the specified duration
+    while (heldDuration < duration && getIsAutomationRunning()) {
+      await new Promise(resolve => setTimeout(resolve, Math.min(checkInterval, duration - heldDuration)));
+      heldDuration = Date.now() - startTime;
+    }
 
-  // Only click up if automation is still running or if we specifically stopped during the hold
-  if (getIsAutomationRunning() || heldDuration >= duration) {
-    const resultUp = await clickUp(x, y);
-    return resultUp;
-  } else {
-    // Automation was stopped during the hold, just ensure click is released
-    const resultUp = await clickUp(x, y);
-    return resultUp;
+    // Always release the mouse button
+    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before mouse up
+    robot.mouseToggle('up', 'left');
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Error in robotjs clickAndHold at (${x}, ${y}):`, error);
+    // Ensure mouse button is released even on error
+    try {
+      robot.mouseToggle('up', 'left');
+    } catch (releaseError) {
+      console.error(`Error releasing mouse button:`, releaseError);
+    }
+    return { success: false, error: error.message };
   }
 }
 
 async function performRapidClicks(x, y, count) {
-  // Commenting out the original loop
-  // for (let i = 0; i < count; i++) {
-  //   await performClick(x, y);
-  //   await new Promise(resolve => setTimeout(resolve, 5)); // Changed delay between rapid clicks to 5ms
-  // }
-  // await new Promise(resolve => setTimeout(resolve, 200)); // Added 200ms delay after the 10th click
-
-  // Construct a single cliclick command for rapid sequential clicks with a 100ms wait
-  const clickCommands = [];
-  for (let i = 0; i < count; i++) {
-    clickCommands.push(`c:${x},${y}`);
-    if (i < count - 1) {
-      clickCommands.push(`w:1`); // 1ms wait between clicks
-    }
-  }
-  const fullCommand = `cliclick ${clickCommands.join(' ')}`;
-
   try {
-    const { stdout, stderr } = await execAsync(fullCommand);
-    if (stderr) {
-      console.error(`cliclick rapid clicks stderr: ${stderr}`);
+    // Use robotjs for direct, fast clicking
+    robot.moveMouse(x, y);
+    for (let i = 0; i < count; i++) {
+      robot.mouseClick('left', false); // false = don't double click
+      if (i < count - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1)); // 1ms wait between clicks
+      }
     }
     return { success: true };
   } catch (error) {
@@ -215,14 +206,37 @@ async function performClick(x, y) {
     // await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
     // No delay needed here as activation is handled at start
 
-    // Use cliclick to perform the click
-    const { stdout, stderr } = await execAsync(`cliclick c:${x},${y} w:100`);
-    if (stderr) {
-      console.error(`cliclick stderr: ${stderr}`);
-    }
+    // Use robotjs to perform the click
+    robot.moveMouse(x, y);
+    robot.mouseClick('left', false); // false = don't double click
+    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay to match original behavior
     return { success: true };
   } catch (error) {
     console.error(`Error simulating click at (${x}, ${y}):`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+// New function for batched rapid clicks using robotjs (optimized for clickAround)
+async function performBatchedClicks(clickArray) {
+  if (!Array.isArray(clickArray) || clickArray.length === 0) {
+    return { success: false, error: 'Invalid click array provided' };
+  }
+
+  console.log(`DEBUG: Performing ${clickArray.length} batched clicks with robotjs`);
+  
+  try {
+    // Use robotjs for direct, fast clicking without shell commands
+    for (let i = 0; i < clickArray.length; i++) {
+      const click = clickArray[i];
+      robot.moveMouse(click.x, click.y);
+      robot.mouseClick('left', false); // false = don't double click
+      // No delay needed - robotjs is much faster than cliclick
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Error performing batched clicks with robotjs:`, error);
     return { success: false, error: error.message };
   }
 }
@@ -596,9 +610,11 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     getIsAutomationRunning: () => isFinishLevelRunning, // Use its own state for finish level
     setIsAutomationRunning: (state) => { isFinishLevelRunning = state; }, // Pass setter for automation running state
     finishBuildAutomationRunBuildProtocol: finishBuildAutomation.runBuildProtocol, // Pass the runBuildProtocol from finishBuildAutomation
-    scrollDown: scrollDown, // New: Pass scrollDown function
-    scrollUp: scrollUp,     // New: Pass scrollUp function
-    scrollToBottom: scrollToBottom, // New: Pass scrollToBottom function
+    scrollDown: scrollingFunctions.scrollDown, // New: Pass scrollDown function
+    scrollUp: scrollingFunctions.scrollUp,     // New: Pass scrollUp function
+    scrollToBottom: scrollingFunctions.scrollToBottom, // New: Pass scrollToBottom function
+    scrollToTop: scrollingFunctions.scrollToTop, // New: Pass scrollToTop function
+    getRandomInt: scrollingFunctions.getRandomInt, // New: Pass getRandomInt function
     scrollSwipeDistance: scrollSwipeDistance, // New: Pass scroll swipe distance
     scrollToBottomIterations: scrollToBottomIterations, // New: Pass scroll to bottom iterations
     scrollUpAttempts: scrollUpAttempts, // New: Pass scroll up attempts
@@ -620,7 +636,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
         updateLongestLevelDuration(longestLevelDurationMs); // Update display
         updateShortestLevelDuration(shortestLevelDurationMs); // Update display
         updateLevelsFinishedCount(levelsFinishedCount); // Update display
-        updateAverageLevelDuration(totalLevelsDurationMs / levelsFinishedCount); // Update display
+        updateAverageLevelDuration(levelsFinishedCount > 0 ? totalLevelsDurationMs / levelsFinishedCount : null); // Update display
         currentLevelStartTime = Date.now(); // Reset current level timer
     },
     // New: Pass a getter function for the current level start time
@@ -638,10 +654,31 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
 });
 
 ipcMain.handle('pause-automation-on-mouse-move', async () => {
-  if (isFinishLevelRunning && !isAutomationRunning) {
+  // Only pause if any relevant automation is running
+  if (!isAutomationRunning && !isFinishLevelRunning && !isClickAroundRunning) {
     return; 
   }
-  
+
+  // Handle Click Around pausing
+  if (isClickAroundRunning && !isClickAroundPaused) {
+    isClickAroundPaused = true;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('finish-build-status', 'Paused: Mouse moved (Click Around - resuming in 10s)...', 'warning');
+    }
+    // Clear any existing pause timeout to restart the countdown
+    if (pauseTimeout) {
+      clearTimeout(pauseTimeout);
+    }
+    pauseTimeout = setTimeout(() => {
+      isClickAroundPaused = false;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('finish-build-status', 'Resuming Click Around automation...', 'info');
+      }
+      pauseTimeout = null;
+    }, 10000); // 10 seconds for Click Around
+    return;
+  }
+
   if (!isAutomationRunning) { // Only pause if Finish Build automation is actually running
     return;
   }
@@ -691,93 +728,69 @@ ipcMain.handle('activate-iphone-mirroring', async () => {
 });
 
 ipcMain.handle('scroll-down', async (event, x, y, distance) => {
-  return scrollDown(x, y, distance);
+  return scrollingFunctions.scrollDown(x, y, distance);
 });
 
-ipcMain.handle('scroll-up', async (event, x, y, distance) => {
-  return scrollUp(x, y, distance);
+ipcMain.handle('scroll-up', async (event, x, y) => {
+  // Pass dependencies to scrollUp function
+  return scrollingFunctions.scrollUp(x, y, { updateCurrentFunction, CLICK_AREAS, performClick, getRandomInt: scrollingFunctions.getRandomInt });
 });
 
 ipcMain.handle('scroll-to-bottom', async (event, x, y, distance, count) => {
-  return scrollToBottom(x, y, distance, count);
+  // Pass dependencies to scrollToBottom function
+  return scrollingFunctions.scrollToBottom(x, y, distance, count, { updateCurrentFunction, scrollDown: scrollingFunctions.scrollDown, performClick, CLICK_AREAS });
 });
 
-// New functions for scrolling vertically
-async function scrollDown(x, y, distance) {
-  updateCurrentFunction('scrollDown'); // Update current function
-  try {
-    // 1. Move mouse to start point
-    robot.moveMouse(x, y);
-    await new Promise(resolve => setTimeout(resolve, 50)); 
+ipcMain.handle('scroll-to-top', async () => {
+  return scrollingFunctions.scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS });
+});
 
-    // 2. Press and hold left mouse button
-    robot.mouseToggle('down', 'left');
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-
-    // 3. Drag mouse to end point
-    robot.dragMouse(x, y - distance); // Drag upwards to scroll down
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-
-    // 4. Release left mouse button
-    robot.mouseToggle('up', 'left');
-    return { success: true };
-  } catch (error) {
-    console.error(`Error executing RobotJS scroll down: ${error.message}`);
-    return { success: false, error: error.message };
+ipcMain.handle('toggle-click-around', async (event, isRunning) => {
+  // Prevent starting if another automation is already running
+  if (isRunning && (isAutomationRunning || isFinishLevelRunning)) {
+    console.log('ERROR: Finish Build or Finish Level automation is already running. Cannot start Click Around.');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('finish-build-status', 'Finish Build or Finish Level already running. Cannot start Click Around.', 'error');
+    }
+    return;
   }
-}
 
-async function scrollUp(x, y) {
-  updateCurrentFunction('scrollUp'); // Update current function
-  try {
-    console.log(`DEBUG: scrollUp - Starting at X:${x}, Y:${y}`);
-    // 1. Move mouse to start point
-    robot.moveMouse(x, y);
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-    console.log(`DEBUG: scrollUp - Mouse moved to X:${x}, Y:${y}`);
-
-    // Click off before scrolling up
-    console.log(`DEBUG: scrollUp - Clicking off at X:${CLICK_AREAS.CLICK_OFF.x}, Y:${CLICK_AREAS.CLICK_OFF.y}`);
-    await performClick(CLICK_AREAS.CLICK_OFF.x, CLICK_AREAS.CLICK_OFF.y);
-    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay after click off
-    console.log(`DEBUG: scrollUp - Click off completed.`);
-
-    // Re-adjust mouse to original scroll point after click off
-    robot.moveMouse(x, y);
-    await new Promise(resolve => setTimeout(resolve, 50));
-    console.log(`DEBUG: scrollUp - Mouse re-adjusted to X:${x}, Y:${y} for drag.`);
-
-    // 2. Press and hold left mouse button
-    robot.mouseToggle('down', 'left');
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-    console.log(`DEBUG: scrollUp - Mouse button down.`);
-
-    // 3. Drag mouse to end point
-    const scrollDistance = getRandomInt(80, 100);
-    const targetY = y + scrollDistance;
-    console.log(`DEBUG: scrollUp - Generated scroll distance: ${scrollDistance}. Dragging to X:${x}, Y:${targetY}`);
-    robot.dragMouse(x, targetY); // Drag downwards to scroll up
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-    console.log(`DEBUG: scrollUp - Mouse dragged.`);
-
-    // 4. Release left mouse button
-    robot.mouseToggle('up', 'left');
-    console.log(`DEBUG: scrollUp - Mouse button up.`);
-    return { success: true };
-  } catch (error) {
-    console.error(`Error executing RobotJS scroll up: ${error.message}`);
-    return { success: false, error: error.message };
-  }
-}
-
-async function scrollToBottom(x, y, distance, count) {
-  updateCurrentFunction('scrollToBottom'); // Update current function
-  for (let i = 0; i < count; i++) { // Use configurable count
-    await scrollDown(x, y, distance);
-    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between scrolls
+  isClickAroundRunning = isRunning;
+  if (isRunning) {
+    updateCurrentFunction('toggle-click-around');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('finish-build-status', 'Starting Click Around automation...', 'info');
+    }
+    const clickAroundDependencies = {
+      updateStatus: (message, type) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          statusMessageHistory.push({ message, type, timestamp: new Date().toLocaleTimeString() });
+          if (statusMessageHistory.length > STATUS_MESSAGE_LIMIT) {
+            statusMessageHistory.shift();
+          }
+          mainWindow.webContents.send('finish-build-status', message, type);
+          mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
+        }
+      },
+      detectRedBlobs: redBlobDetector.detect,
+      performClick: performClick,
+      performBatchedClicks: performBatchedClicks, // New: For optimized clickAround
+      iphoneMirroringRegion: iphoneMirroringRegion,
+      updateCurrentFunction: updateCurrentFunction,
+      CLICK_AREAS: CLICK_AREAS,
+      getIsClickAroundRunning: () => isClickAroundRunning,
+      getIsClickAroundPaused: () => isClickAroundPaused,
+      captureScreenRegion: captureScreenRegion,
+    };
+    clickAroundFunctions.clickAround(clickAroundDependencies);
+  } else {
+    updateCurrentFunction('Idle');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('finish-build-status', 'Stopping Click Around automation...', 'info');
+    }
   }
   return { success: true };
-}
+});
 
 // Helper function to start the capture interval
 async function startCaptureInterval(interval = 500) {

@@ -98,7 +98,7 @@ async function detect(imageDataUrl, captureRegion) {
             const hsv = rgbToHsv(r, g, b);
 
             // DEBUG: Log pixel data for red/orange detection
-            console.log(`DEBUG: isRedOrange check for RGB(${r},${g},${b}) HSV(${hsv.h.toFixed(0)},${hsv.s.toFixed(0)},${hsv.v.toFixed(0)})`);
+            // console.log(`DEBUG: isRedOrange check for RGB(${r},${g},${b}) HSV(${hsv.h.toFixed(0)},${hsv.s.toFixed(0)},${hsv.v.toFixed(0)})`);
 
             const isHueRedOrange = (hsv.h >= 20 && hsv.h <= 90); // Adjusted hue range for gold/orange
             const isRedOrangeSufficientlySaturated = hsv.s > 40; // Adjusted saturation for gold
@@ -568,11 +568,12 @@ async function detect(imageDataUrl, captureRegion) {
             finalBoxCounter++;
         }
 
-        // New filtering logic: if a 'blue_build' box is found, suppress all 'unknown' boxes
+        // New filtering logic: if a 'blue_build' box is found, ONLY return blue_build boxes
+        // There should never be a situation where a real blue build coexists with a max build
         const hasBlueBuildBox = detections.some(box => box.state === 'blue_build');
         if (hasBlueBuildBox) {
-            console.log('DEBUG: A \'blue_build\' box was detected. Filtering out all \'unknown\' and \'green_excluded\' boxes.');
-            return detections.filter(box => box.state !== 'unknown' && box.state !== 'green_excluded');
+            console.log('DEBUG: A \'blue_build\' box was detected. Filtering out all other boxes (grey_max, unknown, green_excluded) - only returning blue_build.');
+            return detections.filter(box => box.state === 'blue_build');
         }
 
         // Also filter out green_excluded boxes if no blue_build box is present

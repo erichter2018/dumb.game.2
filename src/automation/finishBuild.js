@@ -7,7 +7,7 @@ Protocol for Finish Build Automation (Simplified):
 2.  Start an infinite loop.
 3.  Inside the loop, call a function to hold down the mouse in the middle of the blue box for 5 seconds (this is a blocking call).
 4.  Call a function to check for the research blob.
-    a. If the research blob is found, call a function to perform the research actions (click open/close research, 10x rapid clicks on individual research, click open/close research again).
+    a. If the research blob is found, call a function to perform the research actions (click open/close research, 25x rapid clicks on individual research, click open/close research again).
     b. If the research blob is not found, the loop simply continues, implicitly maintaining the click-hold for the next iteration.
 5.  The loop then starts over (Step 2).
 */
@@ -156,7 +156,7 @@ async function doResearch(dependencies) {
     await new Promise(resolve => setTimeout(resolve, 200)); // Short delay after first click
 
     if (!getIsAutomationRunning()) { return; }
-    await performRapidClicks(CLICK_AREAS.INDIVIDUAL_RESEARCH.x, CLICK_AREAS.INDIVIDUAL_RESEARCH.y, 10);
+    await performRapidClicks(CLICK_AREAS.INDIVIDUAL_RESEARCH.x, CLICK_AREAS.INDIVIDUAL_RESEARCH.y, 25);
     await new Promise(resolve => setTimeout(resolve, 50)); // Short delay after rapid clicks
 
     if (!getIsAutomationRunning()) { return; }
@@ -170,7 +170,7 @@ async function doResearch(dependencies) {
 async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
     const { captureScreenRegion, detectBlueBoxes, iphoneMirroringRegion, updateStatus, getIsAutomationRunning } = dependencies;
     
-    const MAX_RETRIES = 2; // Changed: Maximum number of retries from 3 to 2
+    const MAX_RETRIES = 3; // Maximum number of retries to find stable blue build
     let retryCount = 0; // New: Counter for retries
 
     if (!getIsAutomationRunning()) {
@@ -187,12 +187,17 @@ async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
             return null;
         }
 
+        // Add 200ms delay before first detection to ensure UI is stable
+        if (retryCount === 0) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
         const fullScreenDataUrl = await captureScreenRegion();
         if (!fullScreenDataUrl) {
             updateStatus('Failed to capture screen region for blue box detection. Retrying in 2 seconds...', 'error');
             console.error('ERROR: Failed to capture screen region for blue box detection.');
             retryCount++; // Increment retry count on capture failure
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retrying capture
+            await new Promise(resolve => setTimeout(resolve, 100)); // Wait before retrying capture
             continue;
         }
 
@@ -220,13 +225,13 @@ async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
                 updateStatus('No relevant blue boxes detected. Retrying in 2 seconds...', 'info');
                 console.log('DEBUG: No relevant blue box found, retrying in 2 seconds.');
                 retryCount++; 
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
         } else {
             updateStatus('No blue boxes detected. Retrying in 2 seconds...', 'info');
             console.log('DEBUG: No blue box found, retrying in 2 seconds.');
             retryCount++; 
-            await new Promise(resolve => setTimeout(resolve, 2000)); 
+            await new Promise(resolve => setTimeout(resolve, 100)); 
         }
     }
     if (retryCount >= MAX_RETRIES) {
@@ -265,7 +270,7 @@ async function runBuildProtocol(dependencies) {
         if (initialDetectedBox.state === 'grey_max') {
             updateStatus('MAX build achieved at startup. Stopping automation.', 'success');
             console.log('DEBUG: MAX build achieved at startup. Stopping automation.');
-            return 'max_build_achieved';
+            return 'max_build_at_startup';
         }
 
         // If we found any valid box (blue_build, grey_build, other_grey), set its coords as current
@@ -276,11 +281,27 @@ async function runBuildProtocol(dependencies) {
         // Step 2: Start a loop
         while (getIsAutomationRunning()) {
             if (Date.now() - startTime > timeoutDuration) {
-                updateStatus('Finish Build routine exceeded 10 minutes. Scrolling to bottom and exiting.', 'warn');
-                console.log('DEBUG: Finish Build routine exceeded 10 minutes. Scrolling to bottom and exiting.');
-                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
-                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, 20); // Use 20 for now, as it's a fixed exit action
+                updateStatus('Finish Build routine exceeded 7 minutes. Running Click Around and exiting.', 'warn');
+                console.log('DEBUG: Finish Build routine exceeded 7 minutes. Running Click Around and exiting.');
+                
+                // Call clickAround instead of scrollToBottom
+                const clickAroundDependencies = {
+                    updateStatus: dependencies.updateStatus,
+                    detectRedBlobs: dependencies.redBlobDetectorDetect,
+                    performClick: dependencies.performClick,
+                    performBatchedClicks: dependencies.performBatchedClicks || dependencies.performClick, // fallback if not available
+                    iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
+                    updateCurrentFunction: dependencies.updateCurrentFunction,
+                    CLICK_AREAS: dependencies.CLICK_AREAS,
+                    captureScreenRegion: dependencies.captureScreenRegion,
+                    getIsClickAroundRunning: () => true, // Always return true for this timeout scenario
+                    getIsClickAroundPaused: () => false, // Never paused for this timeout scenario
+                };
+                
+                // Import and run clickAround
+                const { clickAround } = require('./clickAround');
+                await clickAround(clickAroundDependencies);
+                
                 dependencies.setIsAutomationRunning(false); // Gracefully exit
                 return 'timeout';
             }

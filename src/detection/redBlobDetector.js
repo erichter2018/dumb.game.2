@@ -31,9 +31,9 @@ async function detect(imageDataUrl, captureRegion) {
 
         // Define new rectangular exclusion zones
         const EXCLUSION_RECTS = [
-            { x: 0, y: 0, width: 100, height: 480 },
+            { x: 0, y: 0, width: 100, height: 580 },
             { x: 0, y: 0, width: 450, height: 380 }, // Modified height from 300 to 380
-            { x: 320, y: 0, width: 130, height: 480 },
+            { x: 320, y: 0, width: 130, height: 580 },
             { x: 0, y: 800, width: 100, height: 200 },
             { x: 0, y: 860, width: 450, height: 140 },
         ];

@@ -19,6 +19,7 @@ const toggleFinishBuildBtn = document.getElementById('toggleFinishBuildBtn');
 const finishBuildStatus = document.getElementById('finishBuildStatus');
 const finishBuildStatusList = document.getElementById('finishBuildStatusList');
 const toggleFinishLevelBtn = document.getElementById('toggleFinishLevelBtn');
+const toggleClickAroundBtn = document.getElementById('toggleClickAroundBtn');
 
 // New DOM Elements for Function Display
 const currentFunctionDisplay = document.getElementById('currentFunction');
@@ -47,6 +48,7 @@ let lastCapture = null;
 let currentRegion = { x: 0, y: 100, width: 450, height: 900 }; // Default, will be updated by main process
 let isFinishBuildRunning = false;
 let isFinishLevelRunning = false;
+let isClickAroundRunning = false;
 
 // Function to update status - now unified
 function updateStatus(message, type = 'info') {
@@ -176,6 +178,25 @@ toggleFinishLevelBtn.addEventListener('click', async () => {
     const scrollToBottomIterations = parseInt(scrollToBottomIterationsInput.value, 10);
     const scrollUpAttempts = parseInt(scrollUpAttemptsInput.value, 10);
     await ipcRenderer.invoke('toggle-finish-level', isFinishLevelRunning, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts);
+});
+
+// Click Around event listener
+toggleClickAroundBtn.addEventListener('click', async () => {
+    isClickAroundRunning = !isClickAroundRunning;
+    if (isClickAroundRunning) {
+        toggleClickAroundBtn.textContent = 'Stop Click Around';
+        toggleClickAroundBtn.classList.remove('btn-secondary');
+        toggleClickAroundBtn.classList.add('btn-danger');
+        updateStatus('Starting Click Around automation...', 'info');
+        // Activate iPhone Mirroring for testing
+        await ipcRenderer.invoke('activate-iphone-mirroring');
+    } else {
+        toggleClickAroundBtn.textContent = 'Start Click Around';
+        toggleClickAroundBtn.classList.remove('btn-danger');
+        toggleClickAroundBtn.classList.add('btn-secondary');
+        updateStatus('Stopping Click Around automation...', 'info');
+    }
+    await ipcRenderer.invoke('toggle-click-around', isClickAroundRunning);
 });
 
 // Event listeners for new scrolling buttons
@@ -330,7 +351,7 @@ let lastMouseX = -1;
 let lastMouseY = -1;
 
 document.addEventListener('mousemove', (e) => {
-  if (!isFinishBuildRunning && !isFinishLevelRunning) { // Only active if either automation is running
+  if (!isFinishBuildRunning && !isFinishLevelRunning && !isClickAroundRunning) { // Only active if any automation is running
     return;
   }
 
