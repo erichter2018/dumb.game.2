@@ -418,8 +418,29 @@ function startAutomation(dependencies) {
                     detectionAttemptCount++; // Increment attempt count
 
                     if (detectionAttemptCount >= MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION) { // Use new constant here
-                        console.log(`DEBUG: No red blobs or blue boxes found after ${detectionAttemptCount} attempts. Scrolling up.`);
-                        updateStatus(`No objects found after ${detectionAttemptCount} attempts. Scrolling up...`, 'warn');
+                        // Before scrolling up, try one more red blob detection in case blobs were wiggling
+                        console.log(`DEBUG: Performing second red blob detection before scrolling up (no blobs found case - blobs might be wiggling).`);
+                        updateStatus('Performing second red blob detection before scrolling up...', 'info');
+                        const fullScreenDataUrlSecond = await captureScreenRegion();
+                        if (!getIsAutomationRunning()) break;
+                        
+                        const redBlobsSecond = await redBlobDetectorDetect(fullScreenDataUrlSecond, iphoneMirroringRegion);
+                        if (!getIsAutomationRunning()) break;
+                        
+                        // Check if we found any actionable blobs on second attempt
+                        const untriedRedBlobsSecond = redBlobsSecond.filter(blob => !blob.name);
+                        
+                        if (untriedRedBlobsSecond.length > 0) {
+                            console.log(`DEBUG: Second detection found ${untriedRedBlobsSecond.length} actionable red blobs. Continuing with detection loop.`);
+                            updateStatus(`Second detection found ${untriedRedBlobsSecond.length} red blobs. Continuing...`, 'success');
+                            detectionAttemptCount = 0; // Reset attempt count since we found new blobs
+                            redBlobsTried.clear(); // Clear tried blobs since we found new ones
+                            continue; // Go back to main loop with new blobs
+                        }
+                        
+                        console.log(`DEBUG: Second detection also found no actionable blobs. Proceeding to scroll up.`);
+                        console.log(`DEBUG: No red blobs or blue boxes found after ${detectionAttemptCount} attempts (including second detection). Scrolling up.`);
+                        updateStatus(`No objects found after ${detectionAttemptCount} attempts (including second detection). Scrolling up...`, 'warn');
                         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                         await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt }); // Use configurable scroll swipe distance
@@ -475,7 +496,7 @@ function startAutomation(dependencies) {
                                 // Check if we should scroll up
                                 if (detectionAttemptCount >= MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION) {
                                     // Before scrolling up, try one more red blob detection in case blobs were wiggling
-                                    console.log(`DEBUG: Performing second red blob detection before scrolling up (blobs might be wiggling).`);
+                                    console.log(`DEBUG: Performing second red blob detection before scrolling up (all blobs tried case - blobs might be wiggling).`);
                                     updateStatus('Performing second red blob detection before scrolling up...', 'info');
                                     const fullScreenDataUrlSecond = await captureScreenRegion();
                                     if (!getIsAutomationRunning()) break;
@@ -483,7 +504,7 @@ function startAutomation(dependencies) {
                                     const redBlobsSecond = await redBlobDetectorDetect(fullScreenDataUrlSecond, iphoneMirroringRegion);
                                     if (!getIsAutomationRunning()) break;
                                     
-                                    // Check if we found any new actionable blobs on second attempt
+                                    // Check if we found any new actionable blobs on second attempt (not previously tried)
                                     const untriedRedBlobsSecond = redBlobsSecond.filter(blob => !blob.name && !redBlobsTried.has(`${blob.x},${blob.y}`));
                                     
                                     if (untriedRedBlobsSecond.length > 0) {

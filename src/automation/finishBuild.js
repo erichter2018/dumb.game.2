@@ -246,7 +246,7 @@ async function runBuildProtocol(dependencies) {
 
     updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
-    const timeoutDuration = 7 * 60 * 1000; // 7 minutes in milliseconds
+    const timeoutDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
     let timerInterval = null; // To hold the interval ID for clearing
 
     try {
@@ -281,8 +281,8 @@ async function runBuildProtocol(dependencies) {
         // Step 2: Start a loop
         while (getIsAutomationRunning()) {
             if (Date.now() - startTime > timeoutDuration) {
-                updateStatus('Finish Build routine exceeded 7 minutes. Running Click Around and exiting.', 'warn');
-                console.log('DEBUG: Finish Build routine exceeded 7 minutes. Running Click Around and exiting.');
+                updateStatus('Finish Build routine exceeded 5 minutes. Running Click Around and exiting.', 'warn');
+                console.log('DEBUG: Finish Build routine exceeded 5 minutes. Running Click Around and exiting.');
                 
                 // Call clickAround instead of scrollToBottom
                 const clickAroundDependencies = {
