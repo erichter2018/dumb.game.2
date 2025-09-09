@@ -246,7 +246,8 @@ async function runBuildProtocol(dependencies) {
 
     updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
-    const timeoutDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const clickAroundInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
+        let lastClickAroundTime = startTime;
     let timerInterval = null; // To hold the interval ID for clearing
 
     try {
@@ -280,9 +281,21 @@ async function runBuildProtocol(dependencies) {
 
         // Step 2: Start a loop
         while (getIsAutomationRunning()) {
-            if (Date.now() - startTime > timeoutDuration) {
-                updateStatus('Finish Build routine exceeded 5 minutes. Running Click Around and exiting.', 'warn');
-                console.log('DEBUG: Finish Build routine exceeded 5 minutes. Running Click Around and exiting.');
+            const currentTime = Date.now();
+            
+            // Check if it's time to run clickAround (every 5 minutes)
+            if (currentTime - lastClickAroundTime >= clickAroundInterval) {
+                // Calculate how many 5-minute intervals have passed since start
+                const totalMinutesElapsed = Math.floor((currentTime - startTime) / (60 * 1000));
+                const intervalNumber = Math.floor(totalMinutesElapsed / 5) + 1; // 1-based counting
+                
+                // Determine exclude_red_blobs parameter based on timing
+                // 5, 15, 25, 35 minutes (odd intervals) = true (exclude red blobs)
+                // 10, 20, 30, 40 minutes (even intervals) = false (don't exclude red blobs)
+                const exclude_red_blobs = (intervalNumber % 2 === 1);
+                
+                updateStatus(`Finish Build routine: Running Click Around at ${intervalNumber * 5} minutes (exclude_red_blobs: ${exclude_red_blobs})`, 'warn');
+                console.log(`DEBUG: Finish Build routine: Running Click Around at ${intervalNumber * 5} minutes (exclude_red_blobs: ${exclude_red_blobs})`);
                 
                 // Call clickAround instead of scrollToBottom
                 const clickAroundDependencies = {
@@ -290,8 +303,14 @@ async function runBuildProtocol(dependencies) {
                     detectRedBlobs: dependencies.redBlobDetectorDetect,
                     performClick: dependencies.performClick,
                     performBatchedClicks: dependencies.performBatchedClicks || (async (clickArray) => {
-                        // Fallback: if performBatchedClicks doesn't exist, iterate through array and call performClick individually
+                        // WARNING: FALLBACK BEING USED - This should not happen and indicates a dependency injection problem
+                        console.warn('WARNING: Using performBatchedClicks FALLBACK - this will be much slower!');
+                        console.warn('DEBUG: dependencies.performBatchedClicks was undefined, using individual clicks');
+                        updateStatus('WARNING: Using slow fallback for batch clicks!', 'warn');
+                        
                         if (!Array.isArray(clickArray)) return { success: false, error: 'Invalid click array' };
+                        console.log(`DEBUG: Fallback processing ${clickArray.length} clicks individually (100ms each = ${clickArray.length * 100}ms total)`);
+                        
                         for (const click of clickArray) {
                             await dependencies.performClick(click.x, click.y);
                         }
@@ -307,10 +326,13 @@ async function runBuildProtocol(dependencies) {
                 
                 // Import and run clickAround
                 const { clickAround } = require('./clickAround');
-                await clickAround(clickAroundDependencies);
+                await clickAround(clickAroundDependencies, exclude_red_blobs);
                 
-                dependencies.setIsAutomationRunning(false); // Gracefully exit
-                return 'timeout';
+                // Update the last clickAround time for next interval
+                lastClickAroundTime = currentTime;
+                
+                // Continue the loop instead of exiting (remove the old timeout behavior)
+                continue;
             }
             // Perform blue box detection once per cycle to get the latest state
             const currentDetectedBox = await findBlueBoxWithRetry(dependencies, blueBoxCoords);

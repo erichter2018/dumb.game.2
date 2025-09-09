@@ -1,9 +1,10 @@
 const { getRandomInt } = require('./scrolling');
 const { scrollToTop, scrollDown } = require('./scrolling');
 
-async function clickAround(dependencies) {
+async function clickAround(dependencies, exclude_red_blobs = true) {
   const { updateStatus, detectRedBlobs, performClick, performBatchedClicks, iphoneMirroringRegion, getIsClickAroundRunning, getIsClickAroundPaused, updateCurrentFunction, CLICK_AREAS, captureScreenRegion } = dependencies;
-  updateStatus('Starting Click Around automation...', 'info');
+  updateStatus(`Starting Click Around automation... (exclude_red_blobs: ${exclude_red_blobs})`, 'info');
+  console.log(`DEBUG: ClickAround started with exclude_red_blobs: ${exclude_red_blobs}`);
 
   const redBlobProximityThreshold = 300;
 
@@ -87,7 +88,11 @@ async function clickAround(dependencies) {
       // Convert back to array and extract positions
       const combinedRedBlobs = Array.from(combinedBlobsMap.values());
       const redBlobPositions = combinedRedBlobs.map(blob => ({ x: blob.x, y: blob.y }));
-      console.log(`DEBUG: ClickAround combined ${redBlobPositions.length} unique red blobs for exclusion:`, redBlobPositions);
+      if (exclude_red_blobs) {
+        console.log(`DEBUG: ClickAround combined ${redBlobPositions.length} unique red blobs for exclusion:`, redBlobPositions);
+      } else {
+        console.log(`DEBUG: ClickAround detected ${redBlobPositions.length} red blobs but will NOT exclude them from clicking:`, redBlobPositions);
+      }
 
       if (redBlobHistory.length === 2) {
         redBlobHistory.shift();
@@ -123,7 +128,7 @@ async function clickAround(dependencies) {
             continue;
           }
 
-          const tooCloseToRedBlob = redBlobPositions.some(blob => {
+          const tooCloseToRedBlob = exclude_red_blobs && redBlobPositions.some(blob => {
             const distance = Math.sqrt(Math.pow(targetX - blob.x, 2) + Math.pow(targetY - blob.y, 2));
             const isClose = distance <= redBlobProximityThreshold;
             if (isClose) {

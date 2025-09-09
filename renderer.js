@@ -485,10 +485,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateStatus('Error loading region settings: ' + error.message, 'error');
     }
 
-    // The live view is now auto-started by main.js, so we just update the UI state
-    console.log('DEBUG: Assuming live view starts automatically.');
-    isCapturing = true; // Assume live view starts automatically
-    startLiveViewBtn.style.display = 'none';
-    stopLiveViewBtn.style.display = 'block';
+    // Live view is now disabled by default - user must manually start it
+    console.log('DEBUG: Live view disabled by default - user must start manually.');
+    isCapturing = false; // Live view disabled by default
+    startLiveViewBtn.style.display = 'block';
+    stopLiveViewBtn.style.display = 'none';
     console.log('DEBUG: DOMContentLoaded handler finished.');
 });

@@ -223,7 +223,7 @@ async function performBatchedClicks(clickArray) {
     return { success: false, error: 'Invalid click array provided' };
   }
 
-  console.log(`DEBUG: Performing ${clickArray.length} batched clicks with robotjs`);
+  console.log(`DEBUG: Using OPTIMIZED performBatchedClicks - ${clickArray.length} clicks with robotjs (no delays)`);
   
   try {
     // Use robotjs for direct, fast clicking without shell commands
@@ -462,6 +462,7 @@ async function startFinishBuildAutomationLoop() {
   // Dependencies for the automation protocol
   const automationDependencies = {
     performClick,
+    performBatchedClicks, // Add missing performBatchedClicks for finishBuild
     clickDown,
     clickUp,
     clickAndHold,
@@ -583,6 +584,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
 
   const automationDependencies = {
     performClick,
+    performBatchedClicks, // Add missing performBatchedClicks for finishLevel
     clickDown,
     clickUp,
     clickAndHold,
@@ -782,7 +784,7 @@ ipcMain.handle('toggle-click-around', async (event, isRunning) => {
       getIsClickAroundPaused: () => isClickAroundPaused,
       captureScreenRegion: captureScreenRegion,
     };
-    clickAroundFunctions.clickAround(clickAroundDependencies);
+    clickAroundFunctions.clickAround(clickAroundDependencies, true); // Default to excluding red blobs for manual UI calls
   } else {
     updateCurrentFunction('Idle');
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -838,9 +840,9 @@ ipcMain.handle('stop-live-view', async () => {
 app.whenReady().then(() => {
   createWindow();
   
-  // Auto-start live view when the window is ready
+  // Live view is now disabled by default - user must manually start it
   mainWindow.webContents.on('did-finish-load', async () => {
-    await startCaptureInterval();
+    // await startCaptureInterval(); // Disabled - user must manually start live view
     updateCurrentLevelDuration(0); // Initialize current level duration display
     updatePreviousLevelDuration(null); // Initialize previous level duration display
     updateLongestLevelDuration(null); // New: Initialize longest level duration display
