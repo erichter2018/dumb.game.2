@@ -46,6 +46,28 @@
                             <input type="number" id="scrollUpAttempts" value="15" min="1">
                         </div>
                     </div>
+                    <div class="pause-controls-settings">
+                        <h3>Global Pause Settings</h3>
+                        <div class="control-group">
+                            <label for="pauseEnabled">
+                                <input type="checkbox" id="pauseEnabled" checked> Enable Mouse Movement Pause
+                            </label>
+                        </div>
+                        <div class="control-group">
+                            <label for="mouseThreshold">Mouse Movement Threshold (px):</label>
+                            <input type="number" id="mouseThreshold" value="5" min="1" max="50">
+                        </div>
+                        <div class="control-group">
+                            <label for="idleTime">Resume Delay (ms):</label>
+                            <input type="number" id="idleTime" value="2000" min="500" max="10000" step="500">
+                        </div>
+                        <div class="control-group">
+                            <button id="forceResumeBtn" class="btn btn-warning">Force Resume</button>
+                        </div>
+                        <div class="control-group">
+                            <span id="pauseStatus">Pause Status: Ready</span>
+                        </div>
+                    </div>
                     <div class="status-info">
                         <div><span id="currentFunction">Idle</span></div>
                         <div><span id="currentLevelDuration">Current Level: 0m 0s</span></div>

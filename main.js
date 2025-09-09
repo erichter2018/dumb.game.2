@@ -35,6 +35,14 @@ let shortestLevelDurationMs = null; // New: To store the shortest level duration
 let levelsFinishedCount = 0; // New: To track the number of levels finished
 let totalLevelsDurationMs = 0; // New: To accumulate total duration for average calculation
 
+// Global Pause System - Mouse Movement Detection
+let isGloballyPaused = false; // Master pause flag
+let lastMousePos = { x: 0, y: 0 }; // Track mouse position
+let lastMouseMovementTime = 0; // Track when mouse last moved
+let mouseMovementThreshold = 5; // Minimum pixels to trigger pause
+let mouseIdleTime = 2000; // Milliseconds of no movement to resume (2 seconds)
+let globalMouseMonitor = null; // Interval for mouse monitoring
+let pauseEnabled = true; // Allow disabling the pause system
 
 // Function to send current active function to renderer
 function updateCurrentFunction(functionName) {
@@ -110,6 +118,112 @@ function updateAverageLevelDuration(durationMs) {
         }
     }
 }
+
+// Global Mouse Movement Pause System
+function startGlobalMouseMonitoring() {
+    if (globalMouseMonitor || !pauseEnabled) return;
+    
+    // Initialize mouse position
+    try {
+        lastMousePos = robot.getMousePos();
+    } catch (error) {
+        console.error('Failed to initialize mouse position:', error);
+        return;
+    }
+    
+    console.log('DEBUG: Starting global mouse movement monitoring');
+    
+    globalMouseMonitor = setInterval(() => {
+        try {
+            const currentPos = robot.getMousePos();
+            const distance = Math.sqrt(
+                Math.pow(currentPos.x - lastMousePos.x, 2) + 
+                Math.pow(currentPos.y - lastMousePos.y, 2)
+            );
+            
+            if (distance > mouseMovementThreshold) {
+                if (!isGloballyPaused) {
+                    console.log(`DEBUG: Mouse movement detected (${distance.toFixed(1)}px) - pausing automation`);
+                    isGloballyPaused = true;
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('finish-build-status', 'Automation paused due to mouse movement', 'warning');
+                    }
+                }
+                lastMouseMovementTime = Date.now();
+            } else if (isGloballyPaused && Date.now() - lastMouseMovementTime > mouseIdleTime) {
+                console.log('DEBUG: Mouse idle - resuming automation');
+                isGloballyPaused = false;
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('finish-build-status', 'Automation resumed', 'success');
+                }
+            }
+            
+            lastMousePos = currentPos;
+        } catch (error) {
+            console.error('Error in global mouse monitoring:', error);
+        }
+    }, 100); // Check every 100ms
+}
+
+function stopGlobalMouseMonitoring() {
+    if (globalMouseMonitor) {
+        clearInterval(globalMouseMonitor);
+        globalMouseMonitor = null;
+        console.log('DEBUG: Stopped global mouse movement monitoring');
+    }
+}
+
+function setGlobalPauseEnabled(enabled) {
+    pauseEnabled = enabled;
+    if (enabled) {
+        startGlobalMouseMonitoring();
+    } else {
+        stopGlobalMouseMonitoring();
+        isGloballyPaused = false; // Resume if disabled
+    }
+    console.log(`DEBUG: Global pause system ${enabled ? 'enabled' : 'disabled'}`);
+}
+
+// RobotJS Interception for Global Pause
+const originalRobotFunctions = {
+    moveMouse: robot.moveMouse,
+    mouseClick: robot.mouseClick,
+    mouseToggle: robot.mouseToggle,
+    dragMouse: robot.dragMouse
+};
+
+// Wrap robotjs mouse functions to respect global pause
+robot.moveMouse = function(x, y) {
+    if (isGloballyPaused) {
+        // Silently skip mouse movements when paused
+        return;
+    }
+    return originalRobotFunctions.moveMouse.call(this, x, y);
+};
+
+robot.mouseClick = function(button, double) {
+    if (isGloballyPaused) {
+        // Silently skip mouse clicks when paused
+        return;
+    }
+    return originalRobotFunctions.mouseClick.call(this, button, double);
+};
+
+robot.mouseToggle = function(down, button) {
+    if (isGloballyPaused) {
+        // Silently skip mouse toggle when paused
+        return;
+    }
+    return originalRobotFunctions.mouseToggle.call(this, down, button);
+};
+
+robot.dragMouse = function(x, y) {
+    if (isGloballyPaused) {
+        // Silently skip mouse drags when paused
+        return;
+    }
+    return originalRobotFunctions.dragMouse.call(this, x, y);
+};
 
 // Define named click areas
 const CLICK_AREAS = {
@@ -488,7 +602,7 @@ async function startFinishBuildAutomationLoop() {
     setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
     getIsHoldingBlueBox: () => isHoldingBlueBox, // Pass getter for the state
     setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; }, // Pass setter for the state
-    getIsAutomationRunning: () => isAutomationRunning, // Pass getter for the automation running state
+    getIsAutomationRunning: () => isAutomationRunning && !isGloballyPaused, // Pass getter for the automation running state (respect global pause)
     setIsAutomationRunning: (state) => { isAutomationRunning = state; }, // Pass setter for automation running state
     scrollToBottom: scrollToBottom, // Pass scrollToBottom function
     scrollSwipeDistance: scrollSwipeDistance, // Pass scroll swipe distance
@@ -609,7 +723,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
     getIsHoldingBlueBox: () => isHoldingBlueBox,
     setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; },
-    getIsAutomationRunning: () => isFinishLevelRunning, // Use its own state for finish level
+    getIsAutomationRunning: () => isFinishLevelRunning && !isGloballyPaused, // Use its own state for finish level (respect global pause)
     setIsAutomationRunning: (state) => { isFinishLevelRunning = state; }, // Pass setter for automation running state
     finishBuildAutomationRunBuildProtocol: finishBuildAutomation.runBuildProtocol, // Pass the runBuildProtocol from finishBuildAutomation
     scrollDown: scrollingFunctions.scrollDown, // New: Pass scrollDown function
@@ -780,8 +894,8 @@ ipcMain.handle('toggle-click-around', async (event, isRunning) => {
       iphoneMirroringRegion: iphoneMirroringRegion,
       updateCurrentFunction: updateCurrentFunction,
       CLICK_AREAS: CLICK_AREAS,
-      getIsClickAroundRunning: () => isClickAroundRunning,
-      getIsClickAroundPaused: () => isClickAroundPaused,
+      getIsClickAroundRunning: () => isClickAroundRunning && !isGloballyPaused,
+      getIsClickAroundPaused: () => isClickAroundPaused || isGloballyPaused,
       captureScreenRegion: captureScreenRegion,
     };
     clickAroundFunctions.clickAround(clickAroundDependencies, true); // Default to excluding red blobs for manual UI calls
@@ -836,9 +950,50 @@ ipcMain.handle('stop-live-view', async () => {
   return true;
 });
 
+// Global Pause System IPC Handlers
+ipcMain.handle('get-global-pause-settings', async () => {
+  return {
+    enabled: pauseEnabled,
+    mouseThreshold: mouseMovementThreshold,
+    idleTime: mouseIdleTime,
+    currentlyPaused: isGloballyPaused
+  };
+});
+
+ipcMain.handle('set-global-pause-settings', async (event, settings) => {
+  if (typeof settings.enabled === 'boolean') {
+    setGlobalPauseEnabled(settings.enabled);
+  }
+  if (typeof settings.mouseThreshold === 'number' && settings.mouseThreshold > 0) {
+    mouseMovementThreshold = settings.mouseThreshold;
+  }
+  if (typeof settings.idleTime === 'number' && settings.idleTime > 0) {
+    mouseIdleTime = settings.idleTime;
+  }
+  console.log('DEBUG: Global pause settings updated:', {
+    enabled: pauseEnabled,
+    mouseThreshold: mouseMovementThreshold,
+    idleTime: mouseIdleTime
+  });
+  return { success: true };
+});
+
+ipcMain.handle('force-resume-automation', async () => {
+  isGloballyPaused = false;
+  lastMouseMovementTime = 0; // Reset movement time to prevent immediate re-pause
+  console.log('DEBUG: Automation force-resumed by user');
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('finish-build-status', 'Automation force-resumed by user', 'success');
+  }
+  return { success: true };
+});
+
 // Global shortcuts
 app.whenReady().then(() => {
   createWindow();
+  
+  // Start global mouse movement monitoring for pause system
+  startGlobalMouseMonitoring();
   
   // Live view is now disabled by default - user must manually start it
   mainWindow.webContents.on('did-finish-load', async () => {
@@ -882,4 +1037,6 @@ app.on('will-quit', () => {
   if (captureInterval) {
     clearInterval(captureInterval);
   }
+  // Stop global mouse monitoring
+  stopGlobalMouseMonitoring();
 });
