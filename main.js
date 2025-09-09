@@ -39,10 +39,12 @@ let totalLevelsDurationMs = 0; // New: To accumulate total duration for average 
 let isGloballyPaused = false; // Master pause flag
 let lastMousePos = { x: 0, y: 0 }; // Track mouse position
 let lastMouseMovementTime = 0; // Track when mouse last moved
-let mouseMovementThreshold = 5; // Minimum pixels to trigger pause
-let mouseIdleTime = 2000; // Milliseconds of no movement to resume (2 seconds)
+let mouseMovementThreshold = 25; // Minimum pixels to trigger pause (increased from 5 to reduce false triggers)
+let mouseIdleTime = 3000; // Milliseconds of no movement to resume (3 seconds, increased for stability)
 let globalMouseMonitor = null; // Interval for mouse monitoring
 let pauseEnabled = true; // Allow disabling the pause system
+let lastPauseTime = 0; // Track when we last paused to prevent rapid pause/resume cycles
+let minPauseDuration = 1000; // Minimum time to stay paused (1 second)
 
 // Function to send current active function to renderer
 function updateCurrentFunction(functionName) {
@@ -145,16 +147,21 @@ function startGlobalMouseMonitoring() {
                 if (!isGloballyPaused) {
                     console.log(`DEBUG: Mouse movement detected (${distance.toFixed(1)}px) - pausing automation`);
                     isGloballyPaused = true;
+                    lastPauseTime = Date.now();
                     if (mainWindow && !mainWindow.isDestroyed()) {
                         mainWindow.webContents.send('finish-build-status', 'Automation paused due to mouse movement', 'warning');
                     }
                 }
                 lastMouseMovementTime = Date.now();
             } else if (isGloballyPaused && Date.now() - lastMouseMovementTime > mouseIdleTime) {
-                console.log('DEBUG: Mouse idle - resuming automation');
-                isGloballyPaused = false;
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                    mainWindow.webContents.send('finish-build-status', 'Automation resumed', 'success');
+                // Only resume if we've been paused for at least minPauseDuration
+                const timeSincePause = Date.now() - lastPauseTime;
+                if (timeSincePause >= minPauseDuration) {
+                    console.log(`DEBUG: Mouse idle - resuming automation (paused for ${timeSincePause}ms)`);
+                    isGloballyPaused = false;
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('finish-build-status', 'Automation resumed', 'success');
+                    }
                 }
             }
             
@@ -986,6 +993,16 @@ ipcMain.handle('force-resume-automation', async () => {
     mainWindow.webContents.send('finish-build-status', 'Automation force-resumed by user', 'success');
   }
   return { success: true };
+});
+
+ipcMain.handle('disable-pause-temporarily', async () => {
+  const wasEnabled = pauseEnabled;
+  setGlobalPauseEnabled(false);
+  console.log('DEBUG: Pause system temporarily disabled');
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('finish-build-status', 'Pause system temporarily disabled', 'info');
+  }
+  return { success: true, wasEnabled };
 });
 
 // Global shortcuts
