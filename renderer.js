@@ -18,13 +18,6 @@ const blueBoxResults = document.getElementById('blueBoxResults');
 const toggleFinishBuildBtn = document.getElementById('toggleFinishBuildBtn');
 const finishBuildStatus = document.getElementById('finishBuildStatus');
 const finishBuildStatusList = document.getElementById('finishBuildStatusList');
-
-// DOM Elements for Global Pause Controls
-const pauseEnabledCheckbox = document.getElementById('pauseEnabled');
-const mouseThresholdInput = document.getElementById('mouseThreshold');
-const idleTimeInput = document.getElementById('idleTime');
-const forceResumeBtn = document.getElementById('forceResumeBtn');
-const pauseStatus = document.getElementById('pauseStatus');
 const toggleFinishLevelBtn = document.getElementById('toggleFinishLevelBtn');
 const toggleClickAroundBtn = document.getElementById('toggleClickAroundBtn');
 
@@ -477,67 +470,6 @@ ipcRenderer.on('update-average-level-duration', (event, durationText) => {
 });
 
 // Initialize
-// Global Pause Controls Event Listeners
-pauseEnabledCheckbox.addEventListener('change', async () => {
-    await updatePauseSettings();
-});
-
-mouseThresholdInput.addEventListener('change', async () => {
-    await updatePauseSettings();
-});
-
-idleTimeInput.addEventListener('change', async () => {
-    await updatePauseSettings();
-});
-
-forceResumeBtn.addEventListener('click', async () => {
-    try {
-        await ipcRenderer.invoke('force-resume-automation');
-        updateStatus('Automation force-resumed', 'success');
-    } catch (error) {
-        updateStatus(`Failed to force resume: ${error.message}`, 'error');
-    }
-});
-
-// Function to update pause settings
-async function updatePauseSettings() {
-    try {
-        const settings = {
-            enabled: pauseEnabledCheckbox.checked,
-            mouseThreshold: parseInt(mouseThresholdInput.value),
-            idleTime: parseInt(idleTimeInput.value)
-        };
-        
-        await ipcRenderer.invoke('set-global-pause-settings', settings);
-        updateStatus('Pause settings updated', 'info');
-    } catch (error) {
-        updateStatus(`Failed to update pause settings: ${error.message}`, 'error');
-    }
-}
-
-// Function to load and display pause settings
-async function loadPauseSettings() {
-    try {
-        const settings = await ipcRenderer.invoke('get-global-pause-settings');
-        
-        pauseEnabledCheckbox.checked = settings.enabled;
-        mouseThresholdInput.value = settings.mouseThreshold;
-        idleTimeInput.value = settings.idleTime;
-        
-        updatePauseStatus(settings.currentlyPaused);
-    } catch (error) {
-        console.error('Failed to load pause settings:', error);
-    }
-}
-
-// Function to update pause status display
-function updatePauseStatus(isPaused) {
-    if (pauseStatus) {
-        pauseStatus.textContent = `Pause Status: ${isPaused ? 'PAUSED' : 'Active'}`;
-        pauseStatus.className = isPaused ? 'status-paused' : 'status-active';
-    }
-}
-
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DEBUG: DOMContentLoaded event fired in renderer.js.');
     updateStatus('Initializing...', 'info');
@@ -558,9 +490,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     isCapturing = false; // Live view disabled by default
     startLiveViewBtn.style.display = 'block';
     stopLiveViewBtn.style.display = 'none';
-    
-    // Load global pause settings
-    await loadPauseSettings();
-    
     console.log('DEBUG: DOMContentLoaded handler finished.');
 });

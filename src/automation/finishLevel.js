@@ -254,8 +254,11 @@ function startAutomation(dependencies) {
     }
 
     async function exitAndStartNewLevel(dependencies) {
-        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime } = dependencies;
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter } = dependencies;
 
+        // Reset clickAround counter for new level
+        resetClickAroundCallCounter();
+        
         updateCurrentFunction('exitAndStartNewLevel'); // Update current function display
         updateStatus('Starting "Exit and Start New Level" routine.', 'info');
         console.log('DEBUG: Starting "Exit and Start New Level" routine. Performing initial click at "Start Exiting".');

@@ -285,17 +285,16 @@ async function runBuildProtocol(dependencies) {
             
             // Check if it's time to run clickAround (every 5 minutes)
             if (currentTime - lastClickAroundTime >= clickAroundInterval) {
-                // Calculate which clickAround call this is (1st, 2nd, 3rd, etc.)
-                const totalMinutesElapsed = Math.floor((currentTime - startTime) / (60 * 1000));
-                const clickAroundCallNumber = Math.floor(totalMinutesElapsed / 5); // 0-based: 0=5min, 1=10min, 2=15min
+                // Increment counter and determine exclude_red_blobs parameter
+                const clickAroundCallNumber = dependencies.incrementClickAroundCallCounter();
                 
-                // Determine exclude_red_blobs parameter based on timing
-                // 1st call (5min), 3rd call (15min), 5th call (25min) = true (exclude red blobs)
-                // 2nd call (10min), 4th call (20min), 6th call (30min) = false (don't exclude red blobs)
-                const exclude_red_blobs = (clickAroundCallNumber % 2 === 0);
+                // Determine exclude_red_blobs parameter based on call number
+                // Odd calls (1, 3, 5, etc.) = true (exclude red blobs)
+                // Even calls (2, 4, 6, etc.) = false (don't exclude red blobs)
+                const exclude_red_blobs = (clickAroundCallNumber % 2 === 1);
                 
-                updateStatus(`Finish Build routine: Running Click Around at ${(clickAroundCallNumber + 1) * 5} minutes (exclude_red_blobs: ${exclude_red_blobs})`, 'warn');
-                console.log(`DEBUG: Finish Build routine: Running Click Around at ${(clickAroundCallNumber + 1) * 5} minutes (exclude_red_blobs: ${exclude_red_blobs})`);
+                updateStatus(`Finish Build routine: Running Click Around call #${clickAroundCallNumber} (exclude_red_blobs: ${exclude_red_blobs})`, 'warn');
+                console.log(`DEBUG: Finish Build routine: Running Click Around call #${clickAroundCallNumber} (exclude_red_blobs: ${exclude_red_blobs})`);
                 
                 // Call clickAround instead of scrollToBottom
                 const clickAroundDependencies = {
