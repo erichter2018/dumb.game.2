@@ -254,7 +254,7 @@ function startAutomation(dependencies) {
     }
 
     async function exitAndStartNewLevel(dependencies) {
-        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter } = dependencies;
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, captureScreenRegion } = dependencies;
 
         // Reset clickAround counter for new level
         resetClickAroundCallCounter();
@@ -279,6 +279,26 @@ function startAutomation(dependencies) {
         // Wait 10,000ms
         await new Promise(resolve => setTimeout(resolve, 10000));
         if (!getIsAutomationRunning()) { return; }
+
+        // Capture level name using OCR before clicking "Start Level"
+        console.log('DEBUG: Capturing level name using OCR...');
+        updateStatus('Capturing level name...', 'info');
+        try {
+            const levelName = await dependencies.captureLevelName(dependencies.captureScreenRegion);
+            if (levelName && levelName !== 'Unknown Level') {
+                console.log(`DEBUG: Level name captured successfully: "${levelName}"`);
+                dependencies.updateCurrentLevelName(levelName);
+                updateStatus(`Level name captured: "${levelName}"`, 'success');
+            } else {
+                console.log('DEBUG: Level name capture failed or returned empty result');
+                dependencies.updateCurrentLevelName('Unknown Level');
+                updateStatus('Level name capture failed', 'warn');
+            }
+        } catch (error) {
+            console.error('ERROR: Level name OCR failed:', error);
+            dependencies.updateCurrentLevelName('Unknown Level');
+            updateStatus('Level name OCR error', 'error');
+        }
 
         // Click at "start level"
         console.log('DEBUG: Continuing "Exit and Start New Level" routine. Performing click at "Start Level".');
@@ -316,11 +336,14 @@ function startAutomation(dependencies) {
         
         // Reset the flag so scroll-to-bottom will trigger after the first successful build on this new level
         hasFinishedBuildOnce = false;
+        redBlobRetryCount.clear(); // Reset retry counters for new level
         console.log('DEBUG: Reset hasFinishedBuildOnce to false for new level.');
     }
 
     let scrollUpCount = 0; // Counter for consecutive scroll-up attempts
     let detectionAttemptCount = 0; // Counter for detection attempts within current scroll position
+    let redBlobRetryCount = new Map(); // Track retry attempts per red blob location (key: "x,y", value: count)
+    const MAX_RED_BLOB_RETRIES = 3; // Maximum retries for the same red blob location before triggering scroll-to-bottom
 
     async function runFinishLevelProtocol() {
         updateCurrentFunction('runFinishLevelProtocol'); // Update current function display
@@ -336,6 +359,7 @@ function startAutomation(dependencies) {
                 updateStatus('Blue build box found. Launching prepBuild.', 'info');
                 console.log('DEBUG: Blue build box found. Launching prepBuild.');
                 redBlobsTried.clear(); // Reset tried blobs if a blue box is found and build is about to start
+                redBlobRetryCount.clear(); // Reset retry counters when starting a build
                 const result = await prepBuild(lastRedBlobCoords);
                 if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during prepBuild
                 updateCurrentFunction('runFinishLevelProtocol'); // Update current function display after prepBuild returns
@@ -608,6 +632,7 @@ function startAutomation(dependencies) {
                             break; // Stop the loop on error
                         } else if (prepBuildResult === 'finish_build_launched') {
                             redBlobsTried.clear(); // Reset tried blobs if finishBuild was launched successfully
+                            redBlobRetryCount.clear(); // Reset retry counters on successful finishBuild launch
                             lastRedBlobCoords = targetBlob; // Store the last successfully clicked red blob
                             updateStatus('Finish Build automation successfully launched from prepBuild after red blob click.', 'info');
                             console.log('DEBUG: Finish Build automation successfully launched after red blob click.');
@@ -623,9 +648,39 @@ function startAutomation(dependencies) {
                                 hasFinishedBuildOnce = true;
                             }
                         } else if (prepBuildResult === 'no_blue_build' || prepBuildResult === 'no_red_blobs_found' || prepBuildResult === 'finish_build_failed_no_blue_box') {
+                            // Track retry attempts for this red blob location (approximate matching within 10 pixels)
+                            const blobLocationKey = `${Math.round(targetBlob.x / 10) * 10},${Math.round(targetBlob.y / 10) * 10}`;
+                            const currentRetries = redBlobRetryCount.get(blobLocationKey) || 0;
+                            const newRetryCount = currentRetries + 1;
+                            redBlobRetryCount.set(blobLocationKey, newRetryCount);
+                            
+                            console.log(`DEBUG: Red blob at approximate location ${blobLocationKey} failed prepBuild. Retry count: ${newRetryCount}/${MAX_RED_BLOB_RETRIES}`);
+                            
+                            // Check if we've exceeded the retry limit for this location
+                            if (newRetryCount >= MAX_RED_BLOB_RETRIES) {
+                                console.log(`DEBUG: Red blob location ${blobLocationKey} has failed ${newRetryCount} times. Triggering scroll-to-bottom reset.`);
+                                updateStatus(`Red blob failed ${newRetryCount} times. Scrolling to bottom to reset...`, 'warn');
+                                
+                                // Clear retry counters and perform scroll-to-bottom reset
+                                redBlobRetryCount.clear();
+                                redBlobsTried.clear();
+                                lastRedBlobCoords = null;
+                                
+                                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                
+                                // Reset counters
+                                scrollUpCount = 0;
+                                detectionAttemptCount = 0;
+                                
+                                console.log('DEBUG: Scroll-to-bottom reset completed due to red blob retry limit exceeded.');
+                                continue; // Continue to restart detection from the top
+                            }
+                            
                             redBlobsTried.add(JSON.stringify(targetBlob));
                             lastRedBlobCoords = null; // Clear if not successful
-                            updateStatus('No blue build or red blobs found after red blob click. Trying another red blob.', 'warn');
+                            updateStatus(`No blue build found after red blob click (attempt ${newRetryCount}/${MAX_RED_BLOB_RETRIES}). Trying another red blob.`, 'warn');
                             console.log('DEBUG: No blue build or red blobs found after red blob click. Marking as tried.');
                         }
                     } else {

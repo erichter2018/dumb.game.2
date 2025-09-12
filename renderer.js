@@ -23,6 +23,7 @@ const toggleClickAroundBtn = document.getElementById('toggleClickAroundBtn');
 
 // New DOM Elements for Function Display
 const currentFunctionDisplay = document.getElementById('currentFunction');
+const currentLevelNameDisplay = document.getElementById('currentLevelName'); // New: Level name display
 const currentLevelDurationDisplay = document.getElementById('currentLevelDuration'); // New
 const previousLevelDurationDisplay = document.getElementById('previousLevelDuration'); // New
 const longestLevelDurationDisplay = document.getElementById('longestLevelDuration'); // New
@@ -466,6 +467,13 @@ ipcRenderer.on('update-levels-finished-count', (event, count) => {
 ipcRenderer.on('update-average-level-duration', (event, durationText) => {
     if (averageLevelDurationDisplay) {
         averageLevelDurationDisplay.textContent = `Average Duration: ${durationText}`;
+    }
+});
+
+// New: IPC listener for current level name updates
+ipcRenderer.on('update-current-level-name', (event, levelName) => {
+    if (currentLevelNameDisplay) {
+        currentLevelNameDisplay.textContent = `Level: ${levelName}`;
     }
 });
 

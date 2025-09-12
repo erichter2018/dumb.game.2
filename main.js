@@ -15,6 +15,7 @@ const finishBuildAutomation = require('./src/automation/finishBuild');
 const finishLevelAutomation = require('./src/automation/finishLevel');
 const scrollingFunctions = require('./src/automation/scrolling');
 const clickAroundFunctions = require('./src/automation/clickAround');
+const ocrUtils = require('./utils/ocr');
 
 let mainWindow;
 let isCapturing = false;
@@ -30,6 +31,7 @@ let isClickAroundRunning = false; // For Click Around automation
 let isClickAroundPaused = false; // For pausing Click Around on mouse movement
 let clickAroundCallCounter = 0; // Global counter for clickAround calls since level start
 let currentLevelStartTime = null; // New: To track the start time of the current level
+let currentLevelName = 'Unknown Level'; // New: To track the current level name
 let previousLevelDurationMs = null; // New: To store the duration of the previous level
 let longestLevelDurationMs = null; // New: To store the longest level duration
 let shortestLevelDurationMs = null; // New: To store the shortest level duration
@@ -58,6 +60,21 @@ function incrementClickAroundCallCounter() {
 function resetClickAroundCallCounter() {
     console.log(`DEBUG: ClickAround call counter reset from ${clickAroundCallCounter} to 0`);
     clickAroundCallCounter = 0;
+}
+
+// Functions for level name management
+function getCurrentLevelName() {
+    return currentLevelName;
+}
+
+function updateCurrentLevelName(levelName) {
+    currentLevelName = levelName || 'Unknown Level';
+    console.log(`DEBUG: Current level name updated to: "${currentLevelName}"`);
+    
+    // Send to renderer for UI update
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-current-level-name', currentLevelName);
+    }
 }
 
 // Function to send current active function to renderer
@@ -667,6 +684,10 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     getClickAroundCallCounter: getClickAroundCallCounter,
     incrementClickAroundCallCounter: incrementClickAroundCallCounter,
     resetClickAroundCallCounter: resetClickAroundCallCounter,
+    // New: Level name management and OCR functions
+    getCurrentLevelName: getCurrentLevelName,
+    updateCurrentLevelName: updateCurrentLevelName,
+    captureLevelName: ocrUtils.captureLevelName,
   };
 
   if (isRunning) {
@@ -873,6 +894,7 @@ app.whenReady().then(() => {
     updateShortestLevelDuration(null); // New: Initialize shortest level duration display
     updateLevelsFinishedCount(0); // New: Initialize levels finished count
     updateAverageLevelDuration(null); // New: Initialize average level duration
+    updateCurrentLevelName('Unknown Level'); // Initialize current level name
     resetClickAroundCallCounter(); // Reset clickAround counter on app start
   });
   

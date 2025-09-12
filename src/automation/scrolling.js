@@ -36,6 +36,13 @@ async function scrollDown(x, y, distance) {
 async function scrollUp(x, y, dependencies) { // Accept dependencies to access CLICK_AREAS and performClick
   const { updateCurrentFunction, CLICK_AREAS, performClick } = dependencies;
   updateCurrentFunction('scrollUp'); // Update current function
+  
+  // Add 200ms delay at start to ensure previous scroll operations are fully complete
+  const startTime = Date.now();
+  console.log(`DEBUG: scrollUp - Function called at ${startTime}, waiting 200ms before starting...`);
+  await new Promise(resolve => setTimeout(resolve, 200));
+  console.log(`DEBUG: scrollUp - 200ms delay completed at ${Date.now()}, beginning scroll operation`);
+  
   try {
     console.log(`DEBUG: scrollUp - Starting at X:${x}, Y:${y}`);
     // 1. Move mouse to start point
@@ -70,6 +77,12 @@ async function scrollUp(x, y, dependencies) { // Accept dependencies to access C
     // 4. Release left mouse button
     robot.mouseToggle('up', 'left');
     console.log(`DEBUG: scrollUp - Mouse button up.`);
+    
+    // Add final delay to ensure scroll operation completes before function returns
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const endTime = Date.now();
+    console.log(`DEBUG: scrollUp - Operation completed successfully at ${endTime} (total duration: ${endTime - startTime}ms)`);
+    
     return { success: true };
   } catch (error) {
     console.error(`Error executing RobotJS scroll up: ${error.message}`);
