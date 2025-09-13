@@ -15,11 +15,12 @@ const detectBlueBoxBtn = document.getElementById('detectBlueBoxBtn');
 const blueBoxResults = document.getElementById('blueBoxResults');
 
 // DOM Elements for Automation Controls
-const toggleFinishBuildBtn = document.getElementById('toggleFinishBuildBtn');
 const finishBuildStatus = document.getElementById('finishBuildStatus');
 const finishBuildStatusList = document.getElementById('finishBuildStatusList');
-const toggleFinishLevelBtn = document.getElementById('toggleFinishLevelBtn');
-const toggleClickAroundBtn = document.getElementById('toggleClickAroundBtn');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const clickAroundTrueBtn = document.getElementById('clickAroundTrueBtn');
+const clickAroundFalseBtn = document.getElementById('clickAroundFalseBtn');
 
 // New DOM Elements for Function Display
 const currentFunctionDisplay = document.getElementById('currentFunction');
@@ -31,10 +32,7 @@ const shortestLevelDurationDisplay = document.getElementById('shortestLevelDurat
 const levelsFinishedCountDisplay = document.getElementById('levelsFinishedCount'); // New
 const averageLevelDurationDisplay = document.getElementById('averageLevelDuration'); // New
 
-// New DOM Elements for Scrolling Controls
-const scrollDownBtn = document.getElementById('scrollDownBtn');
-const scrollUpBtn = document.getElementById('scrollUpBtn');
-const scrollToBottomBtn = document.getElementById('scrollToBottomBtn');
+// Scroll settings DOM elements (kept for internal use)
 // New DOM Elements for Scroll Settings
 const scrollSwipeDistanceInput = document.getElementById('scrollSwipeDistance');
 const scrollToBottomIterationsInput = document.getElementById('scrollToBottomIterations');
@@ -48,6 +46,7 @@ let isCapturing = false;
 let lastCapture = null;
 let currentRegion = { x: 0, y: 100, width: 450, height: 900 }; // Default, will be updated by main process
 let isFinishBuildRunning = false;
+let isAutomationRunning = false;
 let isFinishLevelRunning = false;
 let isClickAroundRunning = false;
 
@@ -147,108 +146,96 @@ stopLiveViewBtn.addEventListener('click', async () => {
 });
 
 // Handle toggle finish build button click
-toggleFinishBuildBtn.addEventListener('click', async () => {
-    isFinishBuildRunning = !isFinishBuildRunning;
-    if (isFinishBuildRunning) {
-        toggleFinishBuildBtn.textContent = 'Stop Finish Build';
-        toggleFinishBuildBtn.classList.remove('btn-secondary');
-        toggleFinishBuildBtn.classList.add('btn-danger');
-    } else {
-        toggleFinishBuildBtn.textContent = 'Start Finish Build';
-        toggleFinishBuildBtn.classList.remove('btn-danger');
-        toggleFinishBuildBtn.classList.add('btn-secondary');
+// Start button event listener - starts the finish level automation
+startBtn.addEventListener('click', async () => {
+    if (!isAutomationRunning) {
+        isAutomationRunning = true;
+        isFinishLevelRunning = true;
+        startBtn.classList.remove('btn-secondary');
+        startBtn.classList.add('btn-success');
+        startBtn.textContent = 'Running...';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        
+        console.log(`DEBUG: Starting finish level automation`);
+        const scrollSwipeDistance = parseInt(scrollSwipeDistanceInput.value, 10);
+        const scrollToBottomIterations = parseInt(scrollToBottomIterationsInput.value, 10);
+        const scrollUpAttempts = parseInt(scrollUpAttemptsInput.value, 10);
+        await ipcRenderer.invoke('toggle-finish-level', true, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts);
     }
-    console.log(`DEBUG: Toggling finish build automation to: ${isFinishBuildRunning}`);
-    await ipcRenderer.invoke('toggle-finish-build', isFinishBuildRunning);
 });
 
-// Handle toggle finish level button click
-toggleFinishLevelBtn.addEventListener('click', async () => {
-    isFinishLevelRunning = !isFinishLevelRunning;
-    if (isFinishLevelRunning) {
-        toggleFinishLevelBtn.textContent = 'Stop Finish Level';
-        toggleFinishLevelBtn.classList.remove('btn-secondary');
-        toggleFinishLevelBtn.classList.add('btn-danger');
-    } else {
-        toggleFinishLevelBtn.textContent = 'Start Finish Level';
-        toggleFinishLevelBtn.classList.remove('btn-danger');
-        toggleFinishLevelBtn.classList.add('btn-secondary');
+// Stop button event listener - stops all automation
+stopBtn.addEventListener('click', async () => {
+    if (isAutomationRunning) {
+        isAutomationRunning = false;
+        isFinishLevelRunning = false;
+        isFinishBuildRunning = false;
+        isClickAroundRunning = false;
+        
+        startBtn.classList.remove('btn-success');
+        startBtn.classList.add('btn-secondary');
+        startBtn.textContent = 'Start';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        
+        console.log(`DEBUG: Stopping all automation`);
+        await ipcRenderer.invoke('toggle-finish-level', false, 0, 0, 0);
+        await ipcRenderer.invoke('toggle-finish-build', false);
+        await ipcRenderer.invoke('toggle-click-around', false);
+        
+        // Reset click around buttons immediately since we're stopping them
+        clickAroundTrueBtn.textContent = 'Click Around True';
+        clickAroundTrueBtn.classList.remove('btn-danger');
+        clickAroundTrueBtn.classList.add('btn-secondary');
+        
+        clickAroundFalseBtn.textContent = 'Click Around False';
+        clickAroundFalseBtn.classList.remove('btn-danger');
+        clickAroundFalseBtn.classList.add('btn-secondary');
+        
+        updateStatus('All automation stopped.', 'info');
     }
-    console.log(`DEBUG: Toggling finish level automation to: ${isFinishLevelRunning}`);
-    const scrollSwipeDistance = parseInt(scrollSwipeDistanceInput.value, 10);
-    const scrollToBottomIterations = parseInt(scrollToBottomIterationsInput.value, 10);
-    const scrollUpAttempts = parseInt(scrollUpAttemptsInput.value, 10);
-    await ipcRenderer.invoke('toggle-finish-level', isFinishLevelRunning, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts);
 });
 
-// Click Around event listener
-toggleClickAroundBtn.addEventListener('click', async () => {
+// Click Around True event listener
+clickAroundTrueBtn.addEventListener('click', async () => {
     isClickAroundRunning = !isClickAroundRunning;
     if (isClickAroundRunning) {
-        toggleClickAroundBtn.textContent = 'Stop Click Around';
-        toggleClickAroundBtn.classList.remove('btn-secondary');
-        toggleClickAroundBtn.classList.add('btn-danger');
-        updateStatus('Starting Click Around automation...', 'info');
+        clickAroundTrueBtn.textContent = 'Stop Click Around True';
+        clickAroundTrueBtn.classList.remove('btn-secondary');
+        clickAroundTrueBtn.classList.add('btn-danger');
+        updateStatus('Starting Click Around automation (exclude red blobs)...', 'info');
         // Activate iPhone Mirroring for testing
         await ipcRenderer.invoke('activate-iphone-mirroring');
     } else {
-        toggleClickAroundBtn.textContent = 'Start Click Around';
-        toggleClickAroundBtn.classList.remove('btn-danger');
-        toggleClickAroundBtn.classList.add('btn-secondary');
+        clickAroundTrueBtn.textContent = 'Click Around True';
+        clickAroundTrueBtn.classList.remove('btn-danger');
+        clickAroundTrueBtn.classList.add('btn-secondary');
         updateStatus('Stopping Click Around automation...', 'info');
     }
-    await ipcRenderer.invoke('toggle-click-around', isClickAroundRunning);
+    await ipcRenderer.invoke('toggle-click-around', isClickAroundRunning, true);
 });
 
-// Event listeners for new scrolling buttons
-scrollDownBtn.addEventListener('click', async () => {
-    updateStatus('Scrolling down...', 'info');
-    try {
-        await ipcRenderer.invoke('activate-iphone-mirroring'); // Activate app before scroll
-        const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
-        const centerX = regionX + regionWidth / 2;
-        const centerY = regionY + regionHeight / 2;
-        const scrollDistance = parseInt(scrollSwipeDistanceInput.value, 10);
-        console.log(`DEBUG: Scroll Down initiated at centerX: ${centerX}, centerY: ${centerY}, distance: ${scrollDistance}`);
-        await ipcRenderer.invoke('scroll-down', centerX, centerY, scrollDistance); // Use configurable distance
-        updateStatus('Scrolled down.', 'success');
-    } catch (error) {
-        updateStatus(`Failed to scroll down: ${error.message}`, 'error');
+// Click Around False event listener
+clickAroundFalseBtn.addEventListener('click', async () => {
+    isClickAroundRunning = !isClickAroundRunning;
+    if (isClickAroundRunning) {
+        clickAroundFalseBtn.textContent = 'Stop Click Around False';
+        clickAroundFalseBtn.classList.remove('btn-secondary');
+        clickAroundFalseBtn.classList.add('btn-danger');
+        updateStatus('Starting Click Around automation (include red blobs)...', 'info');
+        // Activate iPhone Mirroring for testing
+        await ipcRenderer.invoke('activate-iphone-mirroring');
+    } else {
+        clickAroundFalseBtn.textContent = 'Click Around False';
+        clickAroundFalseBtn.classList.remove('btn-danger');
+        clickAroundFalseBtn.classList.add('btn-secondary');
+        updateStatus('Stopping Click Around automation...', 'info');
     }
+    await ipcRenderer.invoke('toggle-click-around', isClickAroundRunning, false);
 });
 
-scrollUpBtn.addEventListener('click', async () => {
-    updateStatus('Scrolling up...', 'info');
-    try {
-        await ipcRenderer.invoke('activate-iphone-mirroring'); // Activate app before scroll
-        const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
-        const centerX = regionX + regionWidth / 2;
-        const centerY = regionY + regionHeight / 2;
-        const scrollDistance = parseInt(scrollSwipeDistanceInput.value, 10);
-        console.log(`DEBUG: Scroll Up initiated at centerX: ${centerX}, centerY: ${centerY}, distance: ${scrollDistance}`);
-        await ipcRenderer.invoke('scroll-up', centerX, centerY, scrollDistance); // Use configurable distance
-        updateStatus('Scrolled up.', 'success');
-    } catch (error) {
-        updateStatus(`Failed to scroll up: ${error.message}`, 'error');
-    }
-});
-
-scrollToBottomBtn.addEventListener('click', async () => {
-    updateStatus('Scrolling to bottom...', 'info');
-    try {
-        await ipcRenderer.invoke('activate-iphone-mirroring'); // Activate app before scroll
-        const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
-        const centerX = regionX + regionWidth / 2;
-        const centerY = regionY + regionHeight / 2;
-        const scrollDistance = parseInt(scrollSwipeDistanceInput.value, 10);
-        const scrollIterations = parseInt(scrollToBottomIterationsInput.value, 10);
-        console.log(`DEBUG: Scroll to Bottom initiated at centerX: ${centerX}, centerY: ${centerY}, distance: ${scrollDistance}, iterations: ${scrollIterations}`);
-        await ipcRenderer.invoke('scroll-to-bottom', centerX, centerY, scrollDistance, scrollIterations); // Use configurable distance and iterations
-        updateStatus('Scrolled to bottom.', 'success');
-    } catch (error) {
-        updateStatus(`Failed to scroll to bottom: ${error.message}`, 'error');
-    }
-});
+// Scroll button event listeners removed - scroll controls are now handled internally by automation
 
 // Helper to display detection results
 function displayDetections(resultsContainer, detections) {
@@ -477,6 +464,22 @@ ipcRenderer.on('update-current-level-name', (event, levelName) => {
     }
 });
 
+// IPC listener for click around stopped events to reset button states
+ipcRenderer.on('click-around-stopped', () => {
+    // Reset both click around buttons to their initial state
+    isClickAroundRunning = false;
+    
+    // Reset Click Around True button
+    clickAroundTrueBtn.textContent = 'Click Around True';
+    clickAroundTrueBtn.classList.remove('btn-danger');
+    clickAroundTrueBtn.classList.add('btn-secondary');
+    
+    // Reset Click Around False button
+    clickAroundFalseBtn.textContent = 'Click Around False';
+    clickAroundFalseBtn.classList.remove('btn-danger');
+    clickAroundFalseBtn.classList.add('btn-secondary');
+});
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DEBUG: DOMContentLoaded event fired in renderer.js.');
@@ -498,5 +501,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     isCapturing = false; // Live view disabled by default
     startLiveViewBtn.style.display = 'block';
     stopLiveViewBtn.style.display = 'none';
+    
+    // Initialize button states
+    stopBtn.disabled = true;
     console.log('DEBUG: DOMContentLoaded handler finished.');
 });

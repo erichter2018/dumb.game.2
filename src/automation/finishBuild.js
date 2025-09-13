@@ -246,7 +246,7 @@ async function runBuildProtocol(dependencies) {
 
     updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
-        const clickAroundInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const clickAroundInterval = 3 * 60 * 1000; // 3 minutes in milliseconds
         let lastClickAroundTime = startTime;
     let timerInterval = null; // To hold the interval ID for clearing
 
@@ -327,11 +327,11 @@ async function runBuildProtocol(dependencies) {
                 const { clickAround } = require('./clickAround');
                 await clickAround(clickAroundDependencies, exclude_red_blobs);
                 
-                // Update the last clickAround time for next interval
-                lastClickAroundTime = currentTime;
+                updateStatus('Finish Build: Click Around completed. Returning control to Finish Level.', 'success');
+                console.log('DEBUG: Finish Build: Click Around completed. Returning control to Finish Level.');
                 
-                // Continue the loop instead of exiting (remove the old timeout behavior)
-                continue;
+                // Exit gracefully after clickAround, returning control to finishLevel
+                return 'clickaround_completed';
             }
             // Perform blue box detection once per cycle to get the latest state
             const currentDetectedBox = await findBlueBoxWithRetry(dependencies, blueBoxCoords);

@@ -143,6 +143,10 @@ function startAutomation(dependencies) {
                 updateStatus('Finish Build timed out. Exiting prepBuild.', 'warn');
                 console.log('DEBUG: Finish Build timed out. Exiting prepBuild.');
                 return 'finish_build_timed_out'; // New return status for timeout
+            } else if (buildResult === 'clickaround_completed') { // New: Handle clickaround completion
+                updateStatus('Finish Build completed Click Around and returned control. Exiting prepBuild.', 'success');
+                console.log('DEBUG: Finish Build completed Click Around and returned control. Exiting prepBuild.');
+                return 'finish_build_clickaround_completed'; // New return status for clickaround completion
             }
             if (!getIsAutomationRunning()) return 'stopped';
             updateStatus('Finish Build automation completed. Exiting prepBuild.', 'success');

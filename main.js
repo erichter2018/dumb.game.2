@@ -792,7 +792,7 @@ ipcMain.handle('scroll-to-top', async () => {
   return scrollingFunctions.scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS });
 });
 
-ipcMain.handle('toggle-click-around', async (event, isRunning) => {
+ipcMain.handle('toggle-click-around', async (event, isRunning, exclude_red_blobs = true) => {
   // Prevent starting if another automation is already running
   if (isRunning && (isAutomationRunning || isFinishLevelRunning)) {
     console.log('ERROR: Finish Build or Finish Level automation is already running. Cannot start Click Around.');
@@ -806,7 +806,8 @@ ipcMain.handle('toggle-click-around', async (event, isRunning) => {
   if (isRunning) {
     updateCurrentFunction('toggle-click-around');
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('finish-build-status', 'Starting Click Around automation...', 'info');
+      const blobStatus = exclude_red_blobs ? 'excluding red blobs' : 'including red blobs';
+      mainWindow.webContents.send('finish-build-status', `Starting Click Around automation (${blobStatus})...`, 'info');
     }
     const clickAroundDependencies = {
       updateStatus: (message, type) => {
@@ -829,11 +830,28 @@ ipcMain.handle('toggle-click-around', async (event, isRunning) => {
       getIsClickAroundPaused: () => isClickAroundPaused,
       captureScreenRegion: captureScreenRegion,
     };
-    clickAroundFunctions.clickAround(clickAroundDependencies, true); // Default to excluding red blobs for manual UI calls
+    clickAroundFunctions.clickAround(clickAroundDependencies, exclude_red_blobs).then(() => {
+      // Click around function completed naturally
+      isClickAroundRunning = false;
+      updateCurrentFunction('Idle');
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('finish-build-status', 'Click Around automation completed.', 'success');
+        mainWindow.webContents.send('click-around-stopped');
+      }
+    }).catch((error) => {
+      // Click around function encountered an error
+      isClickAroundRunning = false;
+      updateCurrentFunction('Idle');
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('finish-build-status', `Click Around automation error: ${error.message}`, 'error');
+        mainWindow.webContents.send('click-around-stopped');
+      }
+    });
   } else {
     updateCurrentFunction('Idle');
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('finish-build-status', 'Stopping Click Around automation...', 'info');
+      mainWindow.webContents.send('click-around-stopped');
     }
   }
   return { success: true };
