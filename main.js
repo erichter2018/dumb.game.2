@@ -13,6 +13,7 @@ const blueBoxDetector = require('./src/detection/blueBoxDetector');
 const redBlobDetectorCutoff = require('./src/detection/redBlobDetectorCutoff');
 const finishBuildAutomation = require('./src/automation/finishBuild');
 const finishLevelAutomation = require('./src/automation/finishLevel');
+const imageComparison = require('./utils/image-comparison');
 const scrollingFunctions = require('./src/automation/scrolling');
 const clickAroundFunctions = require('./src/automation/clickAround');
 const ocrUtils = require('./utils/ocr');
@@ -688,6 +689,12 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     getCurrentLevelName: getCurrentLevelName,
     updateCurrentLevelName: updateCurrentLevelName,
     captureLevelName: ocrUtils.captureLevelName,
+    // New: Image comparison functions for scroll top detection
+    compareTopRegions: imageComparison.compareTopRegions,
+    captureTopRegion: imageComparison.captureTopRegion,
+    // New: Image comparison functions for scroll bottom detection
+    compareBottomRegions: imageComparison.compareBottomRegions,
+    captureBottomRegion: imageComparison.captureBottomRegion,
   };
 
   if (isRunning) {

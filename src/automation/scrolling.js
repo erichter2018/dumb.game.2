@@ -66,13 +66,26 @@ async function scrollUp(x, y, dependencies) { // Accept dependencies to access C
     await new Promise(resolve => setTimeout(resolve, 50)); 
     console.log(`DEBUG: scrollUp - Mouse button down.`);
 
-    // 3. Drag mouse to end point
-    const scrollDistance = getRandomInt(80, 100);
+    // 3. Drag mouse to end point with duration
+    const scrollDistance = 50; // Fixed 50 pixel scroll distance
     const targetY = y + scrollDistance;
-    console.log(`DEBUG: scrollUp - Generated scroll distance: ${scrollDistance}. Dragging to X:${x}, Y:${targetY}`);
-    robot.dragMouse(x, targetY); // Drag downwards to scroll up
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-    console.log(`DEBUG: scrollUp - Mouse dragged.`);
+    const dragDuration = 20; // Duration in milliseconds for the drag
+    console.log(`DEBUG: scrollUp - Generated scroll distance: ${scrollDistance}. Dragging to X:${x}, Y:${targetY} over ${dragDuration}ms`);
+    
+    // Perform gradual drag over specified duration
+    const startY = y;
+    const totalDistance = targetY - startY;
+    const steps = 10; // Number of intermediate steps
+    const stepDelay = dragDuration / steps;
+    const stepDistance = totalDistance / steps;
+    
+    for (let i = 1; i <= steps; i++) {
+      const currentY = startY + (stepDistance * i);
+      robot.dragMouse(x, currentY); // Use dragMouse instead of moveMouse when button is down
+      await new Promise(resolve => setTimeout(resolve, stepDelay));
+    }
+    
+    console.log(`DEBUG: scrollUp - Mouse dragged gradually over ${dragDuration}ms.`);
 
     // 4. Release left mouse button
     robot.mouseToggle('up', 'left');

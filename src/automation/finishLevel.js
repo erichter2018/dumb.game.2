@@ -1,5 +1,5 @@
 function startAutomation(dependencies) {
-    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
+    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt, compareTopRegions, captureTopRegion } = dependencies;
 
     updateCurrentFunction('startAutomation'); // Update current function display
     updateStatus('Finish Level Automation Started', 'info');
@@ -7,6 +7,7 @@ function startAutomation(dependencies) {
 
     let redBlobsTried = new Set(); // To keep track of red blobs already tried in the current cycle
     let lastRedBlobCoords = null; // To store the coordinates of the last successfully clicked red blob
+    let previousTopImage = null; // To store the previous top region image for scroll comparison
 
     // Helper function to remove the 'image' property from blob objects for logging
     function omitImageFromLog(obj) {
@@ -258,7 +259,7 @@ function startAutomation(dependencies) {
     }
 
     async function exitAndStartNewLevel(dependencies) {
-        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, captureScreenRegion } = dependencies;
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = dependencies;
 
         // Reset clickAround counter for new level
         resetClickAroundCallCounter();
@@ -278,10 +279,10 @@ function startAutomation(dependencies) {
         console.log('DEBUG: Continuing "Exit and Start New Level" routine. Performing click at "Confirm Exit".');
         await performClick(CLICK_AREAS.CONFIRM_EXIT.x, CLICK_AREAS.CONFIRM_EXIT.y);
         updateStatus('Clicked "Confirm Exit".', 'info');
-        console.log(`DEBUG: Finished click at "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}). Waiting 10,000ms.`);
+        console.log(`DEBUG: Finished click at "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}). Waiting 9,000ms.`);
 
-        // Wait 10,000ms
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        // Wait 9,000ms
+        await new Promise(resolve => setTimeout(resolve, 9000));
         if (!getIsAutomationRunning()) { return; }
 
         // Capture level name using OCR before clicking "Start Level"
@@ -327,12 +328,55 @@ function startAutomation(dependencies) {
 
         updateStatus('"Exit and Start New Level" routine completed.', 'success');
         console.log('DEBUG: "Exit and Start New Level" routine completed.');
-        // After successfully exiting and starting a new level, scroll down to the bottom
-        console.log('DEBUG: Exit and Start New Level routine complete. Scrolling to bottom.');
-        // Using central coordinates of the iPhone mirroring region and a default scroll distance
+        
+        // Level-specific scrolling actions based on upcoming level name
         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+        
+        // Get the current level name to determine scrolling action
+        const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : 'Unknown Level';
+        console.log(`DEBUG: Current level name for scrolling decision: "${currentLevelName}"`);
+        
+        // Scroll down three times
+        if (currentLevelName.toLowerCase().includes('drive thru take out') || 
+            currentLevelName.toLowerCase().includes('fish and chips shop') || 
+            currentLevelName.toLowerCase().includes('dessert co') || 
+            currentLevelName.toLowerCase().includes('drive thru') || 
+            currentLevelName.toLowerCase().includes('fish and chip shop') ||
+            currentLevelName.toLowerCase().includes('restaurant') ||
+            currentLevelName.toLowerCase().includes('food truck') ||
+            currentLevelName.toLowerCase().includes('lobster house') ||
+            currentLevelName.toLowerCase().includes('cafe') ||
+            currentLevelName.toLowerCase().includes('pizzeria')) {
+            // Scroll down three times
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down three times.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down three times.`, 'info');
+            for (let i = 0; i < 3; i++) {
+                if (!getIsAutomationRunning()) { return; }
+                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } else if (currentLevelName.toLowerCase().includes('burrito king')) {
+            // Scroll to bottom
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll to bottom.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');
+            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+        } else if (currentLevelName.toLowerCase().includes('big drive thru') || 
+                   currentLevelName.toLowerCase().includes('italiano')) {
+            // Scroll down four times
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down four times.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down four times.`, 'info');
+            for (let i = 0; i < 4; i++) {
+                if (!getIsAutomationRunning()) { return; }
+                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } else {
+            // No specific action needed for this level
+            console.log(`DEBUG: No specific scrolling action needed for level "${currentLevelName}".`);
+            updateStatus(`No level-specific scrolling needed for: ${currentLevelName}`, 'info');
+        }
+        
         if (!getIsAutomationRunning()) { return; }
 
         // After a successful exit and new level start, update the previous level duration
@@ -342,6 +386,10 @@ function startAutomation(dependencies) {
         hasFinishedBuildOnce = false;
         redBlobRetryCount.clear(); // Reset retry counters for new level
         console.log('DEBUG: Reset hasFinishedBuildOnce to false for new level.');
+        
+        // Final 2-second wait before exiting function
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (!getIsAutomationRunning()) { return; }
     }
 
     let scrollUpCount = 0; // Counter for consecutive scroll-up attempts
@@ -352,10 +400,18 @@ function startAutomation(dependencies) {
     async function runFinishLevelProtocol() {
         updateCurrentFunction('runFinishLevelProtocol'); // Update current function display
         while (getIsAutomationRunning()) {
-            updateStatus('Checking for blue build box...', 'info');
-            const fullScreenDataUrl = await captureScreenRegion();
-            const blueBoxes = await detectBlueBoxes(fullScreenDataUrl, iphoneMirroringRegion);
-            const blueBuildBox = blueBoxes.find(box => box.state === 'blue_build' || box.state === 'grey_build'); // Exclude 'unknown' from initial decision
+            let blueBuildBox = null;
+            
+            // Only detect blue builds if we haven't finished a build yet
+            if (!hasFinishedBuildOnce) {
+                updateStatus('Checking for blue build box...', 'info');
+                const fullScreenDataUrl = await captureScreenRegion();
+                const blueBoxes = await detectBlueBoxes(fullScreenDataUrl, iphoneMirroringRegion);
+                blueBuildBox = blueBoxes.find(box => box.state === 'blue_build' || box.state === 'grey_build'); // Exclude 'unknown' from initial decision
+            } else {
+                updateStatus('Build completed once, skipping blue build detection. Checking for red blobs...', 'info');
+                console.log('DEBUG: hasFinishedBuildOnce is true, skipping blue build detection and going directly to red blob detection.');
+            }
 
             if (blueBuildBox) {
                 detectionAttemptCount = 0; // Reset on success
@@ -420,8 +476,14 @@ function startAutomation(dependencies) {
                     lastRedBlobCoords = null; // Clear last red blob coords
                 }
             } else {
-                updateStatus('No blue build box found. Detecting red blobs...', 'info');
-                console.log('DEBUG: No blue build box found. Detecting red blobs.');
+                // Either no blue build box found (first time) or we're skipping blue detection (hasFinishedBuildOnce = true)
+                if (!hasFinishedBuildOnce) {
+                    updateStatus('No blue build box found. Detecting red blobs...', 'info');
+                    console.log('DEBUG: No blue build box found. Detecting red blobs.');
+                }
+                
+                // Capture screen for red blob detection
+                const fullScreenDataUrl = await captureScreenRegion();
                 const redBlobs = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
                 if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during redBlobDetectorDetect
 
@@ -474,16 +536,53 @@ function startAutomation(dependencies) {
                         updateStatus(`No objects found after ${detectionAttemptCount} attempts (including second detection). Scrolling up...`, 'warn');
                         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                        
+                        // Smart scroll up with image comparison
+                        if (previousTopImage) {
+                            // We have a previous image to compare against
+                            console.log(`DEBUG: Comparing current screen to previous image to detect if we've reached the top.`);
+                            try {
+                                const currentTopImage = await captureTopRegion(captureScreenRegion, iphoneMirroringRegion);
+                                const comparison = await compareTopRegions(previousTopImage, currentTopImage, iphoneMirroringRegion, 30, 0.05);
+                                
+                                if (comparison.isAtTop) {
+                                    console.log(`DEBUG: Image comparison indicates we've reached the top (difference: ${(comparison.difference * 100).toFixed(1)}%). Scrolling to bottom and restarting search.`);
+                                    updateStatus(`Reached top of content (${(comparison.difference * 100).toFixed(1)}% similarity, threshold: 5%). Scrolling to bottom and restarting search...`, 'info');
+                                    await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                    scrollUpCount = 0; // Reset scroll up count
+                                    previousTopImage = null; // Reset image comparison
+                                    detectionAttemptCount = 0; // Reset attempt count after scrolling
+                                    continue; // Continue the loop to re-detect from scratch
+                                } else {
+                                    console.log(`DEBUG: Image comparison shows significant change (difference: ${(comparison.difference * 100).toFixed(1)}%). Continuing to scroll up.`);
+                                    updateStatus(`Scroll up: Image difference ${(comparison.difference * 100).toFixed(1)}% (threshold: 5%) - continuing to scroll up...`, 'info');
+                                }
+                            } catch (error) {
+                                console.error('ERROR: Image comparison failed:', error);
+                                // Fall back to regular scroll up behavior
+                            }
+                        } else {
+                            // First scroll up - capture the current screen for future comparison
+                            console.log(`DEBUG: First scroll up - capturing current screen for future comparison.`);
+                            try {
+                                previousTopImage = await captureTopRegion(captureScreenRegion, iphoneMirroringRegion, 30);
+                                console.log(`DEBUG: Captured initial top region image for comparison.`);
+                            } catch (error) {
+                                console.error('ERROR: Failed to capture initial top region image:', error);
+                            }
+                        }
+                        
                         await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt }); // Use configurable scroll swipe distance
                         scrollUpCount++;
                         console.log(`DEBUG: Scroll up count incremented to ${scrollUpCount}, limit is ${scrollUpAttempts}.`);
                         detectionAttemptCount = 0; // Reset attempt count after scrolling
 
                         if (scrollUpCount >= scrollUpAttempts) { // Use configurable scrollUpAttempts
-                            console.log(`DEBUG: Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search.`);
-                            updateStatus(`Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search...`, 'warn');
+                            console.log(`DEBUG: Scrolled up ${scrollUpCount} times (reached limit). Scrolling to bottom and restarting search.`);
+                            updateStatus(`Scrolled up ${scrollUpCount} times (reached limit). Scrolling to bottom and restarting search...`, 'warn');
                             await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS }); // Use configurable values
                             scrollUpCount = 0; // Reset scroll up count
+                            previousTopImage = null; // Reset image comparison
                         }
                     }
                     continue; // Continue the loop to re-detect from scratch
@@ -550,16 +649,53 @@ function startAutomation(dependencies) {
                                     updateStatus(`No usable objects found after ${detectionAttemptCount} attempts (including second detection). Scrolling up...`, 'warn');
                                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                                    
+                                    // Smart scroll up with image comparison
+                                    if (previousTopImage) {
+                                        // We have a previous image to compare against
+                                        console.log(`DEBUG: Comparing current screen to previous image to detect if we've reached the top.`);
+                                        try {
+                                            const currentTopImage = await captureTopRegion(captureScreenRegion, iphoneMirroringRegion, 30);
+                                            const comparison = await compareTopRegions(previousTopImage, currentTopImage, iphoneMirroringRegion, 30, 0.05);
+                                            
+                                                if (comparison.isAtTop) {
+                                                    console.log(`DEBUG: Image comparison indicates we've reached the top (difference: ${(comparison.difference * 100).toFixed(1)}%). Scrolling to bottom and restarting search.`);
+                                                    updateStatus(`Reached top of content (${(comparison.difference * 100).toFixed(1)}% similarity, threshold: 5%). Scrolling to bottom and restarting search...`, 'info');
+                                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                                scrollUpCount = 0; // Reset scroll up count
+                                                previousTopImage = null; // Reset image comparison
+                                                detectionAttemptCount = 0; // Reset attempt count after scrolling
+                                                continue; // Continue the loop to re-detect from scratch
+                                            } else {
+                                                console.log(`DEBUG: Image comparison shows significant change (difference: ${(comparison.difference * 100).toFixed(1)}%). Continuing to scroll up.`);
+                                                updateStatus(`Scroll up: Image difference ${(comparison.difference * 100).toFixed(1)}% (threshold: 5%) - continuing to scroll up...`, 'info');
+                                            }
+                                        } catch (error) {
+                                            console.error('ERROR: Image comparison failed:', error);
+                                            // Fall back to regular scroll up behavior
+                                        }
+                                    } else {
+                                        // First scroll up - capture the current screen for future comparison
+                                        console.log(`DEBUG: First scroll up - capturing current screen for future comparison.`);
+                                        try {
+                                            previousTopImage = await captureTopRegion(captureScreenRegion, iphoneMirroringRegion, 30);
+                                            console.log(`DEBUG: Captured initial top region image for comparison.`);
+                                        } catch (error) {
+                                            console.error('ERROR: Failed to capture initial top region image:', error);
+                                        }
+                                    }
+                                    
                                     await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
                                     scrollUpCount++;
                                     console.log(`DEBUG: Scroll up count incremented to ${scrollUpCount}, limit is ${scrollUpAttempts}.`);
                                     detectionAttemptCount = 0; // Reset attempt count after scrolling
 
                                     if (scrollUpCount >= scrollUpAttempts) {
-                                        console.log(`DEBUG: Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search.`);
-                                        updateStatus(`Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search...`, 'warn');
+                                        console.log(`DEBUG: Scrolled up ${scrollUpCount} times (reached limit). Scrolling to bottom and restarting search.`);
+                                        updateStatus(`Scrolled up ${scrollUpCount} times (reached limit). Scrolling to bottom and restarting search...`, 'warn');
                                         await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                                         scrollUpCount = 0; // Reset scroll up count
+                                        previousTopImage = null; // Reset image comparison
                                     }
                                     continue; // Skip the rest of this iteration and start fresh
                                 } else {
@@ -702,19 +838,50 @@ function startAutomation(dependencies) {
                     // Removed: await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before re-attempting
 
                     if (detectionAttemptCount >= 2) { // Changed from 3 to 2
-                        console.log(`DEBUG: No red blobs found after ${detectionAttemptCount} attempts. Scrolling up.`);
-                        updateStatus(`No objects found after ${detectionAttemptCount} attempts. Scrolling up...`, 'warn');
-                        const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
-                        const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                        await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt }); // Scroll up by 200 pixels
-                        scrollUpCount++;
-                        detectionAttemptCount = 0; // Reset attempt count after scrolling
-
-                        if (scrollUpCount >= 2) { // Changed from 20 to 2
-                            console.log(`DEBUG: Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search.`);
-                            updateStatus(`Scrolled up ${scrollUpCount} times. Scrolling to bottom and restarting search...`, 'warn');
-                            await scrollToBottom(scrollX, scrollY, 100, 20, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS }); // Scroll to bottom, then the loop restarts from top
-                            scrollUpCount = 0; // Reset scroll up count
+                        console.log(`DEBUG: No red blobs found after ${detectionAttemptCount} attempts. Checking if we should scroll up.`);
+                        
+                        // Capture current top region image
+                        const currentTopImage = await captureTopRegion(captureScreenRegion, iphoneMirroringRegion, 50);
+                        
+                        let shouldScrollUp = true;
+                        
+                        // If we have a previous image, compare with current image
+                        if (previousTopImage && currentTopImage) {
+                            console.log(`DEBUG: Comparing images to detect if we're at the top...`);
+                            const comparisonResult = await compareTopRegions(previousTopImage, currentTopImage, iphoneMirroringRegion, 50, 0.05);
+                            
+                            if (comparisonResult.isAtTop) {
+                                console.log(`DEBUG: At top of scrollable content - ${comparisonResult.message}`);
+                                updateStatus(`Reached top of scrollable content (${comparisonResult.message}). Scrolling to bottom and restarting search...`, 'info');
+                                shouldScrollUp = false;
+                                
+                                // Scroll to bottom and restart search
+                                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                                await scrollToBottom(scrollX, scrollY, 100, 20, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                scrollUpCount = 0; // Reset scroll up count
+                                previousTopImage = null; // Reset previous image
+                            } else {
+                                console.log(`DEBUG: Not at top - ${comparisonResult.message}`);
+                            }
+                        }
+                        
+                        // If we should scroll up, do it
+                        if (shouldScrollUp) {
+                            updateStatus(`No objects found after ${detectionAttemptCount} attempts. Scrolling up...`, 'warn');
+                            const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                            const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                            
+                            // Store current image as previous before scrolling
+                            if (currentTopImage) {
+                                previousTopImage = currentTopImage;
+                            }
+                            
+                            await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
+                            scrollUpCount++;
+                            detectionAttemptCount = 0; // Reset attempt count after scrolling
+                        } else {
+                            detectionAttemptCount = 0; // Reset attempt count since we're restarting search
                         }
                     }
                     // Do not `continue` here, let the main loop handle the 2-second delay for consistency.

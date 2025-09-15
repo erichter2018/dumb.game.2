@@ -156,7 +156,7 @@ async function doResearch(dependencies) {
     await new Promise(resolve => setTimeout(resolve, 200)); // Short delay after first click
 
     if (!getIsAutomationRunning()) { return; }
-    await performRapidClicks(CLICK_AREAS.INDIVIDUAL_RESEARCH.x, CLICK_AREAS.INDIVIDUAL_RESEARCH.y, 25);
+    await performRapidClicks(CLICK_AREAS.INDIVIDUAL_RESEARCH.x, CLICK_AREAS.INDIVIDUAL_RESEARCH.y, 40);
     await new Promise(resolve => setTimeout(resolve, 50)); // Short delay after rapid clicks
 
     if (!getIsAutomationRunning()) { return; }

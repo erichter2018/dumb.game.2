@@ -2,7 +2,7 @@ const { getRandomInt } = require('./scrolling');
 const { scrollToTop, scrollDown } = require('./scrolling');
 
 async function clickAround(dependencies, exclude_red_blobs = true) {
-  const { updateStatus, detectRedBlobs, performClick, performBatchedClicks, iphoneMirroringRegion, getIsClickAroundRunning, getIsClickAroundPaused, updateCurrentFunction, CLICK_AREAS, captureScreenRegion } = dependencies;
+  const { updateStatus, detectRedBlobs, performClick, performBatchedClicks, iphoneMirroringRegion, getIsClickAroundRunning, getIsClickAroundPaused, updateCurrentFunction, CLICK_AREAS, captureScreenRegion, compareBottomRegions, captureBottomRegion } = dependencies;
   updateStatus(`Starting Click Around automation... (exclude_red_blobs: ${exclude_red_blobs})`, 'info');
   console.log(`DEBUG: ClickAround started with exclude_red_blobs: ${exclude_red_blobs}`);
 
@@ -22,9 +22,10 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
 
   let redBlobHistory = [];
   let scrollCount = 0;
-  const maxScrolls = 7; // Maximum 7 full iterations (sets of clicks and scrolls)
+  const maxScrolls = 7; // Fallback maximum scroll attempts (safety limit)
   const minCellSize = 27; // Minimum grid cell size (pixels)
   const maxCellSize = 31; // Maximum grid cell size (pixels)
+  let previousBottomImage = null; // Store previous bottom image for comparison
 
   try {
     // 1. Scroll to top once at the beginning
@@ -59,6 +60,26 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
       if (!await checkPauseState()) break;
 
       updateStatus(`Click Around: Scroll iteration ${scrollCount + 1}/${maxScrolls}`, 'info');
+
+      // Smart bottom detection using image comparison
+      if (previousBottomImage) {
+        // We have a previous image to compare against
+        console.log(`DEBUG: ClickAround comparing current screen to previous image to detect if we've reached the bottom.`);
+        try {
+          const currentBottomImage = await captureBottomRegion(captureScreenRegion, iphoneMirroringRegion);
+          const comparison = await compareBottomRegions(previousBottomImage, currentBottomImage, iphoneMirroringRegion, 50, 0.05);
+          
+          if (comparison.isAtBottom) {
+            console.log(`DEBUG: ClickAround image comparison indicates we've reached the bottom (difference: ${(comparison.difference * 100).toFixed(1)}%). Stopping click around.`);
+            updateStatus(`Reached bottom of content (${(comparison.difference * 100).toFixed(1)}% similarity). Click Around complete.`, 'success');
+            break; // Exit the loop - we've reached the bottom
+          } else {
+            console.log(`DEBUG: ClickAround image comparison shows significant change (difference: ${(comparison.difference * 100).toFixed(1)}%). Continuing to scroll down.`);
+          }
+        } catch (error) {
+          console.error(`DEBUG: ClickAround image comparison failed: ${error.message}. Continuing with normal flow.`);
+        }
+      }
 
       // First red blob detection
       const fullScreenDataUrl = await captureScreenRegion();
@@ -163,6 +184,15 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
       // Scroll down (350 pixels total in single call)
       updateStatus('Click Around: Scrolling down by 350 pixels.', 'info');
       await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, 350); // Single call with total distance
+      
+      // Capture bottom image for next iteration's comparison
+      try {
+        previousBottomImage = await captureBottomRegion(captureScreenRegion, iphoneMirroringRegion);
+        console.log(`DEBUG: ClickAround captured bottom image for next iteration comparison.`);
+      } catch (error) {
+        console.error(`DEBUG: ClickAround failed to capture bottom image: ${error.message}`);
+      }
+      
       scrollCount++;
     }
 
