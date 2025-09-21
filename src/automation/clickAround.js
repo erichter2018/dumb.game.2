@@ -28,6 +28,14 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
   let previousBottomImage = null; // Store previous bottom image for comparison
 
   try {
+    // 0. Click off first to ensure clean state
+    if (CLICK_AREAS && CLICK_AREAS.CLICK_OFF) {
+      updateStatus('Click Around: Clicking off to start...', 'info');
+      await performClick(CLICK_AREAS.CLICK_OFF.x, CLICK_AREAS.CLICK_OFF.y);
+      console.log('DEBUG: ClickAround - Initial click off performed at:', CLICK_AREAS.CLICK_OFF.x, CLICK_AREAS.CLICK_OFF.y);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
     // 1. Scroll to top once at the beginning
     updateStatus('Click Around: Scrolling to top...', 'info');
     await scrollToTop({ 

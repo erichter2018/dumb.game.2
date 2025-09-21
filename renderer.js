@@ -414,6 +414,55 @@ function drawDetectionOverlay() {
     
     console.log('🎨 Drawing overlays - scaleX:', scaleX, 'scaleY:', scaleY);
     
+    // Draw exclusion zones in dark yellow (these are static and don't change)
+    const EXCLUSION_RECTS = [
+        { x: 0, y: 0, width: 100, height: 500 }, // Top-left area
+        { x: 0, y: 0, width: 450, height: 410 }, // Top area
+        { x: 320, y: 0, width: 130, height: 500 }, // Top-right area
+        { x: 0, y: 800, width: 100, height: 200 }, // Bottom-left area
+        { x: 0, y: 860, width: 450, height: 140 }, // Bottom area
+    ];
+    
+    console.log('🟡 Drawing exclusion zones');
+    EXCLUSION_RECTS.forEach((rect, i) => {
+        // Calculate the intersection of the exclusion zone with the capture region
+        const intersectionX = Math.max(rect.x, regionX);
+        const intersectionY = Math.max(rect.y, regionY);
+        const intersectionWidth = Math.min(rect.x + rect.width, regionX + regionWidth) - intersectionX;
+        const intersectionHeight = Math.min(rect.y + rect.height, regionY + regionHeight) - intersectionY;
+        
+        // Skip if there's no intersection with the capture region
+        if (intersectionWidth <= 0 || intersectionHeight <= 0) {
+            console.log(`🟡 Skipping exclusion zone ${i} - no intersection with capture region`);
+            return;
+        }
+        
+        // Convert intersection coordinates to canvas coordinates
+        const canvasX = (intersectionX - regionX) * scaleX;
+        const canvasY = (intersectionY - regionY) * scaleY;
+        const canvasWidth = intersectionWidth * scaleX;
+        const canvasHeight = intersectionHeight * scaleY;
+        
+        console.log(`🟡 Drawing exclusion zone ${i}:`, {
+            original: rect,
+            intersection: { x: intersectionX, y: intersectionY, width: intersectionWidth, height: intersectionHeight },
+            canvas: { x: canvasX, y: canvasY, width: canvasWidth, height: canvasHeight }
+        });
+        
+        // Draw exclusion zone outline
+        ctx.strokeStyle = '#b8860b'; // Dark goldenrod
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]); // Dashed line to distinguish from detection overlays
+        ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+        
+        // Draw semi-transparent fill
+        ctx.fillStyle = 'rgba(184, 134, 11, 0.2)'; // Dark goldenrod with low opacity
+        ctx.fillRect(canvasX, canvasY, canvasWidth, canvasHeight);
+    });
+    
+    // Reset line dash for detection overlays
+    ctx.setLineDash([]);
+    
     // Draw red blob overlays
     if (latestDetections.redBlobs && latestDetections.redBlobs.length > 0) {
         console.log('🔴 Drawing', latestDetections.redBlobs.length, 'red blob overlays');
@@ -667,6 +716,18 @@ let overlayUpdateTimeout = null;
 ipcRenderer.on('scroll-occurred', (event) => {
     console.log('📜 SCROLL DETECTED - marking for overlay clear');
     scrollOccurred = true;
+});
+
+// Listen for level start events to clear overlays
+ipcRenderer.on('clear-overlays', (event) => {
+    console.log('🆕 NEW LEVEL START - clearing all overlays');
+    latestDetections = { redBlobs: [], blueBoxes: [] };
+    
+    // Redraw canvas without overlays
+    if (previewCanvas && ctx && currentLiveViewImage) {
+        ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        drawImageOnCanvas(currentLiveViewImage);
+    }
 });
 
 // Listen for detection results for overlay

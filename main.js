@@ -749,13 +749,22 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     },
     captureScreenRegion,
     updateStatus: (message, type) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        statusMessageHistory.push({ message, type, timestamp: new Date().toLocaleTimeString() });
-        if (statusMessageHistory.length > STATUS_MESSAGE_LIMIT) {
-          statusMessageHistory.shift();
+      try {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          statusMessageHistory.push({ message, type, timestamp: new Date().toLocaleTimeString() });
+          if (statusMessageHistory.length > STATUS_MESSAGE_LIMIT) {
+            statusMessageHistory.shift();
+          }
+          mainWindow.webContents.send('finish-build-status', message, type);
+          mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
+          
+          // Clear overlays when starting a new level
+          if (message.includes('Starting "Exit and Start New Level" routine')) {
+            mainWindow.webContents.send('clear-overlays');
+          }
         }
-        mainWindow.webContents.send('finish-build-status', message, type);
-        mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
+      } catch (error) {
+        console.error('Error in updateStatus:', error);
       }
     },
     updateCurrentFunction: updateCurrentFunction, // Pass the new function
