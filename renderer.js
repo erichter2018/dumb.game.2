@@ -50,12 +50,25 @@ let isAutomationRunning = false;
 let isFinishLevelRunning = false;
 let isClickAroundRunning = false;
 
-// Function to update status - now unified
+// Overlay state and variables
+let overlayEnabled = true; // Default to enabled
+let overlayOpacity = 0.8;
+let latestDetections = { redBlobs: [], blueBoxes: [] };
+let currentLiveViewImage = null;
+let scrollOccurred = false; // Track if scrolling has happened
+let overlayCanvas = null;
+let overlayCtx = null;
+
+// Function to update status - now unified with activity log
 function updateStatus(message, type = 'info') {
     statusText.textContent = message; // Update the general statusText
     statusText.className = `status-update ${type}`;
     finishBuildStatus.textContent = message; // Update the single-line finish build status
     finishBuildStatus.className = `status-update ${type}`;
+    
+    // Add to activity log
+    addLogEntry(message, type);
+    
     console.log(`[${type.toUpperCase()}] ${message}`);
 }
 
@@ -237,36 +250,286 @@ clickAroundFalseBtn.addEventListener('click', async () => {
 
 // Scroll button event listeners removed - scroll controls are now handled internally by automation
 
-// Helper to display detection results
-function displayDetections(resultsContainer, detections) {
-    resultsContainer.innerHTML = ''; // Clear previous results
+// Activity Log Management
+let activityLogContainer = null;
+let logEntries = [];
+const MAX_LOG_ENTRIES = 50;
+
+function initializeActivityLog() {
+    activityLogContainer = document.getElementById('activityLog');
+}
+
+function addLogEntry(message, type = 'info') {
+    if (!activityLogContainer) return;
+    
+    const timestamp = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+    });
+    
+    // Clean up the message - remove excessive debug info and emojis for cleaner logs
+    let cleanMessage = message
+        .replace(/DEBUG:\s*/g, '')
+        .replace(/🔍|📐|✅|🎯|📋|🖼️|📸|🎉|❌/g, '')
+        .replace(/Red blob detection starting\.\.\./, 'Starting red blob detection')
+        .replace(/Image dimensions: (\d+)x(\d+)/, 'Image: $1×$2')
+        .replace(/Found (\d+) red blobs before filtering/, '$1 blobs found')
+        .replace(/Final result: (\d+) blobs after filtering/, '$1 blobs after filtering')
+        .replace(/Detection complete: (\d+) blobs found/, 'Detection complete: $1 blobs')
+        .replace(/Found red blob at \((\d+), (\d+)\) - (\d+)x(\d+)/, 'Blob at ($1,$2) [$3×$4]')
+        .replace(/Excluding blob at \((\d+), (\d+)\) - in exclusion zone/, 'Excluded blob at ($1,$2)')
+        .replace(/Extracting blob #(\d+)( \([^)]+\))? at \((\d+), (\d+)\)/, 'Extract blob #$1 at ($3,$4)')
+        .trim();
+    
+    // Skip very verbose or repetitive messages
+    if (cleanMessage.includes('DEBUG:') || 
+        cleanMessage.includes('Performing click at') ||
+        cleanMessage.includes('Waiting') ||
+        cleanMessage.length > 100) {
+        return;
+    }
+    
+    // Smart categorization based on message content
+    let smartType = type;
+    if (cleanMessage.includes('detection') || cleanMessage.includes('blobs') || cleanMessage.includes('boxes')) {
+        smartType = 'detection';
+    } else if (cleanMessage.includes('click') || cleanMessage.includes('Click')) {
+        smartType = 'click';
+    } else if (cleanMessage.includes('automation') || cleanMessage.includes('Starting') || cleanMessage.includes('Stopping')) {
+        smartType = 'automation';
+    } else if (cleanMessage.includes('build') || cleanMessage.includes('Build') || cleanMessage.includes('research')) {
+        smartType = 'build';
+    } else if (cleanMessage.includes('error') || cleanMessage.includes('Error') || cleanMessage.includes('failed')) {
+        smartType = 'error';
+    } else if (cleanMessage.includes('warning') || cleanMessage.includes('Warning')) {
+        smartType = 'warning';
+    } else if (cleanMessage.includes('complete') || cleanMessage.includes('loaded') || cleanMessage.includes('started')) {
+        smartType = 'success';
+    }
+    
+    const entry = { timestamp, message: cleanMessage, type: smartType };
+    logEntries.unshift(entry); // Add to beginning
+    
+    // Limit log entries
+    if (logEntries.length > MAX_LOG_ENTRIES) {
+        logEntries = logEntries.slice(0, MAX_LOG_ENTRIES);
+    }
+    
+    // Update display
+    updateActivityLogDisplay();
+}
+
+function updateActivityLogDisplay() {
+    if (!activityLogContainer) return;
+    
+    activityLogContainer.innerHTML = logEntries
+        .slice(0, 60) // Show 60 entries (3x more for the taller log area)
+        .map(entry => `<div class="log-entry ${entry.type}">[${entry.timestamp}] ${entry.message}</div>`)
+        .join('');
+    
+    // Auto-scroll to top (newest entries)
+    activityLogContainer.scrollTop = 0;
+}
+
+// Helper to display detection results in summary format
+function displayDetectionSummary(detections, type = 'objects') {
+    const summaryContainer = document.getElementById('detectionResults');
+    if (!summaryContainer) return;
+    
     if (detections.length === 0) {
-        resultsContainer.textContent = 'No objects detected.';
+        summaryContainer.textContent = `No ${type} detected`;
         return;
     }
 
-    detections.forEach((item, index) => {
-        const resultDiv = document.createElement('div');
-        resultDiv.className = 'detection-item';
-        const idText = item.name === "research blob" ? "research" : `${item.id}.`; // Display "research" or "ID."
+    const namedBlobs = detections.filter(d => d.name);
+    const regularBlobs = detections.filter(d => !d.name);
+    
+    let summary = `${detections.length} ${type} found`;
+    if (namedBlobs.length > 0) {
+        summary += ` (${namedBlobs.map(b => b.name).join(', ')})`;
+    }
+    
+    summaryContainer.textContent = summary;
+}
+
+// Overlay functionality
+function initializeOverlay() {
+    // Get overlay control elements
+    const showOverlayCheckbox = document.getElementById('showOverlay');
+    const overlayOpacitySlider = document.getElementById('overlayOpacity');
+    
+    if (showOverlayCheckbox) {
+        // Set checkbox to match default state
+        showOverlayCheckbox.checked = overlayEnabled;
         
-        let displayText = `<span>${idText} X:${item.x}, Y:${item.y}</span>`;
-        if (item.state) {
-            displayText += `<span> (${item.state})</span>`;
-        }
-        if (item.source) {
-            displayText += `<span> [Source: ${item.source}]</span>`;
-        }
-        resultDiv.innerHTML = displayText;
-        
-        if (item.image) {
-            const img = document.createElement('img');
-            img.src = item.image;
-            img.alt = `Detection ${idText}`;
-            resultDiv.appendChild(img);
-        }
-        resultsContainer.appendChild(resultDiv);
+        showOverlayCheckbox.addEventListener('change', (e) => {
+            overlayEnabled = e.target.checked;
+            if (overlayEnabled) {
+                drawDetectionOverlay();
+            } else {
+                // Redraw canvas without overlay
+                if (currentLiveViewImage) {
+                    drawImageOnCanvas(currentLiveViewImage);
+                }
+            }
+        });
+    }
+    
+    if (overlayOpacitySlider) {
+        overlayOpacitySlider.addEventListener('input', (e) => {
+            overlayOpacity = parseFloat(e.target.value);
+            if (overlayEnabled) {
+                // Redraw the canvas with the new opacity
+                if (currentLiveViewImage) {
+                    drawImageOnCanvas(currentLiveViewImage);
+                }
+                drawDetectionOverlay();
+            }
+        });
+    }
+}
+
+function drawDetectionOverlay() {
+    console.log('🎨 drawDetectionOverlay called - overlayEnabled:', overlayEnabled, 'previewCanvas:', !!previewCanvas);
+    if (!overlayEnabled) return;
+    
+    // Use the existing preview canvas
+    if (!previewCanvas) {
+        console.log('🚫 No previewCanvas found');
+        return;
+    }
+    
+    // Save the current canvas state
+    ctx.save();
+    
+    // Set overlay opacity
+    ctx.globalAlpha = overlayOpacity;
+    
+    // Calculate scaling factors for overlay coordinates
+    const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = currentRegion;
+    const scaleX = previewCanvas.width / regionWidth;
+    const scaleY = previewCanvas.height / regionHeight;
+    
+    console.log('🎨 Drawing overlays - scaleX:', scaleX, 'scaleY:', scaleY);
+    
+    // Draw red blob overlays
+    if (latestDetections.redBlobs && latestDetections.redBlobs.length > 0) {
+        console.log('🔴 Drawing', latestDetections.redBlobs.length, 'red blob overlays');
+        latestDetections.redBlobs.forEach((blob, i) => {
+            // Convert blob coordinates to canvas coordinates
+            const canvasX = (blob.x - regionX) * scaleX;
+            const canvasY = (blob.y - regionY) * scaleY;
+            const canvasWidth = blob.width * scaleX;
+            const canvasHeight = blob.height * scaleY;
+            
+            // Skip if blob is outside the current region
+            if (blob.x < regionX || blob.y < regionY || 
+                blob.x > regionX + regionWidth || blob.y > regionY + regionHeight) {
+                return;
+            }
+            
+            // Draw rectangle outline
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+            
+            // Draw semi-transparent fill
+            ctx.fillStyle = 'rgba(255, 68, 68, 0.3)';
+            ctx.fillRect(canvasX, canvasY, canvasWidth, canvasHeight);
+        });
+    }
+    
+    // Draw blue box overlays
+    if (latestDetections.blueBoxes && latestDetections.blueBoxes.length > 0) {
+        console.log('🔵 Drawing', latestDetections.blueBoxes.length, 'blue box overlays');
+        latestDetections.blueBoxes.forEach((box, i) => {
+            // Convert box coordinates to canvas coordinates
+            const canvasX = (box.x - regionX) * scaleX;
+            const canvasY = (box.y - regionY) * scaleY;
+            const canvasWidth = box.width * scaleX;
+            const canvasHeight = box.height * scaleY;
+            
+            // Skip if box is outside the current region
+            if (box.x < regionX || box.y < regionY || 
+                box.x > regionX + regionWidth || box.y > regionY + regionHeight) {
+                return;
+            }
+            
+            // Draw rectangle outline
+            ctx.strokeStyle = '#4444ff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+            
+            // Draw semi-transparent fill
+            ctx.fillStyle = 'rgba(68, 68, 255, 0.3)';
+            ctx.fillRect(canvasX, canvasY, canvasWidth, canvasHeight);
+        });
+    }
+    
+    // Restore canvas state
+    ctx.restore();
+}
+
+function updateDetections(detections, clearRedBlobs = true) {
+    // Store the new detections (even if empty)
+    const newDetections = detections || { redBlobs: [], blueBoxes: [] };
+    
+    console.log('🔄🔄🔄 UPDATE DETECTIONS:', {
+        detections: newDetections,
+        clearRedBlobs,
+        overlayEnabled,
+        currentLatest: latestDetections
     });
+    
+    // Only clear red blobs if clearRedBlobs is true, otherwise preserve existing red blobs
+    if (clearRedBlobs) {
+        console.log('🧹 CLEARING red blobs and updating with new detections');
+        latestDetections = newDetections;
+        
+        // Force clear the canvas and redraw base image
+        if (previewCanvas && ctx) {
+            console.log('🧹 Clearing canvas for red blob detection');
+            ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            
+            if (currentLiveViewImage) {
+                console.log('🎨 Redrawing base image');
+                drawImageOnCanvas(currentLiveViewImage);
+            }
+        }
+    } else {
+        // Preserve existing red blobs, only update blue boxes
+        const previousRedBlobs = latestDetections.redBlobs || [];
+        const newBlueBoxes = newDetections.blueBoxes || [];
+        const newRedBlobs = newDetections.redBlobs || [];
+        
+        // If new red blobs are provided, use them; otherwise keep existing ones
+        latestDetections = {
+            redBlobs: newRedBlobs.length > 0 ? newRedBlobs : previousRedBlobs,
+            blueBoxes: newBlueBoxes
+        };
+        
+        console.log('🔴 PRESERVING red blobs, updating blue boxes:', {
+            previousRedBlobs: previousRedBlobs.length,
+            newRedBlobs: newRedBlobs.length,
+            finalRedBlobs: latestDetections.redBlobs.length,
+            newBlueBoxes: newBlueBoxes.length
+        });
+    }
+    
+    // Draw overlays if enabled and there are detections to show
+    if (overlayEnabled && 
+        ((latestDetections.redBlobs && latestDetections.redBlobs.length > 0) || 
+         (latestDetections.blueBoxes && latestDetections.blueBoxes.length > 0))) {
+        console.log('🎯 Drawing overlays for detections');
+        // Use a longer delay to ensure clearing is complete
+        setTimeout(() => {
+            drawDetectionOverlay();
+        }, 100);
+    } else {
+        console.log('❌ No overlays to draw - overlayEnabled:', overlayEnabled, 'detections:', latestDetections);
+    }
 }
 
 // Detection Button Event Listeners
@@ -275,9 +538,12 @@ detectRedBlobBtn.addEventListener('click', async () => {
     try {
         const result = await ipcRenderer.invoke('detect-red-blob');
         if (result.success) {
-            updateStatus(`${result.detections.length} red blobs detected.`, 'success');
+            updateStatus(`${result.detections.length} red blobs detected`, 'success');
+            displayDetectionSummary(result.detections, 'red blobs');
             console.log('Red Blob Detections:', result.detections);
-            displayDetections(redBlobResults, result.detections);
+            
+            // Update overlay with detection results (clear blue boxes since we're only detecting red)
+            updateDetections({ redBlobs: result.detections, blueBoxes: [] });
         } else {
             updateStatus(`Red blob detection failed: ${result.error}`, 'error');
         }
@@ -291,9 +557,12 @@ detectBlueBoxBtn.addEventListener('click', async () => {
     try {
         const result = await ipcRenderer.invoke('detect-blue-box');
         if (result.success) {
-            updateStatus(`${result.detections.length} blue boxes detected.`, 'success');
+            updateStatus(`${result.detections.length} blue boxes detected`, 'success');
+            displayDetectionSummary(result.detections, 'blue boxes');
             console.log('Blue Box Detections:', result.detections);
-            displayDetections(blueBoxResults, result.detections);
+            
+            // Update overlay with detection results (clear red blobs since we're only detecting blue)
+            updateDetections({ redBlobs: [], blueBoxes: result.detections });
         } else {
             updateStatus(`Blue box detection failed: ${result.error}`, 'error');
         }
@@ -373,11 +642,75 @@ document.addEventListener('mousemove', (e) => {
 
 // IPC event listeners
 ipcRenderer.on('live-view-update', (event, imageData) => {
+    // Store current image for overlay functionality
+    currentLiveViewImage = imageData;
+    
+    // Always redraw the canvas (this clears any previous overlays)
     drawImageOnCanvas(imageData);
+    
+    // Apply current overlays if enabled and there are detections to show
+    if (overlayEnabled && latestDetections && 
+        ((latestDetections.redBlobs && latestDetections.redBlobs.length > 0) || 
+         (latestDetections.blueBoxes && latestDetections.blueBoxes.length > 0))) {
+        drawDetectionOverlay();
+    }
 });
 
 ipcRenderer.on('live-view-error', (event, errorMessage) => {
     updateStatus(`Live view error: ${errorMessage}`, 'error');
+});
+
+// Throttle overlay updates to prevent overwhelming the system
+let overlayUpdateTimeout = null;
+
+// Listen for scroll events to clear overlays
+ipcRenderer.on('scroll-occurred', (event) => {
+    console.log('📜 SCROLL DETECTED - marking for overlay clear');
+    scrollOccurred = true;
+});
+
+// Listen for detection results for overlay
+ipcRenderer.on('detection-results', (event, detections) => {
+    console.log('🎯🎯🎯 OVERLAY DETECTION RECEIVED:', JSON.stringify(detections, null, 2));
+    console.log('🎯 Red blobs count:', detections?.redBlobs?.length || 0);
+    console.log('🎯 Blue boxes count:', detections?.blueBoxes?.length || 0);
+    
+    // Clear any pending overlay update
+    if (overlayUpdateTimeout) {
+        clearTimeout(overlayUpdateTimeout);
+    }
+    
+    // Determine what type of detection this is
+    const hasRedBlobs = detections.redBlobs && detections.redBlobs.length > 0;
+    const hasBlueBoxes = detections.blueBoxes && detections.blueBoxes.length > 0;
+    
+    // Red blobs should only be cleared if a scroll occurred
+    const shouldClearRedBlobs = scrollOccurred;
+    
+    // If scroll occurred, reset the flag after clearing
+    if (scrollOccurred) {
+        console.log('🧹 CLEARING RED BLOBS due to scroll');
+        scrollOccurred = false;
+    } else {
+        console.log('🔴 PRESERVING RED BLOBS - no scroll detected');
+    }
+    
+    console.log('🔍🔍🔍 DETECTION ANALYSIS:', {
+        hasRedBlobs,
+        hasBlueBoxes,
+        shouldClearRedBlobs,
+        scrollOccurred,
+        redBlobsArray: Array.isArray(detections.redBlobs),
+        blueBoxesArray: Array.isArray(detections.blueBoxes),
+        redBlobsLength: detections.redBlobs?.length,
+        blueBoxesLength: detections.blueBoxes?.length
+    });
+    
+    // Schedule overlay update with small delay to allow for rapid calls
+    overlayUpdateTimeout = setTimeout(() => {
+        updateDetections(detections, shouldClearRedBlobs);
+        overlayUpdateTimeout = null;
+    }, 50); // 50ms throttle
 });
 
 ipcRenderer.on('finish-build-status', (event, message, type) => {
@@ -388,13 +721,11 @@ ipcRenderer.on('finish-build-status', (event, message, type) => {
 });
 
 ipcRenderer.on('finish-build-status-list', (event, history) => {
-  finishBuildStatusList.innerHTML = ''; // Clear existing list
+  // Add new messages to activity log
   history.forEach(item => {
-    const p = document.createElement('p');
-    p.textContent = `[${item.timestamp}] ${item.message}`;
-    p.className = `status-${item.type || 'info'}`;
-    finishBuildStatusList.prepend(p); // Add new messages to the top
+    addLogEntry(item.message, item.type || 'info');
   });
+  
   // Also update the single line status with the latest message from the history
   if (history.length > 0) {
     const latestItem = history[history.length - 1]; // Get the most recent message
@@ -483,6 +814,13 @@ ipcRenderer.on('click-around-stopped', () => {
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DEBUG: DOMContentLoaded event fired in renderer.js.');
+    
+    // Initialize activity log first
+    initializeActivityLog();
+    
+    // Initialize overlay system
+    initializeOverlay();
+    
     updateStatus('Initializing...', 'info');
 
     // Fetch initial region settings (now from main process)

@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, screen, desktopCapturer } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { exec, execFile } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
@@ -39,6 +40,39 @@ let shortestLevelDurationMs = null; // New: To store the shortest level duration
 let levelsFinishedCount = 0; // New: To track the number of levels finished
 let totalLevelsDurationMs = 0; // New: To accumulate total duration for average calculation
 
+// Window state management
+const windowStateFile = path.join(__dirname, 'window-state.json');
+
+function saveWindowState() {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        const bounds = mainWindow.getBounds();
+        const windowState = {
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            isMaximized: mainWindow.isMaximized()
+        };
+        
+        try {
+            fs.writeFileSync(windowStateFile, JSON.stringify(windowState, null, 2));
+        } catch (error) {
+            console.log('Failed to save window state:', error);
+        }
+    }
+}
+
+function loadWindowState() {
+    try {
+        if (fs.existsSync(windowStateFile)) {
+            const data = fs.readFileSync(windowStateFile, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.log('Failed to load window state:', error);
+    }
+    return null;
+}
 
 // Function to send current active function to renderer
 function updateCurrentFunction(functionName) {
@@ -280,31 +314,57 @@ function createWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
 
-    // Calculate the desired starting X position, offsetting by 100 pixels
-    const startX = Math.round((width - 1200) / 2) + 100; // Center then shift right
-    const startY = Math.round((height - 800) / 2); // Center vertically
-
-    mainWindow = new BrowserWindow({
+    // Load saved window state or use defaults
+    const savedState = loadWindowState();
+    let windowOptions = {
         width: 1200,
-        height: 800,
-        x: startX,
-        y: startY,
+        height: 950,
         show: true, // Ensure the window is shown
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
             enableRemoteModule: true
         },
-        icon: path.join(__dirname, 'assets/icon.png'),
-        title: 'iPhone Game Automation'
-    });
+    };
 
-  mainWindow.loadFile('index.html');
+    if (savedState) {
+        // Use saved position and size if available
+        windowOptions.x = savedState.x;
+        windowOptions.y = savedState.y;
+        windowOptions.width = savedState.width;
+        windowOptions.height = savedState.height;
+    } else {
+        // Calculate the desired starting X position, offsetting by 100 pixels
+        const startX = Math.round((width - 1200) / 2) + 100; // Center then shift right
+        const startY = Math.max(0, Math.round((height - 950) / 2)); // Center vertically, ensure it fits on screen
+        windowOptions.x = startX;
+        windowOptions.y = startY;
+    }
+
+    mainWindow = new BrowserWindow(windowOptions);
+
+    // Restore maximized state if it was saved
+    if (savedState && savedState.isMaximized) {
+        mainWindow.maximize();
+    }
+
+    mainWindow.loadFile('index.html');
+
+    // Save window state when it changes
+    mainWindow.on('resize', saveWindowState);
+    mainWindow.on('move', saveWindowState);
+    mainWindow.on('maximize', saveWindowState);
+    mainWindow.on('unmaximize', saveWindowState);
+    
+    // Save window state before closing
+    mainWindow.on('close', () => {
+        saveWindowState();
+    });
   
-  // Open DevTools in development
-  if (process.argv.includes('--dev')) {
-    mainWindow.webContents.openDevTools();
-  }
+    // Open DevTools in development
+    if (process.argv.includes('--dev')) {
+        mainWindow.webContents.openDevTools();
+    }
 }
 
 // Default iPhone Mirroring region
@@ -463,6 +523,14 @@ ipcMain.handle('detect-red-blob', async () => {
       ...cutoffDetections.map(d => ({ ...d, source: 'cutoff' }))
     ];
 
+    // Broadcast detection results for overlay
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('detection-results', { 
+        redBlobs: allDetections, 
+        blueBoxes: [] 
+      });
+    }
+
     return { success: true, detections: allDetections };
   } catch (error) {
     console.error('Error detecting red blobs:', error);
@@ -480,6 +548,15 @@ ipcMain.handle('detect-blue-box', async () => {
     const metadata = await sharpImage.metadata();
 
     const detections = await blueBoxDetector.detect(fullScreenDataUrl, iphoneMirroringRegion);
+    
+    // Broadcast detection results for overlay
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('detection-results', { 
+        redBlobs: [], 
+        blueBoxes: detections 
+      });
+    }
+    
     return { success: true, detections };
   } catch (error) {
     console.error('Error detecting blue boxes:', error);
@@ -503,8 +580,28 @@ async function startFinishBuildAutomationLoop() {
     clickAndHold,
     performRapidClicks,
     CLICK_AREAS,
-    redBlobDetectorDetect: redBlobDetector.detect, // Pass detector functions
-    detectBlueBoxes: blueBoxDetector.detect, // Corrected dependency name
+    redBlobDetectorDetect: async (imageData, region) => {
+      const results = await redBlobDetector.detect(imageData, region);
+      // Broadcast detection results for overlay
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('detection-results', { 
+          redBlobs: results, 
+          blueBoxes: [] 
+        });
+      }
+      return results;
+    },
+    detectBlueBoxes: async (imageData, region) => {
+      const results = await blueBoxDetector.detect(imageData, region);
+      // Broadcast detection results for overlay
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('detection-results', { 
+          redBlobs: [], 
+          blueBoxes: results 
+        });
+      }
+      return results;
+    },
     captureScreenRegion,
     updateStatus: (message, type) => { // Pass a function to send status updates to renderer
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -628,8 +725,28 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     clickAndHold,
     performRapidClicks,
     CLICK_AREAS,
-    redBlobDetectorDetect: redBlobDetector.detect,
-    detectBlueBoxes: blueBoxDetector.detect,
+    redBlobDetectorDetect: async (imageData, region) => {
+      const results = await redBlobDetector.detect(imageData, region);
+      // Broadcast detection results for overlay
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('detection-results', { 
+          redBlobs: results, 
+          blueBoxes: [] 
+        });
+      }
+      return results;
+    },
+    detectBlueBoxes: async (imageData, region) => {
+      const results = await blueBoxDetector.detect(imageData, region);
+      // Broadcast detection results for overlay
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('detection-results', { 
+          redBlobs: [], 
+          blueBoxes: results 
+        });
+      }
+      return results;
+    },
     captureScreenRegion,
     updateStatus: (message, type) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -650,10 +767,34 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     getIsAutomationRunning: () => isFinishLevelRunning, // Use its own state for finish level
     setIsAutomationRunning: (state) => { isFinishLevelRunning = state; }, // Pass setter for automation running state
     finishBuildAutomationRunBuildProtocol: finishBuildAutomation.runBuildProtocol, // Pass the runBuildProtocol from finishBuildAutomation
-    scrollDown: scrollingFunctions.scrollDown, // New: Pass scrollDown function
-    scrollUp: scrollingFunctions.scrollUp,     // New: Pass scrollUp function
-    scrollToBottom: scrollingFunctions.scrollToBottom, // New: Pass scrollToBottom function
-    scrollToTop: scrollingFunctions.scrollToTop, // New: Pass scrollToTop function
+    scrollDown: async (x, y, distance) => {
+      // Broadcast scroll event for overlay clearing
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scroll-occurred');
+      }
+      return scrollingFunctions.scrollDown(x, y, distance);
+    },
+    scrollUp: async (x, y, dependencies) => {
+      // Broadcast scroll event for overlay clearing
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scroll-occurred');
+      }
+      return scrollingFunctions.scrollUp(x, y, dependencies);
+    },
+    scrollToBottom: async (x, y, distance, count, dependencies) => {
+      // Broadcast scroll event for overlay clearing
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scroll-occurred');
+      }
+      return scrollingFunctions.scrollToBottom(x, y, distance, count, dependencies);
+    },
+    scrollToTop: async (dependencies) => {
+      // Broadcast scroll event for overlay clearing
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scroll-occurred');
+      }
+      return scrollingFunctions.scrollToTop(dependencies);
+    },
     getRandomInt: scrollingFunctions.getRandomInt, // New: Pass getRandomInt function
     scrollSwipeDistance: scrollSwipeDistance, // New: Pass scroll swipe distance
     scrollToBottomIterations: scrollToBottomIterations, // New: Pass scroll to bottom iterations
@@ -782,20 +923,36 @@ ipcMain.handle('activate-iphone-mirroring', async () => {
 });
 
 ipcMain.handle('scroll-down', async (event, x, y, distance) => {
+  // Broadcast scroll event for overlay clearing
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('scroll-occurred');
+  }
   return scrollingFunctions.scrollDown(x, y, distance);
 });
 
 ipcMain.handle('scroll-up', async (event, x, y) => {
+  // Broadcast scroll event for overlay clearing
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('scroll-occurred');
+  }
   // Pass dependencies to scrollUp function
   return scrollingFunctions.scrollUp(x, y, { updateCurrentFunction, CLICK_AREAS, performClick, getRandomInt: scrollingFunctions.getRandomInt });
 });
 
 ipcMain.handle('scroll-to-bottom', async (event, x, y, distance, count) => {
+  // Broadcast scroll event for overlay clearing
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('scroll-occurred');
+  }
   // Pass dependencies to scrollToBottom function
   return scrollingFunctions.scrollToBottom(x, y, distance, count, { updateCurrentFunction, scrollDown: scrollingFunctions.scrollDown, performClick, CLICK_AREAS });
 });
 
 ipcMain.handle('scroll-to-top', async () => {
+  // Broadcast scroll event for overlay clearing
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('scroll-occurred');
+  }
   return scrollingFunctions.scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS });
 });
 

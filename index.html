@@ -8,20 +8,60 @@
 </head>
 <body>
     <div class="container">
-        <div class="main-content">
-            <div class="left-panel">
-                <div class="live-view-section">
-                    <div class="preview-container">
-                        <canvas id="previewCanvas" width="800" height="600"></canvas>
-                        <div class="preview-overlay" id="previewOverlay"></div>
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="level-info">
+                <h2 id="currentLevelName">Unknown Level</h2>
+                <div class="level-timer" id="currentLevelDuration">0m 0s</div>
+                <div class="current-status" id="currentFunction">Idle</div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-row">
+                    <div class="stat-group">
+                        <span class="stat-value" id="levelsFinishedCount">0</span>
+                        <span class="stat-label">Completed</span>
+                    </div>
+                    <div class="stat-group">
+                        <span class="stat-value" id="averageLevelDuration">N/A</span>
+                        <span class="stat-label">Average</span>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-group">
+                        <span class="stat-value" id="shortestLevelDuration">N/A</span>
+                        <span class="stat-label">Best Time</span>
+                    </div>
+                    <div class="stat-group">
+                        <span class="stat-value" id="previousLevelDuration">N/A</span>
+                        <span class="stat-label">Previous</span>
                     </div>
                 </div>
             </div>
-            
-            <div class="right-panel">
-                <div class="section" id="liveViewControlsSection">
-                    <h2>🎮 Game Controls</h2>
-                    <div class="controls">
+            <div class="system-status">
+                <div id="statusText">Ready</div>
+                <div class="longest-stat">
+                    <span class="stat-value" id="longestLevelDuration">N/A</span>
+                    <span class="stat-label">Longest</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Live View Section -->
+            <div class="live-view-section">
+                <div class="preview-container">
+                    <canvas id="previewCanvas" width="800" height="600"></canvas>
+                    <div class="preview-overlay" id="previewOverlay"></div>
+                </div>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="controls-section">
+                <!-- Game Controls -->
+                <div class="control-panel">
+                    <h3>🎮 Game Controls</h3>
+                    <div class="button-group">
                         <button id="startLiveViewBtn" class="btn btn-success">Start Live View</button>
                         <button id="stopLiveViewBtn" class="btn btn-danger" style="display: none;">Stop Live View</button>
                         <button id="startBtn" class="btn btn-secondary">Start</button>
@@ -29,54 +69,62 @@
                         <button id="clickAroundTrueBtn" class="btn btn-secondary">Click Around True</button>
                         <button id="clickAroundFalseBtn" class="btn btn-secondary">Click Around False</button>
                     </div>
-                    <div class="scroll-controls-settings">
-                        <h3>Scroll Settings</h3>
-                        <div class="control-group">
-                            <label for="scrollSwipeDistance">Scroll Swipe Distance (px):</label>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="control-panel log-panel">
+                    <h3>📋 Activity Log</h3>
+                    <div id="activityLog" class="activity-log"></div>
+                </div>
+
+                <!-- Detection Controls -->
+                <div class="control-panel">
+                    <h3>🔍 Detection</h3>
+                    <div class="button-group">
+                        <button id="detectRedBlobBtn" class="btn btn-primary">Detect Red Blobs</button>
+                        <button id="detectBlueBoxBtn" class="btn btn-primary">Detect Blue Boxes</button>
+                    </div>
+                    <div id="detectionResults" class="detection-summary"></div>
+                </div>
+
+                <!-- Settings -->
+                <div class="control-panel settings-panel">
+                    <h3>⚙️ Settings</h3>
+                    <div class="settings-grid">
+                        <div class="input-group">
+                            <label for="scrollSwipeDistance">Scroll Distance (px):</label>
                             <input type="number" id="scrollSwipeDistance" value="300" min="10">
                         </div>
-                        <div class="control-group">
+                        <div class="input-group">
                             <label for="scrollToBottomIterations">Scroll to Bottom Iterations:</label>
                             <input type="number" id="scrollToBottomIterations" value="10" min="1">
                         </div>
-                        <div class="control-group">
-                            <label for="scrollUpAttempts">Scroll Up Attempts Before Reset:</label>
+                        <div class="input-group">
+                            <label for="scrollUpAttempts">Scroll Up Attempts:</label>
                             <input type="number" id="scrollUpAttempts" value="20" min="1">
                         </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="showOverlay"> Show Detection Overlay
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>Overlay Opacity:</label>
+                            <input type="range" id="overlayOpacity" min="0.3" max="1" step="0.1" value="0.8">
+                        </div>
                     </div>
-                    <div class="status-info">
-                        <div><span id="currentFunction">Idle</span></div>
-                        <div><span id="currentLevelName">Level: Unknown Level</span></div>
-                        <div><span id="currentLevelDuration">Current Level: 0m 0s</span></div>
-                        <div><span id="previousLevelDuration">Previous Level: N/A</span></div>
-                        <div><span id="longestLevelDuration">Longest Level: N/A</span></div>
-                        <div><span id="shortestLevelDuration">Shortest Level: N/A</span></div>
-                        <div><span id="levelsFinishedCount">Levels Finished: 0</span></div>
-                        <div><span id="averageLevelDuration">Average Duration: N/A</span></div>
-                        <div><span id="statusText">Ready</span></div>
-                        <div><span id="coordinates">Mouse: (0, 0)</span></div>
-                        <div><span id="finishBuildStatus">Idle</span></div>
-                        <div id="finishBuildStatusList" class="status-list"></div>
-                    </div>
-                </div>
-
-                <div class="section detection-section">
-                    <h2>🔴 Red Blob Detection</h2>
-                    <div class="button-group">
-                        <button id="detectRedBlobBtn" class="btn btn-primary">Detect Red Blobs</button>
-                    </div>
-                    <div id="redBlobResults" class="detection-results"></div>
-                </div>
-
-                <div class="section detection-section">
-                    <h2>🟦 Blue Build Box Detection</h2>
-                    <div class="button-group">
-                        <button id="detectBlueBoxBtn" class="btn btn-primary">Detect Blue Boxes</button>
-                    </div>
-                    <div id="blueBoxResults" class="detection-results"></div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Hidden elements for backward compatibility -->
+    <div style="display: none;">
+        <div id="redBlobResults"></div>
+        <div id="blueBoxResults"></div>
+        <div id="finishBuildStatus"></div>
+        <div id="finishBuildStatusList"></div>
+        <div id="coordinates"></div>
     </div>
 
     <script src="renderer.js"></script>
