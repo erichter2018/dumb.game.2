@@ -34,11 +34,13 @@ let isClickAroundPaused = false; // For pausing Click Around on mouse movement
 let clickAroundCallCounter = 0; // Global counter for clickAround calls since level start
 let currentLevelStartTime = null; // New: To track the start time of the current level
 let currentLevelName = 'Unknown Level'; // New: To track the current level name
+let finishedLevelName = ''; // New: Track the name of the level that just finished
 let previousLevelDurationMs = null; // New: To store the duration of the previous level
 let longestLevelDurationMs = null; // New: To store the longest level duration
 let shortestLevelDurationMs = null; // New: To store the shortest level duration
 let levelsFinishedCount = 0; // New: To track the number of levels finished
 let totalLevelsDurationMs = 0; // New: To accumulate total duration for average calculation
+let longestLevels = []; // New: Array to store top 3 longest levels with names
 
 // Window state management
 const windowStateFile = path.join(__dirname, 'window-state.json');
@@ -109,6 +111,32 @@ function updateCurrentLevelName(levelName) {
     // Send to renderer for UI update
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('update-current-level-name', currentLevelName);
+    }
+}
+
+function setFinishedLevelName(levelName) {
+    finishedLevelName = levelName || '';
+    console.log(`DEBUG: Finished level name set to: "${finishedLevelName}"`);
+}
+
+function updateLongestLevels(duration, levelName) {
+    if (!levelName || levelName.trim() === '' || levelName === 'Unknown Level') {
+        console.log('DEBUG: Skipping longest levels update - no valid level name provided');
+        return;
+    }
+    
+    // Add the new level to the array
+    longestLevels.push({ duration, name: levelName });
+    
+    // Sort by duration (longest first) and keep only top 3
+    longestLevels.sort((a, b) => b.duration - a.duration);
+    longestLevels = longestLevels.slice(0, 3);
+    
+    console.log('DEBUG: Updated longest levels:', longestLevels);
+    
+    // Send update to renderer
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-longest-levels', longestLevels);
     }
 }
 
@@ -695,6 +723,12 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
 
   isFinishLevelRunning = isRunning;
   if (isRunning) {
+    // Clear level name and overlays at start of finish level automation
+    updateCurrentLevelName(''); // Set to empty string for unnamed level
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('clear-overlays');
+    }
+    
     updateCurrentFunction('toggle-finish-level'); // Update current function
     currentLevelStartTime = Date.now(); // Start timer for current level
     updatePreviousLevelDuration(previousLevelDurationMs); // Display previous level duration
@@ -812,21 +846,31 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     updateCurrentLevelDuration: updateCurrentLevelDuration,
     updatePreviousLevelDuration: (duration) => {
         previousLevelDurationMs = duration;
-        // Update longest and shortest durations
-        if (longestLevelDurationMs === null || duration > longestLevelDurationMs) {
-            longestLevelDurationMs = duration;
-        }
-        if (shortestLevelDurationMs === null || duration < shortestLevelDurationMs) {
-            shortestLevelDurationMs = duration;
-        }
-        levelsFinishedCount++; // Increment count of finished levels
-        totalLevelsDurationMs += duration; // Add to total duration
+        
+        // Only track statistics for named levels (exclude "Unknown Level" and empty strings)
+        if (finishedLevelName && finishedLevelName.trim() !== '' && finishedLevelName !== 'Unknown Level') {
+            levelsFinishedCount++; // Increment count of finished levels
+            totalLevelsDurationMs += duration; // Add to total duration
 
+            // Update longest levels tracking with finished level name
+            updateLongestLevels(duration, finishedLevelName);
+
+            // Update longest and shortest durations
+            if (longestLevelDurationMs === null || duration > longestLevelDurationMs) {
+                longestLevelDurationMs = duration;
+            }
+            if (shortestLevelDurationMs === null || duration < shortestLevelDurationMs) {
+                shortestLevelDurationMs = duration;
+            }
+
+            updateLongestLevelDuration(longestLevelDurationMs); // Update display
+            updateShortestLevelDuration(shortestLevelDurationMs); // Update display
+            updateLevelsFinishedCount(levelsFinishedCount); // Update display
+            updateAverageLevelDuration(levelsFinishedCount > 0 ? totalLevelsDurationMs / levelsFinishedCount : null); // Update display
+        }
+
+        // Always update the previous level duration display (for unnamed levels too)
         updatePreviousLevelDuration(duration);
-        updateLongestLevelDuration(longestLevelDurationMs); // Update display
-        updateShortestLevelDuration(shortestLevelDurationMs); // Update display
-        updateLevelsFinishedCount(levelsFinishedCount); // Update display
-        updateAverageLevelDuration(levelsFinishedCount > 0 ? totalLevelsDurationMs / levelsFinishedCount : null); // Update display
         currentLevelStartTime = Date.now(); // Reset current level timer
     },
     // New: Pass a getter function for the current level start time
@@ -838,6 +882,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     // New: Level name management and OCR functions
     getCurrentLevelName: getCurrentLevelName,
     updateCurrentLevelName: updateCurrentLevelName,
+    setFinishedLevelName: setFinishedLevelName,
     captureLevelName: ocrUtils.captureLevelName,
     // New: Image comparison functions for scroll top detection
     compareTopRegions: imageComparison.compareTopRegions,
@@ -1085,7 +1130,7 @@ app.whenReady().then(() => {
     updateShortestLevelDuration(null); // New: Initialize shortest level duration display
     updateLevelsFinishedCount(0); // New: Initialize levels finished count
     updateAverageLevelDuration(null); // New: Initialize average level duration
-    updateCurrentLevelName('Unknown Level'); // Initialize current level name
+    updateCurrentLevelName(''); // Initialize current level name as empty (unnamed)
     resetClickAroundCallCounter(); // Reset clickAround counter on app start
   });
   

@@ -166,8 +166,8 @@ function startAutomation(dependencies) {
             return 'no_blue_build';
         }
 
-        const clickX = redBlobCoords.x + Math.floor(redBlobCoords.width * 1.5);
-        const clickY = redBlobCoords.y + Math.floor(redBlobCoords.height * 1.5);
+        const clickX = redBlobCoords.x + Math.floor(redBlobCoords.width * 1.8);
+        const clickY = redBlobCoords.y + Math.floor(redBlobCoords.height * 1.8);
 
         let blueBuildBoxAfterClicks = null;
 
@@ -259,7 +259,15 @@ function startAutomation(dependencies) {
     }
 
     async function exitAndStartNewLevel(dependencies) {
-        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = dependencies;
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, setFinishedLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = dependencies;
+
+        // Store the current level name as the finished level name before clearing it
+        const currentLevel = getCurrentLevelName();
+        setFinishedLevelName(currentLevel);
+        console.log(`DEBUG: Stored finished level name: "${currentLevel}"`);
+
+        // Clear level name and overlays at start of new level
+        updateCurrentLevelName(''); // Set to empty string for unnamed level
 
         // Reset clickAround counter for new level
         resetClickAroundCallCounter();

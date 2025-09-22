@@ -400,7 +400,7 @@ function drawDetectionOverlay() {
         console.log('🚫 No previewCanvas found');
         return;
     }
-    
+
     // Save the current canvas state
     ctx.save();
     
@@ -817,44 +817,61 @@ ipcRenderer.on('update-current-level-duration', (event, durationText) => {
 // IPC listener for previous level duration updates
 ipcRenderer.on('update-previous-level-duration', (event, durationText) => {
     if (previousLevelDurationDisplay) {
-        previousLevelDurationDisplay.textContent = `Previous Level: ${durationText}`;
+        previousLevelDurationDisplay.textContent = durationText;
     }
 });
 
 // New: IPC listener for longest level duration updates
 ipcRenderer.on('update-longest-level-duration', (event, durationText) => {
     if (longestLevelDurationDisplay) {
-        longestLevelDurationDisplay.textContent = `Longest Level: ${durationText}`;
+        longestLevelDurationDisplay.textContent = durationText;
     }
 });
 
 // New: IPC listener for shortest level duration updates
 ipcRenderer.on('update-shortest-level-duration', (event, durationText) => {
     if (shortestLevelDurationDisplay) {
-        shortestLevelDurationDisplay.textContent = `Shortest Level: ${durationText}`;
+        shortestLevelDurationDisplay.textContent = durationText;
     }
 });
 
 // New: IPC listener for levels finished count updates
 ipcRenderer.on('update-levels-finished-count', (event, count) => {
     if (levelsFinishedCountDisplay) {
-        levelsFinishedCountDisplay.textContent = `Levels Finished: ${count}`;
+        levelsFinishedCountDisplay.textContent = count;
     }
 });
 
 // New: IPC listener for average level duration updates
 ipcRenderer.on('update-average-level-duration', (event, durationText) => {
     if (averageLevelDurationDisplay) {
-        averageLevelDurationDisplay.textContent = `Average Duration: ${durationText}`;
+        averageLevelDurationDisplay.textContent = durationText;
     }
 });
 
 // New: IPC listener for current level name updates
 ipcRenderer.on('update-current-level-name', (event, levelName) => {
     if (currentLevelNameDisplay) {
-        currentLevelNameDisplay.textContent = `Level: ${levelName}`;
+        currentLevelNameDisplay.textContent = levelName || 'Unnamed Level';
     }
 });
+
+// IPC listener for longest levels updates
+ipcRenderer.on('update-longest-levels', (event, longestLevels) => {
+    const longestLevel1 = document.getElementById('longestLevel1');
+    const longestLevel2 = document.getElementById('longestLevel2');
+    const longestLevel3 = document.getElementById('longestLevel3');
+    
+    if (longestLevel1) longestLevel1.textContent = longestLevels[0] ? `${longestLevels[0].name} (${formatDuration(longestLevels[0].duration)})` : '—';
+    if (longestLevel2) longestLevel2.textContent = longestLevels[1] ? `${longestLevels[1].name} (${formatDuration(longestLevels[1].duration)})` : '—';
+    if (longestLevel3) longestLevel3.textContent = longestLevels[2] ? `${longestLevels[2].name} (${formatDuration(longestLevels[2].duration)})` : '—';
+});
+
+function formatDuration(durationMs) {
+    const minutes = Math.floor(durationMs / 60000);
+    const seconds = Math.floor((durationMs % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+}
 
 // IPC listener for click around stopped events to reset button states
 ipcRenderer.on('click-around-stopped', () => {

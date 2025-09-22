@@ -109,11 +109,26 @@ body {
     font-weight: 500;
 }
 
-.longest-stat {
+.longest-levels {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
+    align-items: center;
+    gap: 4px;
+}
+
+.longest-levels-title {
+    font-size: 12px;
+    color: #a8b2c4;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.longest-level-item {
+    font-size: 11px;
+    color: #e0e6ed;
+    text-align: center;
+    line-height: 1.2;
+    min-height: 14px;
 }
 
 /* Main Content Area */

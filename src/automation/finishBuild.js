@@ -242,12 +242,20 @@ async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
 }
 
 async function runBuildProtocol(dependencies) {
-    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance, updateCurrentFunction, originalRedBlobCoords } = dependencies;
+    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance, updateCurrentFunction, originalRedBlobCoords, getCurrentLevelName } = dependencies;
 
     updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
-        const clickAroundInterval = 3 * 60 * 1000; // 3 minutes in milliseconds
-        let lastClickAroundTime = startTime;
+    
+    // Determine click around intervals based on level and whether it's the first run
+    const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : '';
+    const isRestaurantLevel = currentLevelName === 'Restaurant';
+    const isFirstRunOnLevel = dependencies.isFirstFinishBuildRunOnLevel ? dependencies.isFirstFinishBuildRunOnLevel() : false;
+    
+    // Restaurant level: 1 minute for first run, 3 minutes for subsequent runs
+    // All other levels: 3 minutes always
+    const clickAroundInterval = (isRestaurantLevel && isFirstRunOnLevel) ? 1 * 60 * 1000 : 3 * 60 * 1000;
+    let lastClickAroundTime = startTime;
     let timerInterval = null; // To hold the interval ID for clearing
 
     try {
@@ -283,20 +291,13 @@ async function runBuildProtocol(dependencies) {
         while (getIsAutomationRunning()) {
             const currentTime = Date.now();
             
-            // Check if it's time to run clickAround (every 5 minutes)
+            // Check if it's time to run clickAround
             if (currentTime - lastClickAroundTime >= clickAroundInterval) {
-                // Increment counter and determine exclude_red_blobs parameter
-                const clickAroundCallNumber = dependencies.incrementClickAroundCallCounter();
+                const intervalMinutes = clickAroundInterval / (60 * 1000);
+                updateStatus(`Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: true)`, 'warn');
+                console.log(`DEBUG: Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: true)`);
                 
-                // Determine exclude_red_blobs parameter based on call number
-                // Odd calls (1, 3, 5, etc.) = true (exclude red blobs)
-                // Even calls (2, 4, 6, etc.) = false (don't exclude red blobs)
-                const exclude_red_blobs = (clickAroundCallNumber % 2 === 1);
-                
-                updateStatus(`Finish Build routine: Running Click Around call #${clickAroundCallNumber} (exclude_red_blobs: ${exclude_red_blobs})`, 'warn');
-                console.log(`DEBUG: Finish Build routine: Running Click Around call #${clickAroundCallNumber} (exclude_red_blobs: ${exclude_red_blobs})`);
-                
-                // Call clickAround instead of scrollToBottom
+                // Call clickAround with exclude_red_blobs = true
                 const clickAroundDependencies = {
                     updateStatus: dependencies.updateStatus,
                     detectRedBlobs: dependencies.redBlobDetectorDetect,
@@ -323,9 +324,9 @@ async function runBuildProtocol(dependencies) {
                     getIsClickAroundPaused: () => false, // Never paused for this timeout scenario
                 };
                 
-                // Import and run clickAround
+                // Import and run clickAround with exclude_red_blobs = true
                 const { clickAround } = require('./clickAround');
-                await clickAround(clickAroundDependencies, exclude_red_blobs);
+                await clickAround(clickAroundDependencies, true);
                 
                 updateStatus('Finish Build: Click Around completed. Returning control to Finish Level.', 'success');
                 console.log('DEBUG: Finish Build: Click Around completed. Returning control to Finish Level.');
