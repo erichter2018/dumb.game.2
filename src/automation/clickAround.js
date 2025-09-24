@@ -1,6 +1,47 @@
 const { getRandomInt } = require('./scrolling');
 const { scrollToTop, scrollDown } = require('./scrolling');
 
+// Helper function to generate all valid click positions for a screen (calculated once per screen)
+function generateValidClickPositions(regionX, regionY, regionWidth, regionHeight, exclusionZones, cellSizeX, cellSizeY) {
+  const validClicks = [];
+  
+  for (let y = regionY; y < regionY + regionHeight; y += cellSizeY) {
+    for (let x = regionX; x < regionX + regionWidth; x += cellSizeX) {
+      let targetX = x + getRandomInt(0, cellSizeX - 1);
+      let targetY = y + getRandomInt(0, cellSizeY - 1) + 7; // Increased Y offset by 7 pixels
+      
+      targetX = Math.min(Math.max(targetX, regionX), regionX + regionWidth - 1);
+      targetY = Math.min(Math.max(targetY, regionY), regionY + regionHeight - 1);
+      
+      // Check exclusion zones ONCE per position
+      const inExclusionZone = exclusionZones.some(zone =>
+        targetX >= zone.x1 && targetX <= zone.x2 &&
+        targetY >= zone.y1 && targetY <= zone.y2
+      );
+      
+      if (!inExclusionZone) {
+        validClicks.push({ x: targetX, y: targetY });
+      }
+    }
+  }
+  
+  return validClicks;
+}
+
+// Helper function to filter out clicks too close to red blobs (calculated once per screen)
+function filterRedBlobConflicts(validClicks, redBlobPositions, threshold, exclude_red_blobs) {
+  if (!exclude_red_blobs || !redBlobPositions || redBlobPositions.length === 0) {
+    return validClicks;
+  }
+  
+  return validClicks.filter(click => {
+    return !redBlobPositions.some(blob => {
+      const distance = Math.sqrt(Math.pow(click.x - blob.x, 2) + Math.pow(click.y - blob.y, 2));
+      return distance <= threshold;
+    });
+  });
+}
+
 async function clickAround(dependencies, exclude_red_blobs = true) {
   const { updateStatus, detectRedBlobs, performClick, performBatchedClicks, iphoneMirroringRegion, getIsClickAroundRunning, getIsClickAroundPaused, updateCurrentFunction, CLICK_AREAS, captureScreenRegion, compareBottomRegions, captureBottomRegion } = dependencies;
   updateStatus(`Starting Click Around automation... (exclude_red_blobs: ${exclude_red_blobs})`, 'info');
@@ -93,13 +134,13 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
         }
       }
 
-      // First red blob detection
+      // OPTIMIZED: Single red blob detection per screen (removed redundant double detection)
       const fullScreenDataUrl = await captureScreenRegion();
       const currentRedBlobsRaw = await detectRedBlobs(fullScreenDataUrl, iphoneMirroringRegion);
       
       // Filter out special named blobs (research blob, exit level) from clickAround detection
       const currentRedBlobs = currentRedBlobsRaw.filter(blob => !blob.name);
-      console.log(`DEBUG: ClickAround first detection found ${currentRedBlobsRaw.length} red blobs, ${currentRedBlobs.length} after filtering out named blobs`);
+      console.log(`DEBUG: ClickAround detection found ${currentRedBlobsRaw.length} red blobs, ${currentRedBlobs.length} after filtering out named blobs`);
       
       // Send red blob detections for overlay display
       if (currentRedBlobs && currentRedBlobs.length > 0) {
@@ -110,43 +151,10 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
         }
       }
       
-      // Second red blob detection to catch any missed/wiggling blobs
-      const fullScreenDataUrlSecond = await captureScreenRegion();
-      const currentRedBlobsSecondRaw = await detectRedBlobs(fullScreenDataUrlSecond, iphoneMirroringRegion);
-      
-      // Filter out special named blobs (research blob, exit level) from clickAround detection
-      const currentRedBlobsSecond = currentRedBlobsSecondRaw.filter(blob => !blob.name);
-      console.log(`DEBUG: ClickAround second detection found ${currentRedBlobsSecondRaw.length} red blobs, ${currentRedBlobsSecond.length} after filtering out named blobs`);
-      
-      // Send second red blob detections for overlay display
-      if (currentRedBlobsSecond && currentRedBlobsSecond.length > 0) {
-        console.log(`🟡 CLICKAROUND RED BLOBS (SECOND): Found ${currentRedBlobsSecond.length} red blobs for overlay display`);
-        // Send detection results for overlay display
-        if (dependencies.sendDetectionResults) {
-          dependencies.sendDetectionResults({ redBlobs: currentRedBlobsSecond, blueBoxes: [] });
-        }
-      }
-      
-      // Combine both sets of results - use a Map to avoid duplicates based on coordinates
-      const combinedBlobsMap = new Map();
-      
-      // Add first detection results
-      currentRedBlobs.forEach(blob => {
-        const key = `${blob.x},${blob.y}`;
-        combinedBlobsMap.set(key, blob);
-      });
-      
-      // Add second detection results (will overwrite if same coordinates, or add if new)
-      currentRedBlobsSecond.forEach(blob => {
-        const key = `${blob.x},${blob.y}`;
-        combinedBlobsMap.set(key, blob);
-      });
-      
-      // Convert back to array and extract positions
-      const combinedRedBlobs = Array.from(combinedBlobsMap.values());
-      const redBlobPositions = combinedRedBlobs.map(blob => ({ x: blob.x, y: blob.y }));
+      // Extract positions for exclusion filtering
+      const redBlobPositions = currentRedBlobs.map(blob => ({ x: blob.x, y: blob.y }));
       if (exclude_red_blobs) {
-        console.log(`DEBUG: ClickAround combined ${redBlobPositions.length} unique red blobs for exclusion:`, redBlobPositions);
+        console.log(`DEBUG: ClickAround will exclude ${redBlobPositions.length} red blobs from clicking:`, redBlobPositions);
       } else {
         console.log(`DEBUG: ClickAround detected ${redBlobPositions.length} red blobs but will NOT exclude them from clicking:`, redBlobPositions);
       }
@@ -166,59 +174,30 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
       const cellSizeX = getRandomInt(minCellSize, maxCellSize);
       const cellSizeY = getRandomInt(minCellSize, maxCellSize);
 
-      let rowCount = 0; // Track row count for optimized pause checking
-      for (let y = regionY; y < regionY + regionHeight; y += cellSizeY) {
-        let clicksInRow = [];
-        for (let x = regionX; x < regionX + regionWidth; x += cellSizeX) {
-          let targetX = x + getRandomInt(0, cellSizeX - 1);
-          let targetY = y + getRandomInt(0, cellSizeY - 1) + 7; // Increased Y offset by 7 pixels
-
-          targetX = Math.min(Math.max(targetX, regionX), regionX + regionWidth - 1);
-          targetY = Math.min(Math.max(targetY, regionY), regionY + regionHeight - 1);
-
-          const inExclusionZone = exclusionZones.some(zone =>
-            targetX >= zone.x1 && targetX <= zone.x2 &&
-            targetY >= zone.y1 && targetY <= zone.y2
-          );
-
-          if (inExclusionZone) {
-            continue;
-          }
-
-          const tooCloseToRedBlob = exclude_red_blobs && redBlobPositions.some(blob => {
-            const distance = Math.sqrt(Math.pow(targetX - blob.x, 2) + Math.pow(targetY - blob.y, 2));
-            const isClose = distance <= redBlobProximityThreshold;
-            if (isClose) {
-              console.log(`DEBUG: Skipping click at (${targetX}, ${targetY}) - too close to red blob at (${blob.x}, ${blob.y}), distance: ${distance.toFixed(1)}px (threshold: ${redBlobProximityThreshold}px)`);
-            }
-            return isClose;
-          });
-
-          if (tooCloseToRedBlob) {
-            continue;
-          }
-
-          clicksInRow.push({ x: targetX, y: targetY });
-        }
-
-        if (clicksInRow.length > 0) {
-          console.log(`DEBUG: Row ${rowCount}: Performing ${clicksInRow.length} clicks (after exclusions)`);
-          // Use robotjs-based batched clicking for much faster execution
-          await performBatchedClicks(clicksInRow);
-          await new Promise(resolve => setTimeout(resolve, 2)); // Minimal delay between rows with robotjs
-        } else {
-          console.log(`DEBUG: Row ${rowCount}: No clicks to perform (all excluded)`);
-        }
-
-        rowCount++;
-        // Check pause state less frequently for better performance (every 5 rows)
-        if (rowCount % 5 === 0) {
-          if (!await checkPauseState()) return;
-        }
+      console.log(`DEBUG: Generating click grid with cell size ${cellSizeX}x${cellSizeY} for screen ${scrollCount + 1}`);
+      
+      // OPTIMIZED: Generate all valid clicks for this screen once
+      const validClicks = generateValidClickPositions(regionX, regionY, regionWidth, regionHeight, exclusionZones, cellSizeX, cellSizeY);
+      console.log(`DEBUG: Generated ${validClicks.length} valid click positions (after exclusion zones)`);
+      
+      // OPTIMIZED: Filter red blob conflicts once per screen
+      const finalClicks = filterRedBlobConflicts(validClicks, redBlobPositions, redBlobProximityThreshold, exclude_red_blobs);
+      console.log(`DEBUG: Final click count after red blob filtering: ${finalClicks.length} (filtered out ${validClicks.length - finalClicks.length})`);
+      
+      // OPTIMIZED: Single batch click for entire screen - MUCH faster!
+      if (finalClicks.length > 0) {
+        console.log(`DEBUG: Performing ${finalClicks.length} clicks for entire screen in single optimized batch`);
+        await performBatchedClicks(finalClicks);
+        console.log(`DEBUG: Completed ${finalClicks.length} clicks in single batch - no row delays needed`);
+      } else {
+        console.log(`DEBUG: No clicks to perform for this screen (all excluded)`);
       }
+      
+      // Check pause state once per screen instead of every 5 rows
+      if (!await checkPauseState()) return;
 
       // Scroll down (350 pixels total in single call)
-      updateStatus('Click Around: Scrolling down by 350 pixels.', 'info');
+      updateStatus(`Click Around: Completed screen ${scrollCount + 1}/${maxScrolls}. Scrolling down by 350 pixels.`, 'info');
       await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, 350); // Single call with total distance
       
       // Capture bottom image for next iteration's comparison
