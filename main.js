@@ -35,6 +35,7 @@ let clickAroundCallCounter = 0; // Global counter for clickAround calls since le
 let currentLevelStartTime = null; // New: To track the start time of the current level
 let currentLevelName = 'Unknown Level'; // New: To track the current level name
 let finishedLevelName = ''; // New: Track the name of the level that just finished
+let lastFinishBuildLevelName = ''; // Track the last level name when finishBuild was called
 let previousLevelDurationMs = null; // New: To store the duration of the previous level
 let longestLevelDurationMs = null; // New: To store the longest level duration
 let shortestLevelDurationMs = null; // New: To store the shortest level duration
@@ -117,6 +118,17 @@ function updateCurrentLevelName(levelName) {
 function setFinishedLevelName(levelName) {
     finishedLevelName = levelName || '';
     console.log(`DEBUG: Finished level name set to: "${finishedLevelName}"`);
+}
+
+function isFirstFinishBuildRunOnLevel() {
+    const isFirstRun = currentLevelName !== lastFinishBuildLevelName;
+    console.log(`DEBUG: First finishBuild run check - Current: "${currentLevelName}", Last: "${lastFinishBuildLevelName}", IsFirst: ${isFirstRun}`);
+    return isFirstRun;
+}
+
+function markFinishBuildRunForCurrentLevel() {
+    lastFinishBuildLevelName = currentLevelName;
+    console.log(`DEBUG: Marked finishBuild run for level: "${currentLevelName}"`);
 }
 
 function updateLongestLevels(duration, levelName) {
@@ -212,7 +224,7 @@ function updateAverageLevelDuration(durationMs) {
 const CLICK_AREAS = {
   OPEN_CLOSE_RESEARCH_WINDOW: { x: 403, y: 942 },
   INDIVIDUAL_RESEARCH: { x: 352, y: 456 },
-  CLICK_OFF: { x: 33, y: 904 }, // Updated y-coordinate for click-off area
+  CLICK_OFF: { x: 161, y: 191 }, // Updated coordinates - old: { x: 33, y: 904 }
   "START_EXITING": { x: 49, y: 940 },
   "CONFIRM_EXIT": { x: 238, y: 745 },
   "START_LEVEL": { x: 232, y: 631 },
@@ -664,6 +676,10 @@ async function startFinishBuildAutomationLoop() {
     getClickAroundCallCounter: getClickAroundCallCounter, // New: Pass counter functions
     incrementClickAroundCallCounter: incrementClickAroundCallCounter,
     resetClickAroundCallCounter: resetClickAroundCallCounter,
+    // New: Level name management functions
+    getCurrentLevelName: getCurrentLevelName,
+    isFirstFinishBuildRunOnLevel: isFirstFinishBuildRunOnLevel,
+    markFinishBuildRunForCurrentLevel: markFinishBuildRunForCurrentLevel,
   };
 
   // Start the automation loop in finishBuild.js
@@ -884,6 +900,8 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     updateCurrentLevelName: updateCurrentLevelName,
     setFinishedLevelName: setFinishedLevelName,
     captureLevelName: ocrUtils.captureLevelName,
+    isFirstFinishBuildRunOnLevel: isFirstFinishBuildRunOnLevel,
+    markFinishBuildRunForCurrentLevel: markFinishBuildRunForCurrentLevel,
     // New: Image comparison functions for scroll top detection
     compareTopRegions: imageComparison.compareTopRegions,
     captureTopRegion: imageComparison.captureTopRegion,
@@ -1115,6 +1133,23 @@ ipcMain.handle('stop-live-view', async () => {
     captureInterval = null;
   }
   return true;
+});
+
+// New scrolling test IPC handlers
+ipcMain.handle('scroll-new-up-test', async () => {
+  const scrollNewTest = require('./src/automation/scrollNewTest');
+  return await scrollNewTest.scrollNewUpTest({
+    captureScreenRegion: captureScreenRegion,
+    iphoneMirroringRegion: iphoneMirroringRegion
+  });
+});
+
+ipcMain.handle('scroll-new-down-test', async () => {
+  const scrollNewTest = require('./src/automation/scrollNewTest');
+  return await scrollNewTest.scrollNewDownTest({
+    captureScreenRegion: captureScreenRegion,
+    iphoneMirroringRegion: iphoneMirroringRegion
+  });
 });
 
 // Global shortcuts

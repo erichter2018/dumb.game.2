@@ -166,8 +166,8 @@ function startAutomation(dependencies) {
             return 'no_blue_build';
         }
 
-        const clickX = redBlobCoords.x + Math.floor(redBlobCoords.width * 1.8);
-        const clickY = redBlobCoords.y + Math.floor(redBlobCoords.height * 1.8);
+        const clickX = redBlobCoords.x + Math.floor(redBlobCoords.width * 1.5);
+        const clickY = redBlobCoords.y + Math.floor(redBlobCoords.height * 1.9);
 
         let blueBuildBoxAfterClicks = null;
 
@@ -204,6 +204,61 @@ function startAutomation(dependencies) {
 
             if (currentConfirmedBlueBox) {
                 blueBuildBoxAfterClicks = currentConfirmedBlueBox;
+                
+                // Verification step: Click off, then try clicking 1.5x to the right of red blob center
+                updateStatus('Verifying red blob click accuracy with alternative position...', 'info');
+                console.log('DEBUG: Blue box confirmed, now verifying click accuracy.');
+                
+                // Click off to reset
+                await performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                // Calculate verification click: 1.5x to the right of red blob center, same vertical level
+                const verificationClickX = redBlobCoords.x + Math.floor(redBlobCoords.width * 1.5);
+                const verificationClickY = redBlobCoords.y + Math.floor(redBlobCoords.height / 2);
+                
+                updateStatus(`Verification click at X:${verificationClickX}, Y:${verificationClickY}`, 'info');
+                console.log(`DEBUG: Verification click at X:${verificationClickX}, Y:${verificationClickY}`);
+                await performClick(verificationClickX, verificationClickY);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Check if verification click also produces blue build
+                const verificationBlueBox = await confirmAndClickBlueBuildBox(dependencies);
+                if (!getIsAutomationRunning()) return 'stopped';
+                
+                if (verificationBlueBox) {
+                    updateStatus('Verification successful - alternative click position also works.', 'success');
+                    console.log('DEBUG: Verification successful - alternative click position also works.');
+                    // Use the verification blue box instead
+                    blueBuildBoxAfterClicks = verificationBlueBox;
+                } else {
+                    updateStatus('Verification failed - reverting to original 1.5x both directions click.', 'warn');
+                    console.log('DEBUG: Verification failed - reverting to original 1.5x both directions click.');
+                    
+                    // Click off again and go back to original 1.5x both directions
+                    await performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    const revertClickX = redBlobCoords.x + Math.floor(redBlobCoords.width * 1.5);
+                    const revertClickY = redBlobCoords.y + Math.floor(redBlobCoords.height * 1.5);
+                    
+                    updateStatus(`Reverting to original click at X:${revertClickX}, Y:${revertClickY}`, 'info');
+                    console.log(`DEBUG: Reverting to original click at X:${revertClickX}, Y:${revertClickY}`);
+                    await performClick(revertClickX, revertClickY);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Confirm the reverted click works
+                    const revertedBlueBox = await confirmAndClickBlueBuildBox(dependencies);
+                    if (!getIsAutomationRunning()) return 'stopped';
+                    
+                    if (revertedBlueBox) {
+                        blueBuildBoxAfterClicks = revertedBlueBox;
+                    } else {
+                        updateStatus('Error: Both original and reverted clicks failed. Continuing with first successful click.', 'error');
+                        console.error('ERROR: Both original and reverted clicks failed. Continuing with first successful click.');
+                    }
+                }
+                
                 break; // Blue box confirmed, exit red blob retry loop
             }
         }
@@ -345,13 +400,23 @@ function startAutomation(dependencies) {
         const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : 'Unknown Level';
         console.log(`DEBUG: Current level name for scrolling decision: "${currentLevelName}"`);
         
-        // Scroll down three times
-        if (currentLevelName.toLowerCase().includes('drive thru take out') || 
-            currentLevelName.toLowerCase().includes('fish and chips shop') || 
+        // Scroll down once for Restaurant levels
+        if (currentLevelName.toLowerCase().includes('restaurant')) {
+            // Scroll down once
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down once.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down once.`, 'info');
+            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } else if (currentLevelName.toLowerCase().includes('drive thru take out')) {
+            // Scroll down once for Drive Thru Take Out
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down once.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down once.`, 'info');
+            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } else if (currentLevelName.toLowerCase().includes('fish and chips shop') || 
             currentLevelName.toLowerCase().includes('dessert co') || 
             currentLevelName.toLowerCase().includes('drive thru') || 
             currentLevelName.toLowerCase().includes('fish and chip shop') ||
-            currentLevelName.toLowerCase().includes('restaurant') ||
             currentLevelName.toLowerCase().includes('food truck') ||
             currentLevelName.toLowerCase().includes('lobster house') ||
             currentLevelName.toLowerCase().includes('cafe') ||
@@ -555,7 +620,9 @@ function startAutomation(dependencies) {
                                 
                                 if (comparison.isAtTop) {
                                     console.log(`DEBUG: Image comparison indicates we've reached the top (difference: ${(comparison.difference * 100).toFixed(1)}%). Scrolling to bottom and restarting search.`);
-                                    updateStatus(`Reached top of content (${(comparison.difference * 100).toFixed(1)}% similarity, threshold: 5%). Scrolling to bottom and restarting search...`, 'info');
+                                    const similarityPercent = (100 - (comparison.difference * 100)).toFixed(1);
+                                    updateStatus(`Reached top of content (${similarityPercent}% match, threshold: 95%). Scrolling to bottom and restarting search...`, 'info');
+                                    console.log(`🟡 IMAGE MATCH: ${similarityPercent}% similarity detected during scroll up`);
                                     await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                                     scrollUpCount = 0; // Reset scroll up count
                                     previousTopImage = null; // Reset image comparison

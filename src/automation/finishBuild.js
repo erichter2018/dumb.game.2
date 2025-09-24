@@ -156,7 +156,7 @@ async function doResearch(dependencies) {
     await new Promise(resolve => setTimeout(resolve, 200)); // Short delay after first click
 
     if (!getIsAutomationRunning()) { return; }
-    await performRapidClicks(CLICK_AREAS.INDIVIDUAL_RESEARCH.x, CLICK_AREAS.INDIVIDUAL_RESEARCH.y, 40);
+    await performRapidClicks(CLICK_AREAS.INDIVIDUAL_RESEARCH.x, CLICK_AREAS.INDIVIDUAL_RESEARCH.y, 100);
     await new Promise(resolve => setTimeout(resolve, 50)); // Short delay after rapid clicks
 
     if (!getIsAutomationRunning()) { return; }
@@ -249,12 +249,25 @@ async function runBuildProtocol(dependencies) {
     
     // Determine click around intervals based on level and whether it's the first run
     const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : '';
-    const isRestaurantLevel = currentLevelName === 'Restaurant';
     const isFirstRunOnLevel = dependencies.isFirstFinishBuildRunOnLevel ? dependencies.isFirstFinishBuildRunOnLevel() : false;
     
-    // Restaurant level: 1 minute for first run, 3 minutes for subsequent runs
+    // Mark that finishBuild is being run for this level (after checking if it's the first run)
+    if (dependencies.markFinishBuildRunForCurrentLevel) {
+        dependencies.markFinishBuildRunForCurrentLevel();
+    }
+    
+    // Levels that get 1-minute clickAround on first run, 3 minutes for subsequent runs
+    const oneMinuteFirstRunLevels = ['restaurant', 'italiano', 'the fresh kitchen', 'diner', 'seafood restaurant', 'apple juice bar', 'lobster house', 'mezze bar'];
+    
+    const currentLevelNameLower = currentLevelName.toLowerCase();
+    const isOneMinuteLevel = oneMinuteFirstRunLevels.includes(currentLevelNameLower);
+    
+    console.log(`DEBUG: ClickAround timing - Level: "${currentLevelName}", Lower: "${currentLevelNameLower}", Available levels: [${oneMinuteFirstRunLevels.join(', ')}], IsOneMinuteLevel: ${isOneMinuteLevel}, IsFirstRun: ${isFirstRunOnLevel}`);
+    
+    // One-minute levels: 1 minute for first run, 3 minutes for subsequent runs
     // All other levels: 3 minutes always
-    const clickAroundInterval = (isRestaurantLevel && isFirstRunOnLevel) ? 1 * 60 * 1000 : 3 * 60 * 1000;
+    const clickAroundInterval = (isOneMinuteLevel && isFirstRunOnLevel) ? 1 * 60 * 1000 : 3 * 60 * 1000;
+    console.log(`DEBUG: ClickAround interval set to ${clickAroundInterval / 1000} seconds (${isOneMinuteLevel && isFirstRunOnLevel ? `1 minute for ${currentLevelName} first run` : '3 minutes default'})`);
     let lastClickAroundTime = startTime;
     let timerInterval = null; // To hold the interval ID for clearing
 
@@ -292,7 +305,10 @@ async function runBuildProtocol(dependencies) {
             const currentTime = Date.now();
             
             // Check if it's time to run clickAround
-            if (currentTime - lastClickAroundTime >= clickAroundInterval) {
+            const elapsedTime = currentTime - lastClickAroundTime;
+            console.log(`DEBUG: ClickAround timing check - Elapsed: ${elapsedTime}ms, Interval: ${clickAroundInterval}ms, Should trigger: ${elapsedTime >= clickAroundInterval}`);
+            
+            if (elapsedTime >= clickAroundInterval) {
                 const intervalMinutes = clickAroundInterval / (60 * 1000);
                 updateStatus(`Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: true)`, 'warn');
                 console.log(`DEBUG: Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: true)`);
@@ -320,6 +336,12 @@ async function runBuildProtocol(dependencies) {
                     updateCurrentFunction: dependencies.updateCurrentFunction,
                     CLICK_AREAS: dependencies.CLICK_AREAS,
                     captureScreenRegion: dependencies.captureScreenRegion,
+                    sendDetectionResults: (detections) => {
+                        // Send detection results to renderer for overlay display
+                        if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                            dependencies.mainWindow.webContents.send('detection-results', detections);
+                        }
+                    },
                     getIsClickAroundRunning: () => true, // Always return true for this timeout scenario
                     getIsClickAroundPaused: () => false, // Never paused for this timeout scenario
                 };

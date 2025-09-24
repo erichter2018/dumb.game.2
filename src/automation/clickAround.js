@@ -6,7 +6,7 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
   updateStatus(`Starting Click Around automation... (exclude_red_blobs: ${exclude_red_blobs})`, 'info');
   console.log(`DEBUG: ClickAround started with exclude_red_blobs: ${exclude_red_blobs}`);
 
-  const redBlobProximityThreshold = 300;
+  const redBlobProximityThreshold = 250;
 
   const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = iphoneMirroringRegion;
 
@@ -79,10 +79,14 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
           
           if (comparison.isAtBottom) {
             console.log(`DEBUG: ClickAround image comparison indicates we've reached the bottom (difference: ${(comparison.difference * 100).toFixed(1)}%). Stopping click around.`);
-            updateStatus(`Reached bottom of content (${(comparison.difference * 100).toFixed(1)}% similarity). Click Around complete.`, 'success');
+            const similarityPercent = (100 - (comparison.difference * 100)).toFixed(1);
+            updateStatus(`Reached bottom of content (${similarityPercent}% match). Click Around complete.`, 'success');
+            console.log(`🟡 IMAGE MATCH: ${similarityPercent}% similarity detected during scroll down`);
             break; // Exit the loop - we've reached the bottom
           } else {
             console.log(`DEBUG: ClickAround image comparison shows significant change (difference: ${(comparison.difference * 100).toFixed(1)}%). Continuing to scroll down.`);
+            const similarityPercent = (100 - (comparison.difference * 100)).toFixed(1);
+            console.log(`🟡 IMAGE MATCH: ${similarityPercent}% similarity - continuing scroll down`);
           }
         } catch (error) {
           console.error(`DEBUG: ClickAround image comparison failed: ${error.message}. Continuing with normal flow.`);
@@ -91,13 +95,37 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
 
       // First red blob detection
       const fullScreenDataUrl = await captureScreenRegion();
-      const currentRedBlobs = await detectRedBlobs(fullScreenDataUrl, iphoneMirroringRegion);
-      console.log(`DEBUG: ClickAround first detection found ${currentRedBlobs.length} red blobs`);
+      const currentRedBlobsRaw = await detectRedBlobs(fullScreenDataUrl, iphoneMirroringRegion);
+      
+      // Filter out special named blobs (research blob, exit level) from clickAround detection
+      const currentRedBlobs = currentRedBlobsRaw.filter(blob => !blob.name);
+      console.log(`DEBUG: ClickAround first detection found ${currentRedBlobsRaw.length} red blobs, ${currentRedBlobs.length} after filtering out named blobs`);
+      
+      // Send red blob detections for overlay display
+      if (currentRedBlobs && currentRedBlobs.length > 0) {
+        console.log(`🟡 CLICKAROUND RED BLOBS: Found ${currentRedBlobs.length} red blobs for overlay display`);
+        // Send detection results for overlay display
+        if (dependencies.sendDetectionResults) {
+          dependencies.sendDetectionResults({ redBlobs: currentRedBlobs, blueBoxes: [] });
+        }
+      }
       
       // Second red blob detection to catch any missed/wiggling blobs
       const fullScreenDataUrlSecond = await captureScreenRegion();
-      const currentRedBlobsSecond = await detectRedBlobs(fullScreenDataUrlSecond, iphoneMirroringRegion);
-      console.log(`DEBUG: ClickAround second detection found ${currentRedBlobsSecond.length} red blobs`);
+      const currentRedBlobsSecondRaw = await detectRedBlobs(fullScreenDataUrlSecond, iphoneMirroringRegion);
+      
+      // Filter out special named blobs (research blob, exit level) from clickAround detection
+      const currentRedBlobsSecond = currentRedBlobsSecondRaw.filter(blob => !blob.name);
+      console.log(`DEBUG: ClickAround second detection found ${currentRedBlobsSecondRaw.length} red blobs, ${currentRedBlobsSecond.length} after filtering out named blobs`);
+      
+      // Send second red blob detections for overlay display
+      if (currentRedBlobsSecond && currentRedBlobsSecond.length > 0) {
+        console.log(`🟡 CLICKAROUND RED BLOBS (SECOND): Found ${currentRedBlobsSecond.length} red blobs for overlay display`);
+        // Send detection results for overlay display
+        if (dependencies.sendDetectionResults) {
+          dependencies.sendDetectionResults({ redBlobs: currentRedBlobsSecond, blueBoxes: [] });
+        }
+      }
       
       // Combine both sets of results - use a Map to avoid duplicates based on coordinates
       const combinedBlobsMap = new Map();

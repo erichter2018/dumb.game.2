@@ -26,6 +26,11 @@ async function compareTopRegions(imageDataUrl1, imageDataUrl2, region, topPercen
         
         console.log(`DEBUG: Image dimensions - Image1: ${metadata1.width}x${metadata1.height}, Image2: ${metadata2.width}x${metadata2.height}`);
         
+        // Validate that both images have the same dimensions
+        if (metadata1.width !== metadata2.width || metadata1.height !== metadata2.height) {
+            throw new Error(`Image dimension mismatch: ${metadata1.width}x${metadata1.height} vs ${metadata2.width}x${metadata2.height}`);
+        }
+        
         // Calculate the top region dimensions
         const topHeight = Math.floor(region.height * (topPercentage / 100));
         const topRegion = {
@@ -73,6 +78,17 @@ async function compareTopRegions(imageDataUrl1, imageDataUrl2, region, topPercen
         
         console.log(`DEBUG: Comparing images: ${width}x${height}, ${channels} channels`);
         
+        // Validate buffer sizes match expected dimensions
+        const expectedBufferSize = width * height * channels;
+        if (topImage1RawBuffer.length !== expectedBufferSize) {
+            throw new Error(`Buffer size mismatch for image1: expected ${expectedBufferSize}, got ${topImage1RawBuffer.length}`);
+        }
+        if (topImage2RawBuffer.length !== expectedBufferSize) {
+            throw new Error(`Buffer size mismatch for image2: expected ${expectedBufferSize}, got ${topImage2RawBuffer.length}`);
+        }
+        
+        console.log(`DEBUG: Buffer sizes validated - Image1: ${topImage1RawBuffer.length}, Image2: ${topImage2RawBuffer.length}, Expected: ${expectedBufferSize}`);
+        
         // Calculate pixel-by-pixel difference
         let totalDifference = 0;
         let totalPixels = 0;
@@ -80,6 +96,13 @@ async function compareTopRegions(imageDataUrl1, imageDataUrl2, region, topPercen
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const pixelIndex = (y * width + x) * channels;
+                
+                // Bounds check to prevent buffer overflow
+                if (pixelIndex + channels - 1 >= topImage1RawBuffer.length || 
+                    pixelIndex + channels - 1 >= topImage2RawBuffer.length) {
+                    console.warn(`DEBUG: Pixel index ${pixelIndex} out of bounds, skipping pixel at (${x}, ${y})`);
+                    continue;
+                }
                 
                 // Get RGB values for both images
                 const r1 = topImage1RawBuffer[pixelIndex];
@@ -90,12 +113,13 @@ async function compareTopRegions(imageDataUrl1, imageDataUrl2, region, topPercen
                 const g2 = topImage2RawBuffer[pixelIndex + 1];
                 const b2 = topImage2RawBuffer[pixelIndex + 2];
                 
-                // Calculate color difference (0-1 scale)
-                const rDiff = Math.abs(r1 - r2) / 255;
-                const gDiff = Math.abs(g1 - g2) / 255;
-                const bDiff = Math.abs(b1 - b2) / 255;
+                // Calculate color difference using Euclidean distance (more accurate)
+                const rDiff = Math.abs(r1 - r2);
+                const gDiff = Math.abs(g1 - g2);
+                const bDiff = Math.abs(b1 - b2);
                 
-                const pixelDifference = (rDiff + gDiff + bDiff) / 3;
+                // Use Euclidean distance normalized to 0-1 scale
+                const pixelDifference = Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff) / (255 * Math.sqrt(3));
                 totalDifference += pixelDifference;
                 totalPixels++;
             }
@@ -258,6 +282,17 @@ async function compareBottomRegions(imageDataUrl1, imageDataUrl2, region, bottom
         
         console.log(`DEBUG: Comparing bottom images: ${width}x${height}, ${channels} channels`);
         
+        // Validate buffer sizes match expected dimensions
+        const expectedBufferSize = width * height * channels;
+        if (bottomImage1RawBuffer.length !== expectedBufferSize) {
+            throw new Error(`Bottom buffer size mismatch for image1: expected ${expectedBufferSize}, got ${bottomImage1RawBuffer.length}`);
+        }
+        if (bottomImage2RawBuffer.length !== expectedBufferSize) {
+            throw new Error(`Bottom buffer size mismatch for image2: expected ${expectedBufferSize}, got ${bottomImage2RawBuffer.length}`);
+        }
+        
+        console.log(`DEBUG: Bottom buffer sizes validated - Image1: ${bottomImage1RawBuffer.length}, Image2: ${bottomImage2RawBuffer.length}, Expected: ${expectedBufferSize}`);
+        
         // Calculate pixel-by-pixel difference
         let totalDifference = 0;
         let totalPixels = 0;
@@ -265,6 +300,13 @@ async function compareBottomRegions(imageDataUrl1, imageDataUrl2, region, bottom
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const pixelIndex = (y * width + x) * channels;
+                
+                // Bounds check to prevent buffer overflow
+                if (pixelIndex + channels - 1 >= bottomImage1RawBuffer.length || 
+                    pixelIndex + channels - 1 >= bottomImage2RawBuffer.length) {
+                    console.warn(`DEBUG: Bottom pixel index ${pixelIndex} out of bounds, skipping pixel at (${x}, ${y})`);
+                    continue;
+                }
                 
                 // Get RGB values for both images
                 const r1 = bottomImage1RawBuffer[pixelIndex];
@@ -275,12 +317,13 @@ async function compareBottomRegions(imageDataUrl1, imageDataUrl2, region, bottom
                 const g2 = bottomImage2RawBuffer[pixelIndex + 1];
                 const b2 = bottomImage2RawBuffer[pixelIndex + 2];
                 
-                // Calculate color difference (0-1 scale)
-                const rDiff = Math.abs(r1 - r2) / 255;
-                const gDiff = Math.abs(g1 - g2) / 255;
-                const bDiff = Math.abs(b1 - b2) / 255;
+                // Calculate color difference using Euclidean distance (more accurate)
+                const rDiff = Math.abs(r1 - r2);
+                const gDiff = Math.abs(g1 - g2);
+                const bDiff = Math.abs(b1 - b2);
                 
-                const pixelDifference = (rDiff + gDiff + bDiff) / 3;
+                // Use Euclidean distance normalized to 0-1 scale
+                const pixelDifference = Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff) / (255 * Math.sqrt(3));
                 totalDifference += pixelDifference;
                 totalPixels++;
             }
