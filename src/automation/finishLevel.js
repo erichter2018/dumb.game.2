@@ -418,7 +418,6 @@ function startAutomation(dependencies) {
             currentLevelName.toLowerCase().includes('fish and chip shop') ||
             currentLevelName.toLowerCase().includes('food truck') ||
             currentLevelName.toLowerCase().includes('lobster house') ||
-            currentLevelName.toLowerCase().includes('cafe') ||
             currentLevelName.toLowerCase().includes('pizzeria')) {
             // Scroll down three times
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll down three times.`);
@@ -428,7 +427,8 @@ function startAutomation(dependencies) {
                 await scrollDown(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-        } else if (currentLevelName.toLowerCase().includes('burrito king')) {
+        } else if (currentLevelName.toLowerCase().includes('burrito king') ||
+                   currentLevelName.toLowerCase().includes('cafe')) {
             // Scroll to bottom
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll to bottom.`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');
