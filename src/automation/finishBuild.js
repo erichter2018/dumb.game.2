@@ -257,7 +257,7 @@ async function runBuildProtocol(dependencies) {
     }
     
     // Levels that get 1-minute clickAround on first run, 3 minutes for subsequent runs
-    const oneMinuteFirstRunLevels = ['restaurant', 'italiano', 'the fresh kitchen', 'diner', 'seafood restaurant', 'apple juice bar', 'lobster house', 'mezze bar'];
+    const oneMinuteFirstRunLevels = ['restaurant', 'Restaurant', 'italiano', 'the fresh kitchen', 'diner', 'seafood restaurant', 'apple juice bar', 'lobster house', 'mezze bar'];
     
     // Levels that get 2-minute clickAround (exclude_red_blobs = false) on any run
     const twoMinuteLevels = ['lobster house', 'ramen house'];
