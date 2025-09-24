@@ -92,7 +92,7 @@ async function scrollUp(x, y, dependencies) { // Accept dependencies to access C
     console.log(`DEBUG: scrollUp - Mouse button up.`);
     
     // Add final delay to ensure scroll operation completes before function returns
-    await new Promise(resolve => setTimeout(resolve, 250));
+    await new Promise(resolve => setTimeout(resolve, 500));
     const endTime = Date.now();
     console.log(`DEBUG: scrollUp - Operation completed successfully at ${endTime} (total duration: ${endTime - startTime}ms)`);
     

@@ -259,16 +259,24 @@ async function runBuildProtocol(dependencies) {
     // Levels that get 1-minute clickAround on first run, 3 minutes for subsequent runs
     const oneMinuteFirstRunLevels = ['restaurant', 'italiano', 'the fresh kitchen', 'diner', 'seafood restaurant', 'apple juice bar', 'lobster house', 'mezze bar'];
     
+    // Levels that get 2-minute clickAround (exclude_red_blobs = false) on any run
+    const twoMinuteLevels = ['lobster house', 'ramen house'];
+    
     const currentLevelNameLower = currentLevelName.toLowerCase();
     const isOneMinuteLevel = oneMinuteFirstRunLevels.includes(currentLevelNameLower);
+    const isTwoMinuteLevel = twoMinuteLevels.includes(currentLevelNameLower);
     
-    console.log(`DEBUG: ClickAround timing - Level: "${currentLevelName}", Lower: "${currentLevelNameLower}", Available levels: [${oneMinuteFirstRunLevels.join(', ')}], IsOneMinuteLevel: ${isOneMinuteLevel}, IsFirstRun: ${isFirstRunOnLevel}`);
+    console.log(`DEBUG: ClickAround timing - Level: "${currentLevelName}", Lower: "${currentLevelNameLower}", OneMinute levels: [${oneMinuteFirstRunLevels.join(', ')}], TwoMinute levels: [${twoMinuteLevels.join(', ')}], IsOneMinuteLevel: ${isOneMinuteLevel}, IsTwoMinuteLevel: ${isTwoMinuteLevel}, IsFirstRun: ${isFirstRunOnLevel}`);
     
     // One-minute levels: 1 minute for first run, 3 minutes for subsequent runs
     // All other levels: 3 minutes always
     const clickAroundInterval = (isOneMinuteLevel && isFirstRunOnLevel) ? 1 * 60 * 1000 : 3 * 60 * 1000;
     console.log(`DEBUG: ClickAround interval set to ${clickAroundInterval / 1000} seconds (${isOneMinuteLevel && isFirstRunOnLevel ? `1 minute for ${currentLevelName} first run` : '3 minutes default'})`);
     let lastClickAroundTime = startTime;
+    
+    // Two-minute timer for special levels (runs clickAround with exclude_red_blobs = false)
+    const twoMinuteInterval = 2 * 60 * 1000; // 2 minutes
+    let lastTwoMinuteClickAroundTime = startTime;
     let timerInterval = null; // To hold the interval ID for clearing
 
     try {
@@ -356,6 +364,62 @@ async function runBuildProtocol(dependencies) {
                 // Exit gracefully after clickAround, returning control to finishLevel
                 return 'clickaround_completed';
             }
+            
+            // Check if it's time to run 2-minute clickAround (exclude_red_blobs = false) for special levels
+            if (isTwoMinuteLevel) {
+                const twoMinuteElapsedTime = currentTime - lastTwoMinuteClickAroundTime;
+                console.log(`DEBUG: TwoMinute ClickAround timing check - Elapsed: ${twoMinuteElapsedTime}ms, Interval: ${twoMinuteInterval}ms, Should trigger: ${twoMinuteElapsedTime >= twoMinuteInterval}`);
+                
+                if (twoMinuteElapsedTime >= twoMinuteInterval) {
+                    const intervalMinutes = twoMinuteInterval / (60 * 1000);
+                    updateStatus(`Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: false)`, 'warn');
+                    console.log(`DEBUG: Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: false)`);
+                    
+                    // Call clickAround with exclude_red_blobs = false
+                    const clickAroundDependencies = {
+                        updateStatus: dependencies.updateStatus,
+                        detectRedBlobs: dependencies.redBlobDetectorDetect,
+                        performClick: dependencies.performClick,
+                        performBatchedClicks: dependencies.performBatchedClicks || (async (clickArray) => {
+                            // WARNING: FALLBACK BEING USED - This should not happen and indicates a dependency injection problem
+                            console.warn('WARNING: Using performBatchedClicks FALLBACK - this will be much slower!');
+                            console.warn('DEBUG: dependencies.performBatchedClicks was undefined, using individual clicks');
+                            updateStatus('WARNING: Using slow fallback for batch clicks!', 'warn');
+                            
+                            if (!Array.isArray(clickArray)) return { success: false, error: 'Invalid click array' };
+                            console.log(`DEBUG: Fallback processing ${clickArray.length} clicks individually (100ms each = ${clickArray.length * 100}ms total)`);
+                            
+                            for (const click of clickArray) {
+                                await dependencies.performClick(click.x, click.y);
+                            }
+                            return { success: true };
+                        }), // proper fallback wrapper
+                        iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
+                        updateCurrentFunction: dependencies.updateCurrentFunction,
+                        CLICK_AREAS: dependencies.CLICK_AREAS,
+                        captureScreenRegion: dependencies.captureScreenRegion,
+                        sendDetectionResults: (detections) => {
+                            // Send detection results to renderer for overlay display
+                            if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                                dependencies.mainWindow.webContents.send('detection-results', detections);
+                            }
+                        },
+                        getIsClickAroundRunning: () => true, // Always return true for this timeout scenario
+                        getIsClickAroundPaused: () => false, // Never paused for this timeout scenario
+                    };
+                    
+                    // Import and run clickAround with exclude_red_blobs = false
+                    const { clickAround } = require('./clickAround');
+                    await clickAround(clickAroundDependencies, false);
+                    
+                    updateStatus('Finish Build: 2-minute Click Around completed. Returning control to Finish Level.', 'success');
+                    console.log('DEBUG: Finish Build: 2-minute Click Around completed. Returning control to Finish Level.');
+                    
+                    // Exit gracefully after clickAround, returning control to finishLevel
+                    return 'clickaround_completed';
+                }
+            }
+            
             // Perform blue box detection once per cycle to get the latest state
             const currentDetectedBox = await findBlueBoxWithRetry(dependencies, blueBoxCoords);
 
