@@ -33,7 +33,7 @@ async function detect(imageDataUrl, captureRegion) {
             { x: 0, y: 0, width: 100, height: 500 },
             { x: 0, y: 0, width: 450, height: 410 },
             { x: 320, y: 0, width: 130, height: 500 },
-            { x: 0, y: 800, width: 100, height: 200 },
+            { x: 0, y: 780, width: 100, height: 200 },
             { x: 0, y: 860, width: 450, height: 140 },
         ];
 

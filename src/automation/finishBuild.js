@@ -260,7 +260,7 @@ async function runBuildProtocol(dependencies) {
     const oneMinuteFirstRunLevels = ['restaurant', 'Restaurant', 'italiano', 'the fresh kitchen', 'diner', 'seafood restaurant', 'apple juice bar', 'lobster house', 'mezze bar'];
     
     // Levels that get 2-minute clickAround (exclude_red_blobs = false) on any run
-    const twoMinuteLevels = ['lobster house', 'ramen house'];
+    const twoMinuteLevels = ['lobster house', 'ramen truck'];
     
     const currentLevelNameLower = currentLevelName.toLowerCase();
     const isOneMinuteLevel = oneMinuteFirstRunLevels.includes(currentLevelNameLower);

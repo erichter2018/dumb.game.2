@@ -205,6 +205,8 @@ function startAutomation(dependencies) {
                 blueBuildBoxAfterClicks = currentConfirmedBlueBox;
                 
                 // Verification step: Click off, then try clicking 1.5x to the right of red blob center
+                // COMMENTED OUT - verification process removed
+                /*
                 updateStatus('Verifying red blob click accuracy with alternative position...', 'info');
                 console.log('DEBUG: Blue box confirmed, now verifying click accuracy.');
                 
@@ -257,6 +259,7 @@ function startAutomation(dependencies) {
                         console.error('ERROR: Both original and reverted clicks failed. Continuing with first successful click.');
                     }
                 }
+                */
                 
                 break; // Blue box confirmed, exit red blob retry loop
             }
@@ -407,9 +410,13 @@ function startAutomation(dependencies) {
             await scrollDown(scrollX, scrollY, scrollSwipeDistance);
             await new Promise(resolve => setTimeout(resolve, 100));
         } else if (currentLevelName.toLowerCase().includes('drive thru take out')) {
-            // Scroll down once for Drive Thru Take Out
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down once.`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down once.`, 'info');
+            // Scroll down three times for Drive Thru Take Out
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down three times.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down three times.`, 'info');
+            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+            await new Promise(resolve => setTimeout(resolve, 100));
             await scrollDown(scrollX, scrollY, scrollSwipeDistance);
             await new Promise(resolve => setTimeout(resolve, 100));
         } else if (currentLevelName.toLowerCase().includes('fish and chips shop') || 
