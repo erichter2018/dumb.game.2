@@ -488,4 +488,4 @@ async function runBuildProtocol(dependencies) {
     }
 }
 
-module.exports = { runBuildProtocol, resetAutomationState, findAndGetBlueBoxClickCoordinates };
+module.exports = { runBuildProtocol, resetAutomationState, findAndGetBlueBoxClickCoordinates, stopAutomation };

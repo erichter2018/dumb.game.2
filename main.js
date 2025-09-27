@@ -18,6 +18,7 @@ const imageComparison = require('./utils/image-comparison');
 const scrollingFunctions = require('./src/automation/scrolling');
 const clickAroundFunctions = require('./src/automation/clickAround');
 const ocrUtils = require('./utils/ocr');
+const statistics = require('./statistics');
 
 let mainWindow;
 let isCapturing = false;
@@ -42,6 +43,17 @@ let shortestLevelDurationMs = null; // New: To store the shortest level duration
 let levelsFinishedCount = 0; // New: To track the number of levels finished
 let totalLevelsDurationMs = 0; // New: To accumulate total duration for average calculation
 let longestLevels = []; // New: Array to store top 3 longest levels with names
+
+// Stage tracking variables
+let currentStage = null; // Current stage info: { name, startTime, levels: [], id: timestamp }
+let previousStage = null; // Previous completed stage
+let stageTrackingEnabled = false; // Only start tracking when a fresh stage begins
+let currentStageLevel = 0; // Current level within the stage (1-7)
+let longestStages = []; // Array to store longest stages
+let shortestStages = []; // Array to store shortest stages
+let completedStagesCount = 0; // Count of completed stages
+let totalStagesDurationMs = 0; // Total duration of all completed stages
+let levelToStageId = new Map(); // Map level names to stage IDs to prevent cross-contamination
 
 // Window state management
 const windowStateFile = path.join(__dirname, 'window-state.json');
@@ -106,18 +118,240 @@ function getCurrentLevelName() {
 }
 
 function updateCurrentLevelName(levelName) {
-    currentLevelName = levelName || 'Unknown Level';
+    const originalLevelName = levelName || 'Unknown Level';
+    
+    // Skip processing for temporary "Unknown Level" or empty names during level transitions
+    if (originalLevelName === 'Unknown Level' || originalLevelName === 'Unnamed Level' || originalLevelName === '') {
+        currentLevelName = originalLevelName;
+        console.log(`DEBUG: Temporary level name: "${currentLevelName}" - skipping stage processing`);
+        
+        // Still send to renderer for UI update
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-current-level-name', currentLevelName);
+        }
+        return;
+    }
+    
+    // Check if this level starts a new stage
+    if (statistics.isStageStart(originalLevelName)) {
+        const stageCityName = statistics.getStageCity(originalLevelName);
+        console.log(`DEBUG: New stage detected: "${stageCityName}"`);
+        
+        // Complete current stage if one exists
+        if (currentStage && stageTrackingEnabled) {
+            completeCurrentStage();
+        }
+        
+        // Start new stage
+        startNewStage(stageCityName);
+        
+        // Rename the first level of the stage to "Level 1"
+        currentLevelName = 'Level 1';
+        console.log(`DEBUG: Stage start level renamed from "${originalLevelName}" to "Level 1"`);
+    } else {
+        // Regular level - keep original name and increment counter for new levels
+        currentLevelName = originalLevelName;
+        console.log(`DEBUG: Regular level name set: "${currentLevelName}"`);
+        
+        // Increment stage level counter for new levels (but not for stage start levels)
+        if (currentStage && stageTrackingEnabled) {
+            // Check if this is a new level we haven't seen before
+            const isNewLevel = !currentStage.levels.some(level => level.name === currentLevelName);
+            
+            if (isNewLevel && currentStageLevel < 7) {
+                currentStageLevel++;
+                console.log(`DEBUG: Stage level incremented to ${currentStageLevel}/7 for level: "${currentLevelName}"`);
+            }
+        }
+    }
+    
+    // Map this level to the current stage ID to prevent cross-contamination
+    if (currentStage && stageTrackingEnabled && currentLevelName && 
+        currentLevelName !== 'Unknown Level' && currentLevelName !== 'Unnamed Level' && currentLevelName !== '') {
+        levelToStageId.set(currentLevelName, currentStage.id);
+        console.log(`DEBUG: Mapped level "${currentLevelName}" to stage "${currentStage.name}" (ID: ${currentStage.id})`);
+    }
+    
     console.log(`DEBUG: Current level name updated to: "${currentLevelName}"`);
     
     // Send to renderer for UI update
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('update-current-level-name', currentLevelName);
+        // Also send stage info for enhanced UI
+        sendStageInfoToRenderer();
     }
 }
 
 function setFinishedLevelName(levelName) {
     finishedLevelName = levelName || '';
     console.log(`DEBUG: Finished level name set to: "${finishedLevelName}"`);
+}
+
+// Stage management functions
+function startNewStage(stageCityName) {
+    const now = Date.now();
+    
+    // Force complete the previous stage if it exists (to prevent cross-contamination)
+    if (currentStage && stageTrackingEnabled) {
+        console.log(`DEBUG: Force completing previous stage "${currentStage.name}" before starting "${stageCityName}"`);
+        completeCurrentStage();
+        
+        // DON'T clear level mappings - let pending levels complete to their correct stages
+        console.log(`DEBUG: Keeping ${levelToStageId.size} pending level mappings to allow proper completion`);
+    }
+    
+    currentStage = {
+        name: stageCityName,
+        startTime: now,
+        levels: [],
+        id: now // Unique ID for this stage
+    };
+    
+    currentStageLevel = 1; // First level of the stage
+    stageTrackingEnabled = true; // Enable tracking for this fresh stage
+    
+    console.log(`DEBUG: Started new stage: "${stageCityName}"`);
+}
+
+function completeCurrentStage() {
+    if (!currentStage) return;
+    
+    // Prevent duplicate completion
+    if (currentStage.completed) {
+        console.log(`DEBUG: Stage "${currentStage.name}" already completed - skipping duplicate completion`);
+        return;
+    }
+    
+    const now = Date.now();
+    const stageDurationMs = now - currentStage.startTime;
+    
+    // Mark as completed to prevent duplicates
+    currentStage.completed = true;
+    
+    // Complete the stage
+    const completedStage = {
+        ...currentStage,
+        endTime: now,
+        durationMs: stageDurationMs,
+        levelCount: currentStage.levels.length
+    };
+    
+    // Update statistics
+    previousStage = completedStage;
+    completedStagesCount++;
+    totalStagesDurationMs += stageDurationMs;
+    
+    // Update longest/shortest stages
+    updateStageRecords(completedStage);
+    
+    console.log(`DEBUG: Completed stage: "${completedStage.name}" (${stageDurationMs}ms, ${completedStage.levelCount} levels)`);
+}
+
+function updateStageRecords(completedStage) {
+    // Update longest stages (top 3)
+    longestStages.push(completedStage);
+    longestStages.sort((a, b) => b.durationMs - a.durationMs);
+    if (longestStages.length > 3) {
+        longestStages = longestStages.slice(0, 3);
+    }
+    
+    // Update shortest stages (top 3)
+    shortestStages.push(completedStage);
+    shortestStages.sort((a, b) => a.durationMs - b.durationMs);
+    if (shortestStages.length > 3) {
+        shortestStages = shortestStages.slice(0, 3);
+    }
+}
+
+function addLevelToCurrentStage(levelName, durationMs) {
+    if (!currentStage || !stageTrackingEnabled) return;
+    
+    // Check for duplicates - don't add the same level twice
+    const isDuplicate = currentStage.levels.some(level => level.name === levelName);
+    if (isDuplicate) {
+        console.log(`DEBUG: Skipping duplicate level "${levelName}" in stage "${currentStage.name}"`);
+        return;
+    }
+    
+    const levelInfo = {
+        name: levelName,
+        durationMs: durationMs,
+        completedAt: Date.now()
+    };
+    
+    currentStage.levels.push(levelInfo);
+    
+    console.log(`DEBUG: Added level to stage "${currentStage.name}": "${levelName}" (${durationMs}ms) - Stage progress: ${currentStage.levels.length}/7`);
+    console.log(`DEBUG: Current stage levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
+    
+    // Check if stage is complete (7 levels)
+    if (currentStage.levels.length >= 7) {
+        console.log(`DEBUG: Stage "${currentStage.name}" complete with 7 levels - moving to previous`);
+        completeCurrentStage();
+        currentStage = null;
+        currentStageLevel = 0;
+    }
+}
+
+function addLevelToCurrentStageIfValid(levelName, durationMs) {
+    if (!stageTrackingEnabled) return;
+    
+    // Check if this level was mapped to a specific stage ID
+    const mappedStageId = levelToStageId.get(levelName);
+    
+    if (mappedStageId) {
+        // Check if it belongs to the current stage
+        if (currentStage && mappedStageId === currentStage.id) {
+            console.log(`DEBUG: Adding level "${levelName}" to current stage "${currentStage.name}"`);
+            addLevelToCurrentStage(levelName, durationMs);
+            // Clean up the mapping
+            levelToStageId.delete(levelName);
+        } 
+        // Check if it belongs to the previous stage (recently completed)
+        else if (previousStage && mappedStageId === previousStage.id) {
+            console.log(`DEBUG: Adding level "${levelName}" to previous stage "${previousStage.name}" (late completion)`);
+            // Add to previous stage's levels array
+            previousStage.levels.push({
+                name: levelName,
+                durationMs: durationMs,
+                completedAt: Date.now()
+            });
+            console.log(`DEBUG: Previous stage "${previousStage.name}" now has ${previousStage.levels.length} levels`);
+            // Clean up the mapping
+            levelToStageId.delete(levelName);
+            // Send updated info to renderer
+            sendStageInfoToRenderer();
+        }
+        else {
+            console.log(`DEBUG: Skipping level "${levelName}" - belongs to unknown stage (ID: ${mappedStageId})`);
+            // Clean up stale mapping
+            levelToStageId.delete(levelName);
+        }
+    } else {
+        // NO FALLBACK - if a level has no mapping, it belongs to a previous stage and should be ignored
+        console.log(`DEBUG: No stage mapping found for level "${levelName}" - IGNORING (belongs to previous stage)`);
+    }
+}
+
+function sendStageInfoToRenderer() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    
+    const stageInfo = {
+        current: currentStage ? {
+            name: currentStage.name,
+            level: currentStageLevel,
+            levels: currentStage.levels,
+            startTime: currentStage.startTime
+        } : null,
+        previous: previousStage,
+        longestStages: longestStages,
+        shortestStages: shortestStages,
+        completedCount: completedStagesCount,
+        averageStageDuration: completedStagesCount > 0 ? totalStagesDurationMs / completedStagesCount : null,
+        trackingEnabled: stageTrackingEnabled
+    };
+    
+    mainWindow.webContents.send('update-stage-info', stageInfo);
 }
 
 function isFirstFinishBuildRunOnLevel() {
@@ -883,11 +1117,17 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
             updateShortestLevelDuration(shortestLevelDurationMs); // Update display
             updateLevelsFinishedCount(levelsFinishedCount); // Update display
             updateAverageLevelDuration(levelsFinishedCount > 0 ? totalLevelsDurationMs / levelsFinishedCount : null); // Update display
+            
+            // Add level to stage tracking (but only if it belongs to current stage)
+            addLevelToCurrentStageIfValid(finishedLevelName, duration);
         }
 
         // Always update the previous level duration display (for unnamed levels too)
         updatePreviousLevelDuration(duration);
         currentLevelStartTime = Date.now(); // Reset current level timer
+        
+        // Update stage info in UI
+        sendStageInfoToRenderer();
     },
     // New: Pass a getter function for the current level start time
     getCurrentLevelStartTime: () => currentLevelStartTime,
@@ -1155,6 +1395,8 @@ ipcMain.handle('scroll-new-down-test', async () => {
 // Global shortcuts
 app.whenReady().then(() => {
   createWindow();
+  
+  // Set up IPC handlers after app is ready
   
   // Live view is now disabled by default - user must manually start it
   mainWindow.webContents.on('did-finish-load', async () => {

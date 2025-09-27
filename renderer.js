@@ -856,6 +856,11 @@ ipcRenderer.on('update-current-level-name', (event, levelName) => {
     }
 });
 
+// New: IPC listener for stage information updates
+ipcRenderer.on('update-stage-info', (event, stageInfo) => {
+    updateStageDisplay(stageInfo);
+});
+
 // IPC listener for longest levels updates
 ipcRenderer.on('update-longest-levels', (event, longestLevels) => {
     const longestLevel1 = document.getElementById('longestLevel1');
@@ -890,6 +895,170 @@ ipcRenderer.on('click-around-stopped', () => {
 });
 
 // Initialize
+// Stage Display Management
+function updateStageDisplay(stageInfo) {
+    // Update current stage info in status bar
+    const currentStageName = document.getElementById('currentStageName');
+    const currentStageProgress = document.getElementById('currentStageProgress');
+    const completedStagesCount = document.getElementById('completedStagesCount');
+    const averageStageDuration = document.getElementById('averageStageDuration');
+    
+    if (stageInfo.current && stageInfo.trackingEnabled) {
+        if (currentStageName) {
+            currentStageName.textContent = stageInfo.current.name;
+        }
+        if (currentStageProgress) {
+            currentStageProgress.textContent = `Level ${stageInfo.current.level}/7`;
+        }
+    } else {
+        if (currentStageName) {
+            currentStageName.textContent = stageInfo.trackingEnabled ? 'No Stage' : 'Waiting...';
+        }
+        if (currentStageProgress) {
+            currentStageProgress.textContent = stageInfo.trackingEnabled ? '—' : 'Fresh start needed';
+        }
+    }
+    
+    // Update stage statistics
+    if (completedStagesCount) {
+        completedStagesCount.textContent = stageInfo.completedCount || '0';
+    }
+    
+    if (averageStageDuration) {
+        if (stageInfo.averageStageDuration) {
+            averageStageDuration.textContent = formatDuration(stageInfo.averageStageDuration);
+        } else {
+            averageStageDuration.textContent = 'N/A';
+        }
+    }
+    
+    // Update longest stages
+    updateLongestStages(stageInfo.longestStages || []);
+    
+    // Show/hide and update current stage details
+    updateCurrentStageDetails(stageInfo.current);
+    
+    // Show/hide and update previous stage
+    updatePreviousStageDetails(stageInfo.previous);
+}
+
+function updateLongestStages(longestStages) {
+    const longestStage1 = document.getElementById('longestStage1');
+    const longestStage2 = document.getElementById('longestStage2');
+    const longestStage3 = document.getElementById('longestStage3');
+    
+    const stageElements = [longestStage1, longestStage2, longestStage3];
+    
+    stageElements.forEach((element, index) => {
+        if (element) {
+            if (longestStages[index]) {
+                const stage = longestStages[index];
+                const duration = formatDuration(stage.durationMs);
+                element.textContent = `${stage.name}: ${duration}`;
+            } else {
+                element.textContent = '—';
+            }
+        }
+    });
+}
+
+function updateCurrentStageDetails(currentStage) {
+    const stageDetails = document.getElementById('stageDetails');
+    const stageDetailsTitle = document.getElementById('stageDetailsTitle');
+    const stageDuration = document.getElementById('stageDuration');
+    const stageLevels = document.getElementById('stageLevels');
+    
+    if (!currentStage) {
+        if (stageDetails) stageDetails.style.display = 'none';
+        return;
+    }
+    
+    if (stageDetails) stageDetails.style.display = 'block';
+    
+    if (stageDetailsTitle) {
+        stageDetailsTitle.textContent = `Current Stage: ${currentStage.name}`;
+    }
+    
+    if (stageDuration) {
+        const elapsed = Date.now() - currentStage.startTime;
+        stageDuration.textContent = formatDuration(elapsed);
+    }
+    
+    if (stageLevels) {
+        stageLevels.innerHTML = '';
+        
+        // Show completed levels
+        currentStage.levels.forEach((level, index) => {
+            const levelDiv = document.createElement('div');
+            levelDiv.className = 'stage-level-item stage-level-completed';
+            levelDiv.innerHTML = `
+                <span class="stage-level-name">${level.name}</span>
+                <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
+            `;
+            stageLevels.appendChild(levelDiv);
+        });
+        
+        // Show current level placeholder if not at 7 levels
+        if (currentStage.levels.length < 7) {
+            const currentLevelDiv = document.createElement('div');
+            currentLevelDiv.className = 'stage-level-item stage-level-current';
+            currentLevelDiv.innerHTML = `
+                <span class="stage-level-name">Current Level</span>
+                <span class="stage-level-time">In Progress...</span>
+            `;
+            stageLevels.appendChild(currentLevelDiv);
+        }
+        
+        // Show remaining empty slots
+        const remaining = 7 - currentStage.levels.length - (currentStage.levels.length < 7 ? 1 : 0);
+        for (let i = 0; i < remaining; i++) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'stage-level-item';
+            emptyDiv.innerHTML = `
+                <span class="stage-level-name">Level ${currentStage.levels.length + i + 2}</span>
+                <span class="stage-level-time">Pending</span>
+            `;
+            stageLevels.appendChild(emptyDiv);
+        }
+    }
+}
+
+function updatePreviousStageDetails(previousStage) {
+    const previousStageDiv = document.getElementById('previousStage');
+    const previousStageTitle = document.getElementById('previousStageTitle');
+    const previousStageDuration = document.getElementById('previousStageDuration');
+    const previousStageLevels = document.getElementById('previousStageLevels');
+    
+    if (!previousStage) {
+        if (previousStageDiv) previousStageDiv.style.display = 'none';
+        return;
+    }
+    
+    if (previousStageDiv) previousStageDiv.style.display = 'block';
+    
+    if (previousStageTitle) {
+        previousStageTitle.textContent = `Previous Stage: ${previousStage.name}`;
+    }
+    
+    if (previousStageDuration) {
+        previousStageDuration.textContent = formatDuration(previousStage.durationMs);
+    }
+    
+    if (previousStageLevels) {
+        previousStageLevels.innerHTML = '';
+        
+        previousStage.levels.forEach((level, index) => {
+            const levelDiv = document.createElement('div');
+            levelDiv.className = 'stage-level-item stage-level-completed';
+            levelDiv.innerHTML = `
+                <span class="stage-level-name">${level.name}</span>
+                <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
+            `;
+            previousStageLevels.appendChild(levelDiv);
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DEBUG: DOMContentLoaded event fired in renderer.js.');
     
@@ -899,14 +1068,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize overlay system
     initializeOverlay();
     
-    updateStatus('Initializing...', 'info');
+    // Status messages removed from top-right display
 
     // Fetch initial region settings (now from main process)
     try {
         console.log('DEBUG: Attempting to fetch initial region settings...');
         currentRegion = await ipcRenderer.invoke('get-capture-region');
         console.log('DEBUG: Initial region settings fetched:', currentRegion);
-        updateStatus('Region settings loaded', 'success');
+        // updateStatus('Region settings loaded', 'success'); // Removed - too verbose
     } catch (error) {
         console.error('ERROR: Error loading region settings:', error);
         updateStatus('Error loading region settings: ' + error.message, 'error');

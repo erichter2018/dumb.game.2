@@ -8,43 +8,99 @@
 </head>
 <body>
     <div class="container">
-        <!-- Status Bar -->
+        <!-- Enhanced Status Bar with Stage Tracking -->
         <div class="status-bar">
+            <!-- Current Level & Stage Info -->
             <div class="level-info">
                 <h2 id="currentLevelName">Unnamed Level</h2>
                 <div class="level-timer" id="currentLevelDuration">0m 0s</div>
                 <div class="current-status" id="currentFunction">Idle</div>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-row">
-                    <div class="stat-group">
-                        <span class="stat-value" id="levelsFinishedCount">0</span>
-                        <span class="stat-label">Completed</span>
-                    </div>
-                    <div class="stat-group">
-                        <span class="stat-value" id="averageLevelDuration">N/A</span>
-                        <span class="stat-label">Average</span>
-                    </div>
-                </div>
-                <div class="stat-row">
-                    <div class="stat-group">
-                        <span class="stat-value" id="shortestLevelDuration">N/A</span>
-                        <span class="stat-label">Best Time</span>
-                    </div>
-                    <div class="stat-group">
-                        <span class="stat-value" id="previousLevelDuration">N/A</span>
-                        <span class="stat-label">Previous</span>
-                    </div>
+                <div class="stage-info" id="currentStageInfo">
+                    <div class="stage-name" id="currentStageName">No Stage</div>
+                    <div class="stage-progress" id="currentStageProgress">—</div>
                 </div>
             </div>
+            
+            <!-- Level Statistics -->
+            <div class="stats-section">
+                <div class="stats-title">Level Stats</div>
+                <div class="stats-grid">
+                    <div class="stat-row">
+                        <div class="stat-group">
+                            <span class="stat-value" id="levelsFinishedCount">0</span>
+                            <span class="stat-label">Completed</span>
+                        </div>
+                        <div class="stat-group">
+                            <span class="stat-value" id="averageLevelDuration">N/A</span>
+                            <span class="stat-label">Average</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-group">
+                            <span class="stat-value" id="shortestLevelDuration">N/A</span>
+                            <span class="stat-label">Best Time</span>
+                        </div>
+                        <div class="stat-group">
+                            <span class="stat-value" id="previousLevelDuration">N/A</span>
+                            <span class="stat-label">Previous</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stage Statistics -->
+            <div class="stage-section">
+                <div class="stats-title">Stage Stats</div>
+                <div class="stage-stats">
+                    <div class="stat-group">
+                        <span class="stat-value" id="completedStagesCount">0</span>
+                        <span class="stat-label">Stages Done</span>
+                    </div>
+                    <div class="stat-group">
+                        <span class="stat-value" id="averageStageDuration">N/A</span>
+                        <span class="stat-label">Avg Stage</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Records & Previous Info -->
             <div class="system-status">
-                <div id="statusText">Ready</div>
-                <div class="longest-levels">
-                    <div class="longest-levels-title">Longest Levels</div>
-                    <div class="longest-level-item" id="longestLevel1">—</div>
-                    <div class="longest-level-item" id="longestLevel2">—</div>
-                    <div class="longest-level-item" id="longestLevel3">—</div>
+                <div class="records-grid">
+                    <div class="longest-levels">
+                        <div class="longest-levels-title">Longest Levels</div>
+                        <div class="longest-level-item" id="longestLevel1">—</div>
+                        <div class="longest-level-item" id="longestLevel2">—</div>
+                        <div class="longest-level-item" id="longestLevel3">—</div>
+                    </div>
+                    <div class="longest-stages">
+                        <div class="longest-levels-title">Longest Stages</div>
+                        <div class="longest-level-item" id="longestStage1">—</div>
+                        <div class="longest-level-item" id="longestStage2">—</div>
+                        <div class="longest-level-item" id="longestStage3">—</div>
+                    </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Current Stage Levels Detail -->
+        <div class="stage-details" id="stageDetails" style="display: none;">
+            <div class="stage-details-header">
+                <h3 id="stageDetailsTitle">Current Stage: Loading...</h3>
+                <div class="stage-timer" id="stageDuration">0m 0s</div>
+            </div>
+            <div class="stage-levels" id="stageLevels">
+                <!-- Current stage level details will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Previous Stage Summary -->
+        <div class="previous-stage" id="previousStage" style="display: none;">
+            <div class="previous-stage-header">
+                <h3 id="previousStageTitle">Previous Stage: None</h3>
+                <div class="previous-stage-time" id="previousStageDuration">—</div>
+            </div>
+            <div class="previous-stage-levels" id="previousStageLevels">
+                <!-- Previous stage level details will be populated here -->
             </div>
         </div>
 

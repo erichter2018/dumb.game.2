@@ -24,18 +24,19 @@ body {
     gap: 15px;
 }
 
-/* Top Status Bar */
+/* Enhanced Status Bar with Stage Tracking */
 .status-bar {
     display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    gap: 30px;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 25px;
     background: rgba(30, 35, 50, 0.95);
     padding: 20px 30px;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
-    align-items: center;
+    align-items: start;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    min-height: 120px;
 }
 
 .level-info {
@@ -60,6 +61,46 @@ body {
     font-size: 0.9em;
     color: #a8b2c4;
     font-weight: 500;
+}
+
+/* Stage Info Styles */
+.stage-info {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stage-name {
+    font-size: 0.95em;
+    color: #ffc107;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.stage-progress {
+    font-size: 0.8em;
+    color: #a8b2c4;
+    font-weight: 500;
+}
+
+/* Stats Section Styles */
+.stats-section, .stage-section {
+    text-align: center;
+}
+
+.stats-title {
+    font-size: 0.8em;
+    color: #a8b2c4;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.stage-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .stats-grid {
@@ -109,7 +150,14 @@ body {
     font-weight: 500;
 }
 
-.longest-levels {
+/* Records Grid */
+.records-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.longest-levels, .longest-stages {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -810,4 +858,75 @@ kbd {
         gap: 10px;
         text-align: center;
     }
+}
+
+/* Stage Details and Previous Stage Sections */
+.stage-details, .previous-stage {
+    background: rgba(30, 35, 50, 0.95);
+    padding: 20px 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 15px;
+}
+
+.stage-details-header, .previous-stage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stage-details-header h3, .previous-stage-header h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #ffc107;
+    font-weight: 600;
+}
+
+.stage-timer, .previous-stage-time {
+    font-size: 1.1em;
+    color: #007bff;
+    font-weight: 600;
+}
+
+.stage-levels, .previous-stage-levels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.stage-level-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stage-level-name {
+    font-size: 0.9em;
+    color: #e0e6ed;
+    font-weight: 500;
+}
+
+.stage-level-time {
+    font-size: 0.85em;
+    color: #a8b2c4;
+    font-weight: 500;
+}
+
+.stage-level-current {
+    border-color: #ffc107;
+    background: rgba(255, 193, 7, 0.1);
+}
+
+.stage-level-completed {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
 }
