@@ -19,6 +19,8 @@ const scrollingFunctions = require('./src/automation/scrolling');
 const clickAroundFunctions = require('./src/automation/clickAround');
 const ocrUtils = require('./utils/ocr');
 const statistics = require('./statistics');
+const historicalStats = require('./historicalStats');
+const levelDatabase = require('./levelDatabase');
 
 let mainWindow;
 let isCapturing = false;
@@ -125,12 +127,20 @@ function updateCurrentLevelName(levelName) {
         currentLevelName = originalLevelName;
         console.log(`DEBUG: Temporary level name: "${currentLevelName}" - skipping stage processing`);
         
-        // Still send to renderer for UI update
+        // Still send to renderer for UI update, but use the finished level's average if available
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('update-current-level-name', currentLevelName);
+            // For temporary states, show the average of the last completed level instead of the temporary name
+            const levelForAverage = finishedLevelName && finishedLevelName !== 'Unknown Level' && finishedLevelName !== '' 
+                ? finishedLevelName 
+                : currentLevelName;
+            const levelAverage = historicalStats.getLevelAverage(levelForAverage);
+            console.log(`DEBUG: Sending level average for "${levelForAverage}" (current: "${currentLevelName}", finished: "${finishedLevelName}")`);
+            mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage);
         }
         return;
     }
+    
+    // Don't auto-store level names here - let the exit process handle it
     
     // Check if this level starts a new stage
     if (statistics.isStageStart(originalLevelName)) {
@@ -145,9 +155,16 @@ function updateCurrentLevelName(levelName) {
         // Start new stage
         startNewStage(stageCityName);
         
-        // Rename the first level of the stage to "Level 1"
-        currentLevelName = 'Level 1';
-        console.log(`DEBUG: Stage start level renamed from "${originalLevelName}" to "Level 1"`);
+        // Get the proper first level name from the database
+        const stageInfo = levelDatabase.getStageByCity(stageCityName);
+        if (stageInfo && stageInfo.levels[0] && stageInfo.levels[0].originalName) {
+            currentLevelName = stageInfo.levels[0].originalName;
+            console.log(`DEBUG: Stage start level renamed from "${originalLevelName}" to "${currentLevelName}" (proper first level name)`);
+        } else {
+            // Fallback to "Level 1" if database lookup fails
+            currentLevelName = 'Level 1';
+            console.log(`DEBUG: Stage start level renamed from "${originalLevelName}" to "Level 1" (database lookup failed)`);
+        }
     } else {
         // Regular level - keep original name and increment counter for new levels
         currentLevelName = originalLevelName;
@@ -158,9 +175,15 @@ function updateCurrentLevelName(levelName) {
             // Check if this is a new level we haven't seen before
             const isNewLevel = !currentStage.levels.some(level => level.name === currentLevelName);
             
+            console.log(`DEBUG: Level "${currentLevelName}" - isNewLevel: ${isNewLevel}, currentStageLevel: ${currentStageLevel}, levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
+            
             if (isNewLevel && currentStageLevel < 7) {
                 currentStageLevel++;
-                console.log(`DEBUG: Stage level incremented to ${currentStageLevel}/7 for level: "${currentLevelName}"`);
+                console.log(`DEBUG: Stage level incremented to ${currentStageLevel}/7 for new level: "${currentLevelName}"`);
+            } else if (!isNewLevel) {
+                console.log(`DEBUG: Level "${currentLevelName}" already exists in stage, not incrementing`);
+            } else if (currentStageLevel >= 7) {
+                console.log(`DEBUG: Stage already at max level (${currentStageLevel}), not incrementing`);
             }
         }
     }
@@ -176,7 +199,8 @@ function updateCurrentLevelName(levelName) {
     
     // Send to renderer for UI update
     if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-current-level-name', currentLevelName);
+        const levelAverage = historicalStats.getLevelAverage(currentLevelName);
+        mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage);
         // Also send stage info for enhanced UI
         sendStageInfoToRenderer();
     }
@@ -236,6 +260,9 @@ function completeCurrentStage() {
         levelCount: currentStage.levels.length
     };
     
+    // Record stage completion in historical stats
+    historicalStats.recordStageCompletion(completedStage.name, stageDurationMs);
+    
     // Update statistics
     previousStage = completedStage;
     completedStagesCount++;
@@ -273,6 +300,11 @@ function addLevelToCurrentStage(levelName, durationMs) {
         return;
     }
     
+    // Record level completion in historical stats
+    if (levelName && levelName !== 'Unknown Level' && levelName !== 'Unnamed Level') {
+        historicalStats.recordLevelCompletion(levelName, durationMs);
+    }
+    
     const levelInfo = {
         name: levelName,
         durationMs: durationMs,
@@ -280,6 +312,8 @@ function addLevelToCurrentStage(levelName, durationMs) {
     };
     
     currentStage.levels.push(levelInfo);
+    
+    // Note: currentStageLevel is incremented when new levels start, not when they complete
     
     console.log(`DEBUG: Added level to stage "${currentStage.name}": "${levelName}" (${durationMs}ms) - Stage progress: ${currentStage.levels.length}/7`);
     console.log(`DEBUG: Current stage levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
@@ -306,10 +340,18 @@ function addLevelToCurrentStageIfValid(levelName, durationMs) {
             addLevelToCurrentStage(levelName, durationMs);
             // Clean up the mapping
             levelToStageId.delete(levelName);
+            // Send updated info to renderer
+            sendStageInfoToRenderer();
         } 
         // Check if it belongs to the previous stage (recently completed)
         else if (previousStage && mappedStageId === previousStage.id) {
             console.log(`DEBUG: Adding level "${levelName}" to previous stage "${previousStage.name}" (late completion)`);
+            
+            // Record level completion in historical stats
+            if (levelName && levelName !== 'Unknown Level' && levelName !== 'Unnamed Level') {
+                historicalStats.recordLevelCompletion(levelName, durationMs);
+            }
+            
             // Add to previous stage's levels array
             previousStage.levels.push({
                 name: levelName,
@@ -333,6 +375,8 @@ function addLevelToCurrentStageIfValid(levelName, durationMs) {
     }
 }
 
+let lastStageInfoSent = null;
+
 function sendStageInfoToRenderer() {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     
@@ -341,15 +385,35 @@ function sendStageInfoToRenderer() {
             name: currentStage.name,
             level: currentStageLevel,
             levels: currentStage.levels,
-            startTime: currentStage.startTime
+            startTime: currentStage.startTime,
+            historicalAverage: historicalStats.getStageAverage(currentStage.name)
         } : null,
-        previous: previousStage,
+        previous: previousStage ? {
+            ...previousStage,
+            historicalAverage: historicalStats.getStageAverage(previousStage.name)
+        } : null,
         longestStages: longestStages,
         shortestStages: shortestStages,
         completedCount: completedStagesCount,
         averageStageDuration: completedStagesCount > 0 ? totalStagesDurationMs / completedStagesCount : null,
         trackingEnabled: stageTrackingEnabled
     };
+    
+    // Check if this is a duplicate of the last sent stage info
+    const stageInfoString = JSON.stringify(stageInfo);
+    if (lastStageInfoSent === stageInfoString) {
+        console.log(`DEBUG: Skipping duplicate stage info send`);
+        return;
+    }
+    lastStageInfoSent = stageInfoString;
+    
+    // Debug logging for stage level counts
+    if (currentStage) {
+        console.log(`DEBUG: Sending stage info - Current stage "${currentStage.name}" has ${currentStage.levels.length} levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
+    }
+    if (previousStage) {
+        console.log(`DEBUG: Sending stage info - Previous stage "${previousStage.name}" has ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
+    }
     
     mainWindow.webContents.send('update-stage-info', stageInfo);
 }
@@ -720,7 +784,9 @@ async function autoDetectIPhoneMirroring() {
   }
 }
 
-// IPC handlers
+// IPC handlers will be setup when app is ready
+
+function setupIpcHandlers() {
 ipcMain.handle('auto-detect-iphone-mirroring', async () => {
   try {
     const windowInfo = await autoDetectIPhoneMirroring();
@@ -766,6 +832,15 @@ ipcMain.handle('set-capture-region', async (event, region) => {
 
 ipcMain.handle('get-capture-region', async () => {
   return iphoneMirroringRegion;
+});
+
+// Statistics data handlers
+ipcMain.handle('get-historical-stats', async () => {
+  return historicalStats.loadStats();
+});
+
+ipcMain.handle('get-level-database', async () => {
+  return levelDatabase.LEVEL_DATABASE;
 });
 
 ipcMain.handle('capture-iphone-mirroring', async () => {
@@ -973,6 +1048,18 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
 
   isFinishLevelRunning = isRunning;
   if (isRunning) {
+    // Reset stage information as if app was started fresh
+    console.log('DEBUG: Resetting stage information for fresh start');
+    currentStage = null;
+    previousStage = null;
+    stageTrackingEnabled = false;
+    currentStageLevel = 0;
+    levelToStageId.clear();
+    longestStages = [];
+    shortestStages = [];
+    completedStagesCount = 0;
+    totalStagesDurationMs = 0;
+    
     // Clear level name and overlays at start of finish level automation
     updateCurrentLevelName(''); // Set to empty string for unnamed level
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1102,6 +1189,10 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
             levelsFinishedCount++; // Increment count of finished levels
             totalLevelsDurationMs += duration; // Add to total duration
 
+            // Record level completion in historical stats (fallback if not recorded through stage tracking)
+            historicalStats.recordLevelCompletion(finishedLevelName, duration);
+            console.log(`DEBUG: Recorded level completion: "${finishedLevelName}" (${duration}ms)`);
+
             // Update longest levels tracking with finished level name
             updateLongestLevels(duration, finishedLevelName);
 
@@ -1126,8 +1217,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
         updatePreviousLevelDuration(duration);
         currentLevelStartTime = Date.now(); // Reset current level timer
         
-        // Update stage info in UI
-        sendStageInfoToRenderer();
+        // Note: sendStageInfoToRenderer() is already called by updateCurrentLevelName() above
     },
     // New: Pass a getter function for the current level start time
     getCurrentLevelStartTime: () => currentLevelStartTime,
@@ -1391,12 +1481,14 @@ ipcMain.handle('scroll-new-down-test', async () => {
     iphoneMirroringRegion: iphoneMirroringRegion
   });
 });
+}
 
 // Global shortcuts
 app.whenReady().then(() => {
   createWindow();
   
   // Set up IPC handlers after app is ready
+  setupIpcHandlers();
   
   // Live view is now disabled by default - user must manually start it
   mainWindow.webContents.on('did-finish-load', async () => {
@@ -1423,23 +1515,24 @@ app.whenReady().then(() => {
       mainWindow.webContents.send('shortcut-stop'); // Not directly stopping here, but can signal renderer
     }
   });
-});
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+  // App event handlers
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
 
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
-  if (captureInterval) {
-    clearInterval(captureInterval);
-  }
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+    if (captureInterval) {
+      clearInterval(captureInterval);
+    }
+  });
 });

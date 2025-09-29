@@ -19,8 +19,7 @@ const finishBuildStatus = document.getElementById('finishBuildStatus');
 const finishBuildStatusList = document.getElementById('finishBuildStatusList');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
-const clickAroundTrueBtn = document.getElementById('clickAroundTrueBtn');
-const clickAroundFalseBtn = document.getElementById('clickAroundFalseBtn');
+const allStatisticsBtn = document.getElementById('allStatisticsBtn');
 
 // New DOM Elements for Function Display
 const currentFunctionDisplay = document.getElementById('currentFunction');
@@ -210,42 +209,9 @@ stopBtn.addEventListener('click', async () => {
     }
 });
 
-// Click Around True event listener
-clickAroundTrueBtn.addEventListener('click', async () => {
-    isClickAroundRunning = !isClickAroundRunning;
-    if (isClickAroundRunning) {
-        clickAroundTrueBtn.textContent = 'Stop Click Around True';
-        clickAroundTrueBtn.classList.remove('btn-secondary');
-        clickAroundTrueBtn.classList.add('btn-danger');
-        updateStatus('Starting Click Around automation (exclude red blobs)...', 'info');
-        // Activate iPhone Mirroring for testing
-        await ipcRenderer.invoke('activate-iphone-mirroring');
-    } else {
-        clickAroundTrueBtn.textContent = 'Click Around True';
-        clickAroundTrueBtn.classList.remove('btn-danger');
-        clickAroundTrueBtn.classList.add('btn-secondary');
-        updateStatus('Stopping Click Around automation...', 'info');
-    }
-    await ipcRenderer.invoke('toggle-click-around', isClickAroundRunning, true);
-});
-
-// Click Around False event listener
-clickAroundFalseBtn.addEventListener('click', async () => {
-    isClickAroundRunning = !isClickAroundRunning;
-    if (isClickAroundRunning) {
-        clickAroundFalseBtn.textContent = 'Stop Click Around False';
-        clickAroundFalseBtn.classList.remove('btn-secondary');
-        clickAroundFalseBtn.classList.add('btn-danger');
-        updateStatus('Starting Click Around automation (include red blobs)...', 'info');
-        // Activate iPhone Mirroring for testing
-        await ipcRenderer.invoke('activate-iphone-mirroring');
-    } else {
-        clickAroundFalseBtn.textContent = 'Click Around False';
-        clickAroundFalseBtn.classList.remove('btn-danger');
-        clickAroundFalseBtn.classList.add('btn-secondary');
-        updateStatus('Stopping Click Around automation...', 'info');
-    }
-    await ipcRenderer.invoke('toggle-click-around', isClickAroundRunning, false);
+// All Statistics button event listener
+allStatisticsBtn.addEventListener('click', async () => {
+    await openStatisticsModal();
 });
 
 // Scroll button event listeners removed - scroll controls are now handled internally by automation
@@ -850,15 +816,23 @@ ipcRenderer.on('update-average-level-duration', (event, durationText) => {
 });
 
 // New: IPC listener for current level name updates
-ipcRenderer.on('update-current-level-name', (event, levelName) => {
+ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs) => {
     if (currentLevelNameDisplay) {
-        currentLevelNameDisplay.textContent = levelName || 'Unnamed Level';
+        const name = levelName || 'Unnamed Level';
+        
+        if (levelAverageMs) {
+            // Format the average duration
+            const avgText = formatDuration(levelAverageMs);
+            currentLevelNameDisplay.innerHTML = `${name}<br><span style="font-size: 0.8em; color: #888;">avg: ${avgText}</span>`;
+        } else {
+            currentLevelNameDisplay.textContent = name;
+        }
     }
 });
 
 // New: IPC listener for stage information updates
-ipcRenderer.on('update-stage-info', (event, stageInfo) => {
-    updateStageDisplay(stageInfo);
+ipcRenderer.on('update-stage-info', async (event, stageInfo) => {
+    await updateStageDisplay(stageInfo);
 });
 
 // IPC listener for longest levels updates
@@ -896,7 +870,7 @@ ipcRenderer.on('click-around-stopped', () => {
 
 // Initialize
 // Stage Display Management
-function updateStageDisplay(stageInfo) {
+async function updateStageDisplay(stageInfo) {
     // Update current stage info in status bar
     const currentStageName = document.getElementById('currentStageName');
     const currentStageProgress = document.getElementById('currentStageProgress');
@@ -905,7 +879,9 @@ function updateStageDisplay(stageInfo) {
     
     if (stageInfo.current && stageInfo.trackingEnabled) {
         if (currentStageName) {
-            currentStageName.textContent = stageInfo.current.name;
+            const historicalAvg = stageInfo.current.historicalAverage;
+            const avgText = historicalAvg ? ` (avg: ${formatDuration(historicalAvg)})` : '';
+            currentStageName.textContent = stageInfo.current.name + avgText;
         }
         if (currentStageProgress) {
             currentStageProgress.textContent = `Level ${stageInfo.current.level}/7`;
@@ -936,7 +912,7 @@ function updateStageDisplay(stageInfo) {
     updateLongestStages(stageInfo.longestStages || []);
     
     // Show/hide and update current stage details
-    updateCurrentStageDetails(stageInfo.current);
+    await updateCurrentStageDetails(stageInfo.current);
     
     // Show/hide and update previous stage
     updatePreviousStageDetails(stageInfo.previous);
@@ -962,7 +938,12 @@ function updateLongestStages(longestStages) {
     });
 }
 
-function updateCurrentStageDetails(currentStage) {
+let updateStageCallCounter = 0;
+
+async function updateCurrentStageDetails(currentStage) {
+    updateStageCallCounter++;
+    console.log(`DEBUG: updateCurrentStageDetails called #${updateStageCallCounter}`);
+    
     const stageDetails = document.getElementById('stageDetails');
     const stageDetailsTitle = document.getElementById('stageDetailsTitle');
     const stageDuration = document.getElementById('stageDuration');
@@ -972,6 +953,10 @@ function updateCurrentStageDetails(currentStage) {
         if (stageDetails) stageDetails.style.display = 'none';
         return;
     }
+    
+    // Debug logging for renderer
+    console.log(`DEBUG: Renderer updating stage "${currentStage.name}" with ${currentStage.levels.length} levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
+    console.log(`DEBUG: Will show ${currentStage.levels.length} completed + ${currentStage.levels.length < 7 ? 1 : 0} current + ${7 - currentStage.levels.length - (currentStage.levels.length < 7 ? 1 : 0)} upcoming = ${7} total levels`);
     
     if (stageDetails) stageDetails.style.display = 'block';
     
@@ -985,41 +970,71 @@ function updateCurrentStageDetails(currentStage) {
     }
     
     if (stageLevels) {
+        console.log(`DEBUG: Clearing stage levels container (was: ${stageLevels.children.length} children)`);
         stageLevels.innerHTML = '';
+        let levelItemsAdded = 0;
         
-        // Show completed levels
-        currentStage.levels.forEach((level, index) => {
+        // Get the level database to show actual level names
+        let stageLevelNames = [];
+        try {
+            const levelDatabase = await ipcRenderer.invoke('get-level-database');
+            console.log(`DEBUG: Looking up stage "${currentStage.name}" in level database`);
+            const stageInfo = levelDatabase[currentStage.name];
+            if (stageInfo && stageInfo.levels) {
+                stageLevelNames = stageInfo.levels.map(level => level.name);
+                console.log(`DEBUG: Found ${stageLevelNames.length} levels for "${currentStage.name}": [${stageLevelNames.join(', ')}]`);
+            } else {
+                console.log(`DEBUG: No stage info found for "${currentStage.name}" in database. Available stages: [${Object.keys(levelDatabase).slice(0, 5).join(', ')}...]`);
+            }
+        } catch (error) {
+            console.error('Failed to load level database:', error);
+        }
+        
+        // Show all 7 level positions, inserting current level placeholder at the correct position
+        const currentLevelPosition = currentStage.level - 1; // Convert to 0-based position
+        console.log(`DEBUG: Current stage level: ${currentStage.level}, position: ${currentLevelPosition}, completed levels: ${currentStage.levels.length}`);
+        console.log(`DEBUG: Completed levels: [${currentStage.levels.map(l => `${l.name}(${formatDuration(l.durationMs)})`).join(', ')}]`);
+        
+        for (let position = 0; position < 7; position++) {
             const levelDiv = document.createElement('div');
-            levelDiv.className = 'stage-level-item stage-level-completed';
-            levelDiv.innerHTML = `
-                <span class="stage-level-name">${level.name}</span>
-                <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
-            `;
+            
+            // Check if there's a completed level at this position (levels are stored in order)
+            if (position < currentStage.levels.length) {
+                // Show completed level
+                const level = currentStage.levels[position];
+                levelDiv.className = 'stage-level-item stage-level-completed';
+                levelDiv.innerHTML = `
+                    <span class="stage-level-name">${level.name}</span>
+                    <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
+                `;
+                levelItemsAdded++;
+                console.log(`DEBUG: Added completed level #${levelItemsAdded} at position ${position}: ${level.name} (${formatDuration(level.durationMs)})`);
+            } else if (position === currentLevelPosition) {
+                // Show current level placeholder at the correct position
+                levelDiv.className = 'stage-level-item stage-level-current';
+                levelDiv.innerHTML = `
+                    <span class="stage-level-name">Current Level</span>
+                    <span class="stage-level-time">In Progress...</span>
+                `;
+                levelItemsAdded++;
+                console.log(`DEBUG: Added current level placeholder #${levelItemsAdded} at position ${position} (level ${currentStage.level})`);
+            } else {
+                // Show upcoming level
+                const levelIndex = position;
+                const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+                levelDiv.className = 'stage-level-item';
+                levelDiv.innerHTML = `
+                    <span class="stage-level-name">${levelName}</span>
+                    <span class="stage-level-time">Pending</span>
+                `;
+                levelItemsAdded++;
+                console.log(`DEBUG: Added upcoming level #${levelItemsAdded} at position ${position}: ${levelName}`);
+            }
+            
             stageLevels.appendChild(levelDiv);
-        });
-        
-        // Show current level placeholder if not at 7 levels
-        if (currentStage.levels.length < 7) {
-            const currentLevelDiv = document.createElement('div');
-            currentLevelDiv.className = 'stage-level-item stage-level-current';
-            currentLevelDiv.innerHTML = `
-                <span class="stage-level-name">Current Level</span>
-                <span class="stage-level-time">In Progress...</span>
-            `;
-            stageLevels.appendChild(currentLevelDiv);
         }
         
-        // Show remaining empty slots
-        const remaining = 7 - currentStage.levels.length - (currentStage.levels.length < 7 ? 1 : 0);
-        for (let i = 0; i < remaining; i++) {
-            const emptyDiv = document.createElement('div');
-            emptyDiv.className = 'stage-level-item';
-            emptyDiv.innerHTML = `
-                <span class="stage-level-name">Level ${currentStage.levels.length + i + 2}</span>
-                <span class="stage-level-time">Pending</span>
-            `;
-            stageLevels.appendChild(emptyDiv);
-        }
+        console.log(`DEBUG: Total level items added: ${levelItemsAdded}, Final DOM children count: ${stageLevels.children.length}`);
     }
 }
 
@@ -1037,7 +1052,9 @@ function updatePreviousStageDetails(previousStage) {
     if (previousStageDiv) previousStageDiv.style.display = 'block';
     
     if (previousStageTitle) {
-        previousStageTitle.textContent = `Previous Stage: ${previousStage.name}`;
+        const historicalAvg = previousStage.historicalAverage;
+        const avgText = historicalAvg ? ` (avg: ${formatDuration(historicalAvg)})` : '';
+        previousStageTitle.textContent = `Previous Stage: ${previousStage.name}${avgText}`;
     }
     
     if (previousStageDuration) {
@@ -1057,6 +1074,429 @@ function updatePreviousStageDetails(previousStage) {
             previousStageLevels.appendChild(levelDiv);
         });
     }
+}
+
+// Statistics Modal Functions
+let statisticsData = {
+    stages: {},
+    levels: {}
+};
+
+// Sorting state for bidirectional sorting
+let sortingState = {
+    stages: { column: 'number', direction: 'asc' },
+    levels: { column: 'name', direction: 'asc' }
+};
+
+async function openStatisticsModal() {
+    // Load statistics data
+    await loadStatisticsData();
+    
+    // Show modal
+    const modal = document.getElementById('statisticsModal');
+    modal.style.display = 'flex';
+    
+    // Setup event listeners
+    setupStatisticsModalListeners();
+    
+    // Populate initial data
+    populateStagesView();
+    populateLevelsView();
+}
+
+async function loadStatisticsData() {
+    try {
+        const stats = await ipcRenderer.invoke('get-historical-stats');
+        const levelDb = await ipcRenderer.invoke('get-level-database');
+        
+        statisticsData.stages = stats.stages || {};
+        statisticsData.levels = stats.levels || {};
+        statisticsData.levelDatabase = levelDb;
+        
+        console.log('Loaded statistics data:', statisticsData);
+    } catch (error) {
+        console.error('Error loading statistics data:', error);
+        statisticsData = { stages: {}, levels: {} };
+    }
+}
+
+function setupStatisticsModalListeners() {
+    const modal = document.getElementById('statisticsModal');
+    const closeBtn = document.getElementById('closeStatisticsBtn');
+    const stagesTab = document.getElementById('stagesTab');
+    const levelsTab = document.getElementById('levelsTab');
+    const stageSort = document.getElementById('stageSort');
+    const levelSort = document.getElementById('levelSort');
+    const ignoreExtremes = document.getElementById('ignoreExtremes');
+    const ignoreExtremesLevels = document.getElementById('ignoreExtremesLevels');
+    
+    // Close modal
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    };
+    
+    // Tab switching
+    stagesTab.onclick = () => switchToTab('stages');
+    levelsTab.onclick = () => switchToTab('levels');
+    
+    // Sort changes
+    stageSort.onchange = () => populateStagesView();
+    levelSort.onchange = () => populateLevelsView();
+    ignoreExtremes.onchange = () => populateStagesView();
+    ignoreExtremesLevels.onchange = () => populateLevelsView();
+    
+    // Table header click sorting
+    setupTableSorting();
+}
+
+function setupTableSorting() {
+    console.log('DEBUG: setupTableSorting called');
+    // Setup stages table sorting
+    const stagesTable = document.getElementById('stagesTable');
+    if (stagesTable) {
+        console.log('DEBUG: Found stages table, setting up sorting');
+        const stageHeaders = stagesTable.querySelectorAll('th.sortable');
+        stageHeaders.forEach(header => {
+            header.onclick = () => {
+                const sortBy = header.getAttribute('data-sort');
+                console.log(`DEBUG: Stages table header clicked - sortBy: ${sortBy}`);
+                
+                // Toggle direction if same column, otherwise reset to ascending
+                if (sortingState.stages.column === sortBy) {
+                    sortingState.stages.direction = sortingState.stages.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortingState.stages.column = sortBy;
+                    sortingState.stages.direction = 'asc';
+                }
+                
+                console.log(`DEBUG: Stages sorting state - column: ${sortingState.stages.column}, direction: ${sortingState.stages.direction}`);
+                
+                // Update visual indicators
+                updateSortIndicators('stages', sortBy, sortingState.stages.direction);
+                
+                // Update dropdown and repopulate
+                document.getElementById('stageSort').value = sortBy;
+                populateStagesView();
+            };
+        });
+    }
+    
+    // Setup levels table sorting
+    const levelsTable = document.getElementById('levelsTable');
+    if (levelsTable) {
+        console.log('DEBUG: Found levels table, setting up sorting');
+        const levelHeaders = levelsTable.querySelectorAll('th.sortable');
+        levelHeaders.forEach(header => {
+            header.onclick = () => {
+                const sortBy = header.getAttribute('data-sort');
+                
+                // Toggle direction if same column, otherwise reset to ascending
+                if (sortingState.levels.column === sortBy) {
+                    sortingState.levels.direction = sortingState.levels.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortingState.levels.column = sortBy;
+                    sortingState.levels.direction = 'asc';
+                }
+                
+                // Update visual indicators
+                updateSortIndicators('levels', sortBy, sortingState.levels.direction);
+                
+                // Update dropdown and repopulate
+                document.getElementById('levelSort').value = sortBy;
+                populateLevelsView();
+            };
+        });
+    }
+}
+
+function updateSortIndicators(table, activeColumn, direction) {
+    const tableElement = document.getElementById(table === 'stages' ? 'stagesTable' : 'levelsTable');
+    if (!tableElement) return;
+    
+    // Remove all existing sort indicators
+    const headers = tableElement.querySelectorAll('th.sortable');
+    headers.forEach(header => {
+        header.classList.remove('sort-asc', 'sort-desc');
+        const indicator = header.querySelector('.sort-indicator');
+        if (indicator) indicator.remove();
+    });
+    
+    // Add indicator to active column
+    const activeHeader = tableElement.querySelector(`th[data-sort="${activeColumn}"]`);
+    if (activeHeader) {
+        activeHeader.classList.add(`sort-${direction}`);
+        const indicator = document.createElement('span');
+        indicator.className = 'sort-indicator';
+        indicator.textContent = direction === 'asc' ? ' ↑' : ' ↓';
+        activeHeader.appendChild(indicator);
+    }
+}
+
+function calculateTrend(completions) {
+    if (!completions || completions.length < 2) {
+        return { direction: 'neutral', text: '—' };
+    }
+    
+    // Calculate trend by comparing first half vs second half
+    const midPoint = Math.floor(completions.length / 2);
+    const firstHalf = completions.slice(0, midPoint);
+    const secondHalf = completions.slice(midPoint);
+    
+    const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+    
+    const percentChange = ((secondAvg - firstAvg) / firstAvg) * 100;
+    
+    if (Math.abs(percentChange) < 5) {
+        return { direction: 'neutral', text: '→' };
+    } else if (percentChange > 0) {
+        return { direction: 'up', text: '↗' };
+    } else {
+        return { direction: 'down', text: '↘' };
+    }
+}
+
+function switchToTab(tab) {
+    const stagesTab = document.getElementById('stagesTab');
+    const levelsTab = document.getElementById('levelsTab');
+    const stagesView = document.getElementById('stagesView');
+    const levelsView = document.getElementById('levelsView');
+    
+    if (tab === 'stages') {
+        stagesTab.classList.add('active');
+        levelsTab.classList.remove('active');
+        stagesView.classList.add('active');
+        levelsView.classList.remove('active');
+    } else {
+        levelsTab.classList.add('active');
+        stagesTab.classList.remove('active');
+        levelsView.classList.add('active');
+        stagesView.classList.remove('active');
+    }
+}
+
+function populateStagesView() {
+    const tbody = document.getElementById('stagesTableBody');
+    const sortBy = document.getElementById('stageSort').value;
+    const ignoreExtremes = document.getElementById('ignoreExtremes').checked;
+    
+    // Get all 60 stages from database
+    const allStages = [];
+    if (statisticsData.levelDatabase) {
+        Object.entries(statisticsData.levelDatabase).forEach(([stageName, stageInfo]) => {
+            // Try multiple ways to find stage stats (case insensitive, exact match, etc.)
+            let stageStats = statisticsData.stages[stageName] || 
+                           statisticsData.stages[stageName.toLowerCase()] ||
+                           statisticsData.stages[stageName.replace(/\s+/g, ' ').trim()] ||
+                           {};
+            
+            console.log(`Looking for stage "${stageName}" in stats:`, Object.keys(statisticsData.stages));
+            console.log(`Found stats for "${stageName}":`, stageStats);
+            
+            const completions = stageStats.completions || [];
+            const filteredCompletions = ignoreExtremes ? filterExtremes(completions) : completions;
+            
+            allStages.push({
+                name: stageName,
+                number: stageInfo.stageNumber,
+                completions: completions.length,
+                average: filteredCompletions.length > 0 ? Math.round(filteredCompletions.reduce((a, b) => a + b, 0) / filteredCompletions.length) : 0,
+                min: filteredCompletions.length > 0 ? Math.min(...filteredCompletions) : 0,
+                max: filteredCompletions.length > 0 ? Math.max(...filteredCompletions) : 0,
+                trend: calculateTrend(completions)
+            });
+        });
+    }
+    
+    // Sort stages
+    allStages.sort((a, b) => {
+        let result = 0;
+        const currentSort = sortingState.stages.column;
+        
+        switch (currentSort) {
+            case 'name': 
+                result = a.name.localeCompare(b.name);
+                break;
+            case 'number': 
+                result = a.number - b.number;
+                break;
+            case 'average': 
+            case 'min':
+            case 'max':
+                // Handle time-based sorting (0 values go to end)
+                const aVal = a[currentSort] || 0;
+                const bVal = b[currentSort] || 0;
+                if (aVal === 0 && bVal === 0) result = 0;
+                else if (aVal === 0) result = 1;
+                else if (bVal === 0) result = -1;
+                else result = aVal - bVal;
+                break;
+            case 'count': 
+                result = a.completions - b.completions;
+                break;
+            case 'trend':
+                // Sort by trend direction: down < neutral < up
+                const trendOrder = { 'down': 0, 'neutral': 1, 'up': 2 };
+                console.log(`DEBUG: Sorting stages trend - a: ${a.trend.direction}, b: ${b.trend.direction}`);
+                result = trendOrder[a.trend.direction] - trendOrder[b.trend.direction];
+                break;
+            default: 
+                result = a.number - b.number;
+        }
+        
+        // Apply direction
+        return sortingState.stages.direction === 'desc' ? -result : result;
+    });
+    
+    // Populate table
+    tbody.innerHTML = allStages.map(stage => `
+        <tr>
+            <td>${stage.name}</td>
+            <td>${stage.number}</td>
+            <td>${stage.completions || '<span class="no-data">0</span>'}</td>
+            <td>${stage.average ? formatDuration(stage.average) : '<span class="no-data">—</span>'}</td>
+            <td>${stage.min ? formatDuration(stage.min) : '<span class="no-data">—</span>'}</td>
+            <td>${stage.max ? formatDuration(stage.max) : '<span class="no-data">—</span>'}</td>
+            <td class="trend-${stage.trend.direction}">${stage.trend.text}</td>
+        </tr>
+    `).join('');
+    
+    // Re-setup table sorting after populating
+    setupTableSorting();
+    
+    // Update sort indicators
+    updateSortIndicators('stages', sortingState.stages.column, sortingState.stages.direction);
+}
+
+function populateLevelsView() {
+    const tbody = document.getElementById('levelsTableBody');
+    const sortBy = document.getElementById('levelSort').value;
+    const ignoreExtremes = document.getElementById('ignoreExtremesLevels').checked;
+    
+    // Get all levels from statistics
+    const allLevels = [];
+    Object.entries(statisticsData.levels).forEach(([levelName, levelStats]) => {
+        const completions = levelStats.completions || [];
+        const filteredCompletions = ignoreExtremes ? filterExtremes(completions) : completions;
+        
+        // Find positions where this level appears
+        const positions = [];
+        if (statisticsData.levelDatabase) {
+            Object.values(statisticsData.levelDatabase).forEach(stage => {
+                stage.levels.forEach((level, index) => {
+                    const actualLevelName = level.originalName || level.name;
+                    if (actualLevelName === levelName) {
+                        positions.push(index + 1); // Convert 0-based to 1-based
+                    }
+                });
+            });
+        }
+        
+        // Remove duplicates and sort
+        const uniquePositions = [...new Set(positions)].sort((a, b) => a - b);
+        const positionsText = uniquePositions.length > 0 ? uniquePositions.join(',') : '—';
+        
+        allLevels.push({
+            name: levelName,
+            positions: uniquePositions,
+            positionsText: positionsText,
+            completions: completions.length,
+            average: filteredCompletions.length > 0 ? Math.round(filteredCompletions.reduce((a, b) => a + b, 0) / filteredCompletions.length) : 0,
+            min: filteredCompletions.length > 0 ? Math.min(...filteredCompletions) : 0,
+            max: filteredCompletions.length > 0 ? Math.max(...filteredCompletions) : 0,
+            trend: calculateTrend(completions)
+        });
+    });
+    
+    // Sort levels
+    allLevels.sort((a, b) => {
+        let result = 0;
+        const currentSort = sortingState.levels.column;
+        
+        switch (currentSort) {
+            case 'name': 
+                result = a.name.localeCompare(b.name);
+                break;
+            case 'positions': 
+                // Sort by first position, handle empty positions
+                const aPos = a.positions.length > 0 ? a.positions[0] : 999;
+                const bPos = b.positions.length > 0 ? b.positions[0] : 999;
+                result = aPos - bPos;
+                break;
+            case 'average': 
+            case 'min':
+            case 'max':
+                // Handle time-based sorting (0 values go to end)
+                const aVal = a[currentSort] || 0;
+                const bVal = b[currentSort] || 0;
+                if (aVal === 0 && bVal === 0) result = 0;
+                else if (aVal === 0) result = 1;
+                else if (bVal === 0) result = -1;
+                else result = aVal - bVal;
+                break;
+            case 'count': 
+                result = a.completions - b.completions;
+                break;
+            case 'trend':
+                // Sort by trend direction: down < neutral < up
+                const trendOrder = { 'down': 0, 'neutral': 1, 'up': 2 };
+                console.log(`DEBUG: Sorting levels trend - a: ${a.trend.direction}, b: ${b.trend.direction}`);
+                result = trendOrder[a.trend.direction] - trendOrder[b.trend.direction];
+                break;
+            default: 
+                result = a.name.localeCompare(b.name);
+        }
+        
+        // Apply direction
+        return sortingState.levels.direction === 'desc' ? -result : result;
+    });
+    
+    // Populate table
+    tbody.innerHTML = allLevels.map(level => `
+        <tr>
+            <td>${level.name}</td>
+            <td>${level.positionsText}</td>
+            <td>${level.completions || '<span class="no-data">0</span>'}</td>
+            <td>${level.average ? formatDuration(level.average) : '<span class="no-data">—</span>'}</td>
+            <td>${level.min ? formatDuration(level.min) : '<span class="no-data">—</span>'}</td>
+            <td>${level.max ? formatDuration(level.max) : '<span class="no-data">—</span>'}</td>
+            <td class="trend-${level.trend.direction}">${level.trend.text}</td>
+        </tr>
+    `).join('');
+    
+    // Re-setup table sorting after populating
+    setupTableSorting();
+    
+    // Update sort indicators
+    updateSortIndicators('levels', sortingState.levels.column, sortingState.levels.direction);
+}
+
+function filterExtremes(data) {
+    if (data.length < 10) return data; // Need at least 10 data points
+    
+    const sorted = [...data].sort((a, b) => a - b);
+    const removeCount = Math.floor(data.length * 0.1); // Remove 10% from each end
+    
+    return sorted.slice(removeCount, -removeCount);
+}
+
+function calculateTrend(data) {
+    if (data.length < 5) return { direction: 'stable', text: '—' };
+    
+    const recent = data.slice(-5);
+    const older = data.slice(-10, -5);
+    
+    if (older.length === 0) return { direction: 'stable', text: '—' };
+    
+    const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+    const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
+    
+    const change = ((recentAvg - olderAvg) / olderAvg) * 100;
+    
+    if (Math.abs(change) < 5) return { direction: 'stable', text: '→' };
+    if (change > 0) return { direction: 'up', text: '↗' };
+    return { direction: 'down', text: '↘' };
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

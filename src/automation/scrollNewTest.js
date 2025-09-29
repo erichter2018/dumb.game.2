@@ -13,9 +13,8 @@ async function scrollNewUpTest(dependencies) {
     const { captureScreenRegion, iphoneMirroringRegion } = dependencies;
     
     try {
-        // Step 1: Focus iPhone Mirroring app
-        console.log('DEBUG: Focusing iPhone Mirroring app...');
-        await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
+        // Step 1: Prepare for scrolling
+        console.log('DEBUG: Preparing for scroll test...');
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // Step 2: Capture initial screen state
@@ -103,9 +102,8 @@ async function scrollNewDownTest(dependencies) {
     const { captureScreenRegion, iphoneMirroringRegion } = dependencies;
     
     try {
-        // Step 1: Focus iPhone Mirroring app
-        console.log('DEBUG: Focusing iPhone Mirroring app...');
-        await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
+        // Step 1: Prepare for scrolling
+        console.log('DEBUG: Preparing for scroll test...');
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // Step 2: Capture initial screen state
@@ -187,7 +185,7 @@ async function scrollNewDownTest(dependencies) {
     }
 }
 
-// Helper function to perform smooth scroll using AppleScript
+// Helper function to perform smooth scroll using robotjs
 async function performSmoothScroll(direction, pixels, iphoneMirroringRegion) {
     const { x: regionX, y: regionY, width: regionWidth, height: regionHeight } = iphoneMirroringRegion;
     
@@ -206,74 +204,39 @@ async function performSmoothScroll(direction, pixels, iphoneMirroringRegion) {
         endY = centerY + pixels / 2;
     }
     
-    // Try multiple approaches for better scrolling
+    // Use robotjs for smooth scrolling
     console.log(`DEBUG: Executing enhanced scroll ${direction} from (${centerX}, ${startY}) to (${centerX}, ${endY})`);
+    console.log(`DEBUG: Using enhanced robotjs smooth scroll`);
     
-    // Step 1: Activate iPhone Mirroring
-    await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
-    await new Promise(resolve => setTimeout(resolve, 200));
+    // Move mouse to start position
+    robot.moveMouse(centerX, startY);
+    await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Step 2: Try AppleScript touch simulation first (more native to mobile)
-    console.log(`DEBUG: Attempting AppleScript touch simulation`);
-    try {
-        // Use AppleScript to simulate touch gesture with proper timing
-        const touchScript = `
-            tell application "System Events"
-                tell process "iPhone Mirroring"
-                    set frontmost to true
-                    delay 0.1
-                    -- Simulate touch down
-                    set mouse position to {${centerX}, ${startY}}
-                    delay 0.05
-                    mouse down at {${centerX}, ${startY}}
-                    delay 0.1
-                    -- Smooth drag with intermediate points
-                    set mouse position to {${centerX}, ${Math.floor((startY + endY) / 2)}}
-                    delay 0.05
-                    set mouse position to {${centerX}, ${endY}}
-                    delay 0.1
-                    mouse up at {${centerX}, ${endY}}
-                end tell
-            end tell
-        `;
-        await execAsync(`osascript -e '${touchScript}'`);
-        console.log(`DEBUG: AppleScript touch simulation completed`);
-    } catch (error) {
-        console.log(`DEBUG: AppleScript failed, falling back to robotjs: ${error.message}`);
+    // Press and hold left mouse button
+    robot.mouseToggle('down', 'left');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Create smooth velocity curve for natural scrolling
+    const totalDistance = Math.abs(endY - startY);
+    const duration = 400; // Longer duration for smoother gesture
+    const steps = 40; // More steps for smoother motion
+    const stepDelay = duration / steps;
+    
+    // Use easing function for natural touch-like movement
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+    
+    for (let i = 0; i <= steps; i++) {
+        const progress = i / steps;
+        const easedProgress = easeOutCubic(progress);
+        const currentY = startY + (endY - startY) * easedProgress;
         
-        // Fallback to enhanced robotjs approach
-        console.log(`DEBUG: Using enhanced robotjs smooth scroll`);
-        
-        // Move mouse to start position
-        robot.moveMouse(centerX, startY);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Press and hold left mouse button
-        robot.mouseToggle('down', 'left');
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Create smooth velocity curve for natural scrolling
-        const totalDistance = Math.abs(endY - startY);
-        const duration = 400; // Longer duration for smoother gesture
-        const steps = 40; // More steps for smoother motion
-        const stepDelay = duration / steps;
-        
-        // Use easing function for natural touch-like movement
-        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-        
-        for (let i = 0; i <= steps; i++) {
-            const progress = i / steps;
-            const easedProgress = easeOutCubic(progress);
-            const currentY = startY + (endY - startY) * easedProgress;
-            
-            robot.dragMouse(centerX, currentY);
-            await new Promise(resolve => setTimeout(resolve, stepDelay));
-        }
-        
-        // Release left mouse button
-        robot.mouseToggle('up', 'left');
-        await new Promise(resolve => setTimeout(resolve, 100));
+        robot.dragMouse(centerX, currentY);
+        await new Promise(resolve => setTimeout(resolve, stepDelay));
     }
+    
+    // Release left mouse button
+    robot.mouseToggle('up', 'left');
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     return { success: true };
 }

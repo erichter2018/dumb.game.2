@@ -435,7 +435,8 @@ function startAutomation(dependencies) {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
         } else if (currentLevelName.toLowerCase().includes('burrito king') ||
-                   currentLevelName.toLowerCase().includes('cafe')) {
+                   currentLevelName.toLowerCase().includes('cafe') ||
+                   currentLevelName.toLowerCase().includes('dumpling hut')) {
             // Scroll to bottom
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll to bottom.`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');

@@ -127,8 +127,7 @@
                         <button id="stopLiveViewBtn" class="btn btn-danger" style="display: none;">Stop Live View</button>
                         <button id="startBtn" class="btn btn-secondary">Start</button>
                         <button id="stopBtn" class="btn btn-danger">Stop</button>
-                        <button id="clickAroundTrueBtn" class="btn btn-secondary">Click Around True</button>
-                        <button id="clickAroundFalseBtn" class="btn btn-secondary">Click Around False</button>
+                        <button id="allStatisticsBtn" class="btn btn-info">📊 All Statistics</button>
                     </div>
                 </div>
 
@@ -185,6 +184,94 @@
         <div id="blueBoxResults"></div>
         <div id="finishBuildStatus"></div>
         <div id="finishBuildStatusList"></div>
+    </div>
+
+    <!-- Statistics Modal -->
+    <div id="statisticsModal" class="statistics-modal" style="display: none;">
+        <div class="statistics-modal-content">
+            <div class="statistics-modal-header">
+                <h2>📊 Complete Statistics</h2>
+                <div class="statistics-tabs">
+                    <button id="stagesTab" class="statistics-tab active">🏟️ Stages (60)</button>
+                    <button id="levelsTab" class="statistics-tab">🍽️ Levels (44)</button>
+                </div>
+                <button id="closeStatisticsBtn" class="statistics-close">&times;</button>
+            </div>
+            
+            <div class="statistics-modal-body">
+                <!-- Stages View -->
+                <div id="stagesView" class="statistics-view active">
+                    <div class="statistics-controls">
+                        <div class="statistics-options">
+                            <label><input type="checkbox" id="ignoreExtremes" checked> Ignore extremes (top/bottom 10%)</label>
+                        </div>
+                        <div class="statistics-sort">
+                            <label>Sort by:</label>
+                            <select id="stageSort">
+                                <option value="name">Name</option>
+                                <option value="number">Stage Number</option>
+                                <option value="average">Average Time</option>
+                                <option value="count">Completions</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="statistics-table-container">
+                        <table id="stagesTable" class="statistics-table">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" data-sort="name">Stage Name</th>
+                                    <th class="sortable" data-sort="number" style="width: 40px;">#</th>
+                                    <th class="sortable" data-sort="count" style="width: 60px;">Comp</th>
+                                    <th class="sortable" data-sort="average">Average</th>
+                                    <th class="sortable" data-sort="min">Min</th>
+                                    <th class="sortable" data-sort="max">Max</th>
+                                    <th class="sortable" data-sort="trend" style="width: 60px;">Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stagesTableBody">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Levels View -->
+                <div id="levelsView" class="statistics-view">
+                    <div class="statistics-controls">
+                        <div class="statistics-options">
+                            <label><input type="checkbox" id="ignoreExtremesLevels" checked> Ignore extremes (top/bottom 10%)</label>
+                        </div>
+                        <div class="statistics-sort">
+                            <label>Sort by:</label>
+                            <select id="levelSort">
+                                <option value="name">Name</option>
+                                <option value="positions">Position</option>
+                                <option value="average">Average Time</option>
+                                <option value="count">Completions</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="statistics-table-container">
+                        <table id="levelsTable" class="statistics-table">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" data-sort="name">Level Name</th>
+                                    <th class="sortable" data-sort="positions" style="width: 80px;">Pos</th>
+                                    <th class="sortable" data-sort="count" style="width: 60px;">Comp</th>
+                                    <th class="sortable" data-sort="average">Average</th>
+                                    <th class="sortable" data-sort="min">Min</th>
+                                    <th class="sortable" data-sort="max">Max</th>
+                                    <th class="sortable" data-sort="trend" style="width: 60px;">Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody id="levelsTableBody">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="renderer.js"></script>
