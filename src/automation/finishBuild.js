@@ -1,5 +1,6 @@
 const blueBoxDetector = require('../detection/blueBoxDetector');
 const redBlobDetector = require('../detection/redBlobDetector');
+const settingsManager = require('../../settingsManager');
 
 /*
 Protocol for Finish Build Automation (Simplified):
@@ -91,7 +92,7 @@ async function findAndGetBlueBoxClickCoordinates(imageDataUrl, captureRegion) {
     }
 }
 
-async function holdBlueBox(coords, duration, dependencies) {
+async function holdBlueBox(coords, duration, dependencies, levelName) {
     const { clickDown, clickUp, setIsHoldingBlueBox, setlastBlueBoxClickCoords, updateStatus, clickAndHold, getIsAutomationRunning } = dependencies;
     
     if (!coords || coords.x === null || coords.y === null) {
@@ -101,22 +102,39 @@ async function holdBlueBox(coords, duration, dependencies) {
         return; // Exit if coordinates are invalid
     }
 
-    updateStatus(`Initiating ${duration / 1000}-second click-hold at (${coords.x}, ${coords.y}).`, 'info');
-    console.log(`DEBUG: Initiating ${duration / 1000}-second click-hold at (${coords.x}, ${coords.y}).`);
+    // Get duration from settings if levelName is provided
+    let actualDuration = duration;
+    if (levelName) {
+        const levelSettings = settingsManager.getLevelSettings(levelName);
+        actualDuration = levelSettings.blueBoxClickHoldDuration;
+        console.log(`DEBUG: Using click hold duration from settings for "${levelName}": ${actualDuration}ms`);
+    }
+
+    updateStatus(`Initiating ${actualDuration / 1000}-second click-hold at (${coords.x}, ${coords.y}).`, 'info');
+    console.log(`DEBUG: Initiating ${actualDuration / 1000}-second click-hold at (${coords.x}, ${coords.y}).`);
     
     setlastBlueBoxClickCoords(coords); // Store coords to be able to release on interruption
     setIsHoldingBlueBox(true); // Indicate that a click-hold is active
     
     console.log(`DEBUG: Attempting to click down at (${coords.x}, ${coords.y}) for holdBlueBox.`); // New log
     // Use the interruptible clickAndHold from main.js
-    await clickAndHold(coords.x, coords.y, duration, getIsAutomationRunning);
+    await clickAndHold(coords.x, coords.y, actualDuration, getIsAutomationRunning);
     
     console.log('DEBUG: Releasing click-hold at ' + (coords ? `(${coords.x}, ${coords.y})` : 'null') + '.');
     setIsHoldingBlueBox(false); // Indicate that click-hold is no longer active
 }
 
-async function checkResearchBlob(dependencies) {
+async function checkResearchBlob(dependencies, levelName) {
     const { updateStatus, redBlobDetectorDetect, captureScreenRegion, iphoneMirroringRegion, getIsAutomationRunning } = dependencies;
+
+    // Check if research should be done for this level
+    if (levelName) {
+        const levelSettings = settingsManager.getLevelSettings(levelName);
+        if (!levelSettings.doResearch) {
+            console.log(`DEBUG: Research disabled for level "${levelName}", skipping research check`);
+            return false;
+        }
+    }
 
     if (!getIsAutomationRunning()) {
         updateStatus('Automation stopped during research blob detection.', 'warn');
@@ -247,8 +265,9 @@ async function runBuildProtocol(dependencies) {
     updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
     
-    // Determine click around intervals based on level and whether it's the first run
+    // Get level-specific settings
     const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : '';
+    const levelSettings = settingsManager.getLevelSettings(currentLevelName);
     const isFirstRunOnLevel = dependencies.isFirstFinishBuildRunOnLevel ? dependencies.isFirstFinishBuildRunOnLevel() : false;
     
     // Mark that finishBuild is being run for this level (after checking if it's the first run)
@@ -256,27 +275,23 @@ async function runBuildProtocol(dependencies) {
         dependencies.markFinishBuildRunForCurrentLevel();
     }
     
-    // Levels that get 1-minute clickAround on first run, 3 minutes for subsequent runs
-    const oneMinuteFirstRunLevels = ['restaurant', 'Restaurant', 'italiano', 'the fresh kitchen', 'diner', 'seafood restaurant', 'apple juice bar', 'lobster house', 'mezze bar'];
+    // Get build actions from settings
+    const firstBuildAction = levelSettings.firstBuildAction || { action: 'nothing', triggerTimeMs: null };
+    const secondBuildAction = levelSettings.secondBuildAction || { action: 'nothing', triggerTimeMs: null };
     
-    // Levels that get 2-minute clickAround (exclude_red_blobs = false) on any run
-    const twoMinuteLevels = ['lobster house', 'ramen truck'];
+    console.log(`DEBUG: Build actions from settings for "${currentLevelName}":`, {
+        first: firstBuildAction,
+        second: secondBuildAction,
+        isFirstRun: isFirstRunOnLevel
+    });
     
-    const currentLevelNameLower = currentLevelName.toLowerCase();
-    const isOneMinuteLevel = oneMinuteFirstRunLevels.includes(currentLevelNameLower);
-    const isTwoMinuteLevel = twoMinuteLevels.includes(currentLevelNameLower);
+    // Determine which action to use based on run count
+    const currentBuildAction = isFirstRunOnLevel ? firstBuildAction : secondBuildAction;
+    const actionTriggerTime = currentBuildAction.triggerTimeMs;
     
-    console.log(`DEBUG: ClickAround timing - Level: "${currentLevelName}", Lower: "${currentLevelNameLower}", OneMinute levels: [${oneMinuteFirstRunLevels.join(', ')}], TwoMinute levels: [${twoMinuteLevels.join(', ')}], IsOneMinuteLevel: ${isOneMinuteLevel}, IsTwoMinuteLevel: ${isTwoMinuteLevel}, IsFirstRun: ${isFirstRunOnLevel}`);
+    console.log(`DEBUG: Using ${isFirstRunOnLevel ? 'first' : 'second'} build action: ${currentBuildAction.action} at ${actionTriggerTime}ms`);
     
-    // One-minute levels: 1 minute for first run, 3 minutes for subsequent runs
-    // All other levels: 3 minutes always
-    const clickAroundInterval = (isOneMinuteLevel && isFirstRunOnLevel) ? 1 * 60 * 1000 : 3 * 60 * 1000;
-    console.log(`DEBUG: ClickAround interval set to ${clickAroundInterval / 1000} seconds (${isOneMinuteLevel && isFirstRunOnLevel ? `1 minute for ${currentLevelName} first run` : '3 minutes default'})`);
-    let lastClickAroundTime = startTime;
-    
-    // Two-minute timer for special levels (runs clickAround with exclude_red_blobs = false)
-    const twoMinuteInterval = 2 * 60 * 1000; // 2 minutes
-    let lastTwoMinuteClickAroundTime = startTime;
+    let lastActionCheckTime = startTime;
     let timerInterval = null; // To hold the interval ID for clearing
 
     try {
@@ -312,111 +327,86 @@ async function runBuildProtocol(dependencies) {
         while (getIsAutomationRunning()) {
             const currentTime = Date.now();
             
-            // Check if it's time to run clickAround
-            const elapsedTime = currentTime - lastClickAroundTime;
-            console.log(`DEBUG: ClickAround timing check - Elapsed: ${elapsedTime}ms, Interval: ${clickAroundInterval}ms, Should trigger: ${elapsedTime >= clickAroundInterval}`);
+            // Check if it's time to execute build action from settings
+            const elapsedTime = currentTime - lastActionCheckTime;
             
-            if (elapsedTime >= clickAroundInterval) {
-                const intervalMinutes = clickAroundInterval / (60 * 1000);
-                updateStatus(`Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: true)`, 'warn');
-                console.log(`DEBUG: Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: true)`);
+            // Only check for action if one is configured with a trigger time
+            if (currentBuildAction.action !== 'nothing' && actionTriggerTime && elapsedTime >= actionTriggerTime) {
+                const intervalMinutes = actionTriggerTime / (60 * 1000);
+                updateStatus(`Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`, 'warn');
+                console.log(`DEBUG: Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`);
                 
-                // Call clickAround with exclude_red_blobs = true
-                const clickAroundDependencies = {
-                    updateStatus: dependencies.updateStatus,
-                    detectRedBlobs: dependencies.redBlobDetectorDetect,
-                    performClick: dependencies.performClick,
-                    performBatchedClicks: dependencies.performBatchedClicks || (async (clickArray) => {
-                        // WARNING: FALLBACK BEING USED - This should not happen and indicates a dependency injection problem
-                        console.warn('WARNING: Using performBatchedClicks FALLBACK - this will be much slower!');
-                        console.warn('DEBUG: dependencies.performBatchedClicks was undefined, using individual clicks');
-                        updateStatus('WARNING: Using slow fallback for batch clicks!', 'warn');
-                        
-                        if (!Array.isArray(clickArray)) return { success: false, error: 'Invalid click array' };
-                        console.log(`DEBUG: Fallback processing ${clickArray.length} clicks individually (100ms each = ${clickArray.length * 100}ms total)`);
-                        
-                        for (const click of clickArray) {
-                            await dependencies.performClick(click.x, click.y);
-                        }
-                        return { success: true };
-                    }), // proper fallback wrapper
-                    iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
-                    updateCurrentFunction: dependencies.updateCurrentFunction,
-                    CLICK_AREAS: dependencies.CLICK_AREAS,
-                    captureScreenRegion: dependencies.captureScreenRegion,
-                    sendDetectionResults: (detections) => {
-                        // Send detection results to renderer for overlay display
-                        if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
-                            dependencies.mainWindow.webContents.send('detection-results', detections);
-                        }
-                    },
-                    getIsClickAroundRunning: () => true, // Always return true for this timeout scenario
-                    getIsClickAroundPaused: () => false, // Never paused for this timeout scenario
-                };
-                
-                // Import and run clickAround with exclude_red_blobs = true
-                const { clickAround } = require('./clickAround');
-                await clickAround(clickAroundDependencies, true);
-                
-                updateStatus('Finish Build: Click Around completed. Returning control to Finish Level.', 'success');
-                console.log('DEBUG: Finish Build: Click Around completed. Returning control to Finish Level.');
-                
-                // Exit gracefully after clickAround, returning control to finishLevel
-                return 'clickaround_completed';
-            }
-            
-            // Check if it's time to run 2-minute clickAround (exclude_red_blobs = false) for special levels
-            if (isTwoMinuteLevel) {
-                const twoMinuteElapsedTime = currentTime - lastTwoMinuteClickAroundTime;
-                console.log(`DEBUG: TwoMinute ClickAround timing check - Elapsed: ${twoMinuteElapsedTime}ms, Interval: ${twoMinuteInterval}ms, Should trigger: ${twoMinuteElapsedTime >= twoMinuteInterval}`);
-                
-                if (twoMinuteElapsedTime >= twoMinuteInterval) {
-                    const intervalMinutes = twoMinuteInterval / (60 * 1000);
-                    updateStatus(`Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: false)`, 'warn');
-                    console.log(`DEBUG: Finish Build routine: Running Click Around after ${intervalMinutes} minute(s) (exclude_red_blobs: false)`);
+                // Execute the action based on type
+                if (currentBuildAction.action === 'clickaround') {
+                    const excludeRedBlobs = currentBuildAction.excludeRedBlobs !== undefined ? currentBuildAction.excludeRedBlobs : true;
                     
-                    // Call clickAround with exclude_red_blobs = false
+                    // Call clickAround with the configured excludeRedBlobs setting
                     const clickAroundDependencies = {
                         updateStatus: dependencies.updateStatus,
                         detectRedBlobs: dependencies.redBlobDetectorDetect,
                         performClick: dependencies.performClick,
                         performBatchedClicks: dependencies.performBatchedClicks || (async (clickArray) => {
-                            // WARNING: FALLBACK BEING USED - This should not happen and indicates a dependency injection problem
                             console.warn('WARNING: Using performBatchedClicks FALLBACK - this will be much slower!');
-                            console.warn('DEBUG: dependencies.performBatchedClicks was undefined, using individual clicks');
                             updateStatus('WARNING: Using slow fallback for batch clicks!', 'warn');
-                            
                             if (!Array.isArray(clickArray)) return { success: false, error: 'Invalid click array' };
-                            console.log(`DEBUG: Fallback processing ${clickArray.length} clicks individually (100ms each = ${clickArray.length * 100}ms total)`);
-                            
                             for (const click of clickArray) {
                                 await dependencies.performClick(click.x, click.y);
                             }
                             return { success: true };
-                        }), // proper fallback wrapper
+                        }),
                         iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
                         updateCurrentFunction: dependencies.updateCurrentFunction,
                         CLICK_AREAS: dependencies.CLICK_AREAS,
                         captureScreenRegion: dependencies.captureScreenRegion,
                         sendDetectionResults: (detections) => {
-                            // Send detection results to renderer for overlay display
                             if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
                                 dependencies.mainWindow.webContents.send('detection-results', detections);
                             }
                         },
-                        getIsClickAroundRunning: () => true, // Always return true for this timeout scenario
-                        getIsClickAroundPaused: () => false, // Never paused for this timeout scenario
+                        getIsClickAroundRunning: () => true,
+                        getIsClickAroundPaused: () => false,
                     };
                     
-                    // Import and run clickAround with exclude_red_blobs = false
                     const { clickAround } = require('./clickAround');
-                    await clickAround(clickAroundDependencies, false);
+                    await clickAround(clickAroundDependencies, excludeRedBlobs);
                     
-                    updateStatus('Finish Build: 2-minute Click Around completed. Returning control to Finish Level.', 'success');
-                    console.log('DEBUG: Finish Build: 2-minute Click Around completed. Returning control to Finish Level.');
-                    
-                    // Exit gracefully after clickAround, returning control to finishLevel
+                    updateStatus('Finish Build: Action completed. Returning control to Finish Level.', 'success');
+                    console.log('DEBUG: Finish Build: Action completed. Returning control to Finish Level.');
                     return 'clickaround_completed';
+                } else if (currentBuildAction.action === 'click_off') {
+                    // Perform click off action
+                    if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
+                        await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                        updateStatus('Finish Build: Click off completed.', 'success');
+                        return 'click_off_completed';
+                    }
+                } else if (currentBuildAction.action === 'click_off_and_scroll') {
+                    // Perform click off and scroll
+                    if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF && scrollToBottom) {
+                        await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                        const scrollX = dependencies.iphoneMirroringRegion.x + dependencies.iphoneMirroringRegion.width / 2;
+                        const scrollY = dependencies.iphoneMirroringRegion.y + dependencies.iphoneMirroringRegion.height / 2;
+                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, dependencies.scrollToBottomIterations || 10, { 
+                            updateCurrentFunction, 
+                            performClick: dependencies.performClick, 
+                            CLICK_AREAS: dependencies.CLICK_AREAS 
+                        });
+                        updateStatus('Finish Build: Click off and scroll completed.', 'success');
+                        return 'click_off_scroll_completed';
+                    }
+                } else if (currentBuildAction.action === 'scroll_to_bottom') {
+                    // Scroll to bottom
+                    if (scrollToBottom) {
+                        const scrollX = dependencies.iphoneMirroringRegion.x + dependencies.iphoneMirroringRegion.width / 2;
+                        const scrollY = dependencies.iphoneMirroringRegion.y + dependencies.iphoneMirroringRegion.height / 2;
+                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, dependencies.scrollToBottomIterations || 10, { 
+                            updateCurrentFunction, 
+                            performClick: dependencies.performClick, 
+                            CLICK_AREAS: dependencies.CLICK_AREAS 
+                        });
+                        updateStatus('Finish Build: Scroll to bottom completed.', 'success');
+                        return 'scroll_to_bottom_completed';
+                    }
                 }
             }
             
@@ -455,11 +445,11 @@ async function runBuildProtocol(dependencies) {
                 console.log(`DEBUG: Build box found in current cycle: ${JSON.stringify(omitImageFromLog(currentDetectedBox))}. Continuing with established build coordinates.`);
             }
 
-            // Step 3: Call a function to hold down in the middle of the current blue box for 5 seconds
-            await holdBlueBox(blueBoxCoords, 5000, dependencies);
+            // Step 3: Call a function to hold down in the middle of the current blue box for duration from settings
+            await holdBlueBox(blueBoxCoords, 5000, dependencies, currentLevelName);
 
-            // Step 4: Call another function to check research blob
-            const researchBlobFound = await checkResearchBlob(dependencies);
+            // Step 4: Call another function to check research blob (respects level settings)
+            const researchBlobFound = await checkResearchBlob(dependencies, currentLevelName);
 
             // Step 4a: if found, call function to do research (click research button, etc...)
             if (researchBlobFound) {

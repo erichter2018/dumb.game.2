@@ -1,0 +1,183 @@
+{
+  "_comment": "Level-specific settings for game automation. Each level can have custom behaviors.",
+  "_defaults": {
+    "doResearch": true,
+    "scrollDirection": "up",
+    "blueBoxClickHoldDuration": 4500,
+    "scrollToBottomAfterFirstBuild": true,
+    "scrollToBottomAfterSecondBuild": false,
+    "perfectStartingPosition": "nothing",
+    "firstBuildAction": {
+      "action": "nothing",
+      "triggerTimeMs": null
+    },
+    "secondBuildAction": {
+      "action": "nothing",
+      "triggerTimeMs": null
+    }
+  },
+  "levels": {
+    "level 1": {
+      "doResearch": false,
+      "blueBoxClickHoldDuration": 4500
+    },
+    "level 2": {
+      "doResearch": false,
+      "blueBoxClickHoldDuration": 4500
+    },
+    "level 3": {
+      "blueBoxClickHoldDuration": 4500
+    },
+    "level 4": {
+      "blueBoxClickHoldDuration": 4500
+    },
+    "level 5": {
+      "blueBoxClickHoldDuration": 4500
+    },
+    "level 6": {
+      "blueBoxClickHoldDuration": 4500
+    },
+    "level 7": {
+      "blueBoxClickHoldDuration": 6500
+    },
+    "restaurant": {
+      "perfectStartingPosition": "scroll_down_1x",
+      "firstBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 60000,
+        "excludeRedBlobs": true
+      },
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 180000,
+        "excludeRedBlobs": true
+      }
+    },
+    "italiano": {
+      "perfectStartingPosition": "scroll_down_4x",
+      "firstBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 60000,
+        "excludeRedBlobs": true
+      },
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 180000,
+        "excludeRedBlobs": true
+      }
+    },
+    "the fresh kitchen": {
+      "firstBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 60000,
+        "excludeRedBlobs": true
+      },
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 180000,
+        "excludeRedBlobs": true
+      }
+    },
+    "diner": {
+      "firstBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 60000,
+        "excludeRedBlobs": true
+      },
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 180000,
+        "excludeRedBlobs": true
+      }
+    },
+    "seafood restaurant": {
+      "firstBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 60000,
+        "excludeRedBlobs": true
+      },
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 180000,
+        "excludeRedBlobs": true
+      }
+    },
+    "apple juice bar": {
+      "firstBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 60000,
+        "excludeRedBlobs": true
+      },
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 180000,
+        "excludeRedBlobs": true
+      }
+    },
+    "lobster house": {
+      "perfectStartingPosition": "scroll_down_3x",
+      "firstBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 60000,
+        "excludeRedBlobs": true
+      },
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 120000,
+        "excludeRedBlobs": false
+      }
+    },
+    "mezze bar": {
+      "firstBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 60000,
+        "excludeRedBlobs": true
+      },
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 180000,
+        "excludeRedBlobs": true
+      }
+    },
+    "ramen truck": {
+      "secondBuildAction": {
+        "action": "clickaround",
+        "triggerTimeMs": 120000,
+        "excludeRedBlobs": false
+      }
+    },
+    "drive thru take out": {
+      "perfectStartingPosition": "scroll_down_3x"
+    },
+    "fish and chips shop": {
+      "perfectStartingPosition": "scroll_down_3x"
+    },
+    "fish and chip shop": {
+      "perfectStartingPosition": "scroll_down_3x"
+    },
+    "dessert co": {
+      "perfectStartingPosition": "scroll_down_3x"
+    },
+    "drive thru": {
+      "perfectStartingPosition": "scroll_down_3x"
+    },
+    "food truck": {
+      "perfectStartingPosition": "scroll_down_3x"
+    },
+    "pizzeria": {
+      "perfectStartingPosition": "scroll_down_3x"
+    },
+    "burrito king": {
+      "perfectStartingPosition": "scroll_to_bottom"
+    },
+    "cafe": {
+      "perfectStartingPosition": "scroll_to_bottom"
+    },
+    "dumpling hut": {
+      "perfectStartingPosition": "scroll_to_bottom"
+    },
+    "big drive thru": {
+      "perfectStartingPosition": "scroll_down_4x"
+    }
+  }
+}

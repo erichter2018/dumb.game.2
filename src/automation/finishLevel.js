@@ -1,3 +1,5 @@
+const settingsManager = require('../../settingsManager');
+
 function startAutomation(dependencies) {
     const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
 
@@ -394,7 +396,7 @@ function startAutomation(dependencies) {
         updateStatus('"Exit and Start New Level" routine completed.', 'success');
         console.log('DEBUG: "Exit and Start New Level" routine completed.');
         
-        // Level-specific scrolling actions based on upcoming level name
+        // Level-specific scrolling actions based on settings
         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
         
@@ -402,31 +404,26 @@ function startAutomation(dependencies) {
         const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : 'Unknown Level';
         console.log(`DEBUG: Current level name for scrolling decision: "${currentLevelName}"`);
         
-        // Scroll down once for Restaurant levels
-        if (currentLevelName.toLowerCase().includes('restaurant')) {
-            // Scroll down once
+        // Get perfect starting position from settings
+        const levelSettings = settingsManager.getLevelSettings(currentLevelName);
+        const perfectStartingPosition = levelSettings.perfectStartingPosition || 'nothing';
+        
+        console.log(`DEBUG: Perfect starting position for "${currentLevelName}": ${perfectStartingPosition}`);
+        
+        if (perfectStartingPosition === 'scroll_down_1x') {
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll down once.`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down once.`, 'info');
             await scrollDown(scrollX, scrollY, scrollSwipeDistance);
             await new Promise(resolve => setTimeout(resolve, 100));
-        } else if (currentLevelName.toLowerCase().includes('drive thru take out')) {
-            // Scroll down three times for Drive Thru Take Out
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down three times.`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down three times.`, 'info');
-            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
-            await new Promise(resolve => setTimeout(resolve, 100));
-            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
-            await new Promise(resolve => setTimeout(resolve, 100));
-            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
-            await new Promise(resolve => setTimeout(resolve, 100));
-        } else if (currentLevelName.toLowerCase().includes('fish and chips shop') || 
-            currentLevelName.toLowerCase().includes('dessert co') || 
-            currentLevelName.toLowerCase().includes('drive thru') || 
-            currentLevelName.toLowerCase().includes('fish and chip shop') ||
-            currentLevelName.toLowerCase().includes('food truck') ||
-            currentLevelName.toLowerCase().includes('lobster house') ||
-            currentLevelName.toLowerCase().includes('pizzeria')) {
-            // Scroll down three times
+        } else if (perfectStartingPosition === 'scroll_down_2x') {
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down twice.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down twice.`, 'info');
+            for (let i = 0; i < 2; i++) {
+                if (!getIsAutomationRunning()) { return; }
+                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } else if (perfectStartingPosition === 'scroll_down_3x') {
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll down three times.`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down three times.`, 'info');
             for (let i = 0; i < 3; i++) {
@@ -434,16 +431,7 @@ function startAutomation(dependencies) {
                 await scrollDown(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-        } else if (currentLevelName.toLowerCase().includes('burrito king') ||
-                   currentLevelName.toLowerCase().includes('cafe') ||
-                   currentLevelName.toLowerCase().includes('dumpling hut')) {
-            // Scroll to bottom
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll to bottom.`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');
-            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
-        } else if (currentLevelName.toLowerCase().includes('big drive thru') || 
-                   currentLevelName.toLowerCase().includes('italiano')) {
-            // Scroll down four times
+        } else if (perfectStartingPosition === 'scroll_down_4x') {
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll down four times.`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down four times.`, 'info');
             for (let i = 0; i < 4; i++) {
@@ -451,6 +439,10 @@ function startAutomation(dependencies) {
                 await scrollDown(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
+        } else if (perfectStartingPosition === 'scroll_to_bottom') {
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll to bottom.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');
+            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
         } else {
             // No specific action needed for this level
             console.log(`DEBUG: No specific scrolling action needed for level "${currentLevelName}".`);
