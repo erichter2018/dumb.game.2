@@ -1361,6 +1361,8 @@ kbd {
     color: #e0e6ed;
     font-size: 1em;
     transition: all 0.2s;
+    width: 100%;
+    min-width: 200px;
 }
 
 .setting-item input[type="number"]:hover,
