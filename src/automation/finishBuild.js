@@ -336,6 +336,12 @@ async function runBuildProtocol(dependencies) {
                 updateStatus(`Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`, 'warn');
                 console.log(`DEBUG: Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`);
                 
+                // Notify which build action is executing
+                const buildNumber = isFirstRunOnLevel ? 'first_build' : 'second_build';
+                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
+                }
+                
                 // Execute the action based on type
                 if (currentBuildAction.action === 'clickaround') {
                     const excludeRedBlobs = currentBuildAction.excludeRedBlobs !== undefined ? currentBuildAction.excludeRedBlobs : true;

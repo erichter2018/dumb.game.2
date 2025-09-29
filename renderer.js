@@ -1529,5 +1529,223 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Initialize button states
     stopBtn.disabled = true;
+    
+    // Initialize settings modal
+    initializeSettingsModal();
+    
     console.log('DEBUG: DOMContentLoaded handler finished.');
+});
+
+// Settings Modal Implementation
+let allLevelNames = [];
+let currentEditingLevel = '';
+
+async function initializeSettingsModal() {
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const levelSelect = document.getElementById('levelSelect');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const resetToDefaultsBtn = document.getElementById('resetToDefaultsBtn');
+    
+    // Get all level names
+    allLevelNames = await ipcRenderer.invoke('get-all-level-names');
+    
+    // Populate level selector
+    allLevelNames.forEach(levelName => {
+        const option = document.createElement('option');
+        option.value = levelName;
+        option.textContent = levelName.charAt(0).toUpperCase() + levelName.slice(1);
+        levelSelect.appendChild(option);
+    });
+    
+    // Open modal
+    settingsBtn.addEventListener('click', async () => {
+        // Get current level or use first in list
+        const currentLevel = await ipcRenderer.invoke('get-current-level-name');
+        if (currentLevel && currentLevel !== 'Unknown Level' && currentLevel !== '') {
+            levelSelect.value = currentLevel.toLowerCase();
+        } else {
+            levelSelect.value = '';
+        }
+        
+        await loadSettingsForLevel(levelSelect.value || currentLevel.toLowerCase());
+        settingsModal.style.display = 'flex';
+    });
+    
+    // Close modal
+    closeSettingsBtn.addEventListener('click', () => {
+        settingsModal.style.display = 'none';
+    });
+    
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+            settingsModal.style.display = 'none';
+        }
+    });
+    
+    // Level change
+    levelSelect.addEventListener('change', async (e) => {
+        await loadSettingsForLevel(e.target.value);
+    });
+    
+    // Save settings
+    saveSettingsBtn.addEventListener('click', async () => {
+        await saveCurrentSettings();
+    });
+    
+    // Reset to defaults
+    resetToDefaultsBtn.addEventListener('click', async () => {
+        if (confirm('Reset this level to default settings?')) {
+            await resetLevelToDefaults();
+        }
+    });
+    
+    // Show/hide excludeRedBlobs based on action selection
+    document.getElementById('firstBuildAction').addEventListener('change', (e) => {
+        document.getElementById('firstBuildExcludeRedBlobs').style.display = 
+            e.target.value === 'clickaround' ? 'block' : 'none';
+    });
+    
+    document.getElementById('secondBuildAction').addEventListener('change', (e) => {
+        document.getElementById('secondBuildExcludeRedBlobs').style.display = 
+            e.target.value === 'clickaround' ? 'block' : 'none';
+    });
+}
+
+async function loadSettingsForLevel(levelName) {
+    if (!levelName) {
+        const currentLevel = await ipcRenderer.invoke('get-current-level-name');
+        levelName = currentLevel.toLowerCase();
+    }
+    
+    currentEditingLevel = levelName;
+    
+    // Show which level we're editing
+    const displayName = levelName.charAt(0).toUpperCase() + levelName.slice(1);
+    document.getElementById('currentLevelDisplay').textContent = `Editing: ${displayName}`;
+    
+    // Get settings for this level
+    const settings = await ipcRenderer.invoke('get-level-settings', levelName);
+    
+    // Populate form
+    document.getElementById('doResearch').checked = settings.doResearch;
+    document.getElementById('scrollDirection').value = settings.scrollDirection;
+    document.getElementById('blueBoxClickHoldDuration').value = settings.blueBoxClickHoldDuration;
+    document.getElementById('scrollToBottomAfterFirstBuild').checked = settings.scrollToBottomAfterFirstBuild;
+    document.getElementById('scrollToBottomAfterSecondBuild').checked = settings.scrollToBottomAfterSecondBuild;
+    document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition;
+    
+    // First build action
+    document.getElementById('firstBuildAction').value = settings.firstBuildAction.action;
+    document.getElementById('firstBuildTriggerTime').value = settings.firstBuildAction.triggerTimeMs || '';
+    document.getElementById('firstBuildExcludeRedBlobsCheck').checked = 
+        settings.firstBuildAction.excludeRedBlobs !== false;
+    document.getElementById('firstBuildExcludeRedBlobs').style.display = 
+        settings.firstBuildAction.action === 'clickaround' ? 'block' : 'none';
+    
+    // Second build action
+    document.getElementById('secondBuildAction').value = settings.secondBuildAction.action;
+    document.getElementById('secondBuildTriggerTime').value = settings.secondBuildAction.triggerTimeMs || '';
+    document.getElementById('secondBuildExcludeRedBlobsCheck').checked = 
+        settings.secondBuildAction.excludeRedBlobs !== false;
+    document.getElementById('secondBuildExcludeRedBlobs').style.display = 
+        settings.secondBuildAction.action === 'clickaround' ? 'block' : 'none';
+}
+
+async function saveCurrentSettings() {
+    const settings = {
+        doResearch: document.getElementById('doResearch').checked,
+        scrollDirection: document.getElementById('scrollDirection').value,
+        blueBoxClickHoldDuration: parseInt(document.getElementById('blueBoxClickHoldDuration').value),
+        scrollToBottomAfterFirstBuild: document.getElementById('scrollToBottomAfterFirstBuild').checked,
+        scrollToBottomAfterSecondBuild: document.getElementById('scrollToBottomAfterSecondBuild').checked,
+        perfectStartingPosition: document.getElementById('perfectStartingPosition').value,
+        firstBuildAction: {
+            action: document.getElementById('firstBuildAction').value,
+            triggerTimeMs: parseInt(document.getElementById('firstBuildTriggerTime').value) || null,
+            excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobsCheck').checked
+        },
+        secondBuildAction: {
+            action: document.getElementById('secondBuildAction').value,
+            triggerTimeMs: parseInt(document.getElementById('secondBuildTriggerTime').value) || null,
+            excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobsCheck').checked
+        }
+    };
+    
+    const result = await ipcRenderer.invoke('save-level-settings', currentEditingLevel, settings);
+    
+    if (result.success) {
+        alert(`Settings saved for ${currentEditingLevel}!`);
+        // Update level actions display if this is the current level
+        await updateLevelActionsDisplay();
+    } else {
+        alert(`Error saving settings: ${result.error}`);
+    }
+}
+
+async function resetLevelToDefaults() {
+    const result = await ipcRenderer.invoke('reset-level-to-defaults', currentEditingLevel);
+    
+    if (result.success) {
+        alert(`${currentEditingLevel} reset to defaults!`);
+        await loadSettingsForLevel(currentEditingLevel);
+        await updateLevelActionsDisplay();
+    } else {
+        alert(`Error resetting: ${result.error}`);
+    }
+}
+
+// Level Actions Display
+async function updateLevelActionsDisplay() {
+    const currentLevel = await ipcRenderer.invoke('get-current-level-name');
+    
+    if (!currentLevel || currentLevel === 'Unknown Level' || currentLevel === '') {
+        document.getElementById('levelActionsDisplay').style.display = 'none';
+        return;
+    }
+    
+    const settings = await ipcRenderer.invoke('get-level-settings', currentLevel.toLowerCase());
+    const actionsDisplay = document.getElementById('levelActionsDisplay');
+    
+    actionsDisplay.style.display = 'block';
+    
+    // Update values
+    document.getElementById('startPositionValue').textContent = 
+        settings.perfectStartingPosition === 'nothing' ? 'None' : 
+        settings.perfectStartingPosition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    document.getElementById('firstBuildValue').textContent = 
+        settings.firstBuildAction.action === 'nothing' ? 'None' : 
+        `${settings.firstBuildAction.action} @ ${(settings.firstBuildAction.triggerTimeMs / 1000)}s`;
+    
+    document.getElementById('secondBuildValue').textContent = 
+        settings.secondBuildAction.action === 'nothing' ? 'None' : 
+        `${settings.secondBuildAction.action} @ ${(settings.secondBuildAction.triggerTimeMs / 1000)}s`;
+    
+    document.getElementById('researchValue').textContent = settings.doResearch ? 'Yes' : 'No';
+    document.getElementById('holdDurationValue').textContent = `${settings.blueBoxClickHoldDuration / 1000}s`;
+    document.getElementById('scrollDirValue').textContent = settings.scrollDirection === 'up' ? 'Up ↑' : 'Down ↓';
+}
+
+// Listen for level name changes to update actions display
+ipcRenderer.on('update-current-level-name', async () => {
+    await updateLevelActionsDisplay();
+});
+
+// Listen for action completion events to update checkmarks
+ipcRenderer.on('level-action-completed', (event, actionType) => {
+    const actionMap = {
+        'start_position': 'actionStartPosition',
+        'first_build': 'actionFirstBuild',
+        'second_build': 'actionSecondBuild'
+    };
+    
+    const elementId = actionMap[actionType];
+    if (elementId) {
+        const element = document.getElementById(elementId);
+        const checkbox = element.querySelector('.action-checkbox');
+        checkbox.textContent = '☑';
+        checkbox.classList.add('checked');
+    }
 });

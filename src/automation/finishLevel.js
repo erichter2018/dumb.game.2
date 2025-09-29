@@ -442,6 +442,11 @@ function startAutomation(dependencies) {
         
         console.log(`DEBUG: Perfect starting position for "${currentLevelName}": ${perfectStartingPosition}`);
         
+        // Notify that start position action is about to execute
+        if (perfectStartingPosition !== 'nothing' && dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+            dependencies.mainWindow.webContents.send('level-action-completed', 'start_position');
+        }
+        
         if (perfectStartingPosition === 'scroll_down_1x') {
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll down once.`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down once.`, 'info');

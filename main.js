@@ -843,6 +843,44 @@ ipcMain.handle('get-level-database', async () => {
   return levelDatabase.LEVEL_DATABASE;
 });
 
+// Settings IPC handlers
+const settingsManager = require('./settingsManager');
+
+ipcMain.handle('get-all-level-names', async () => {
+  return settingsManager.getAllLevelNames();
+});
+
+ipcMain.handle('get-level-settings', async (event, levelName) => {
+  return settingsManager.getLevelSettings(levelName);
+});
+
+ipcMain.handle('save-level-settings', async (event, levelName, settings) => {
+  try {
+    settingsManager.updateLevelSettings(levelName, settings);
+    const saved = settingsManager.saveSettings();
+    return { success: saved };
+  } catch (error) {
+    console.error('Error saving level settings:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('reset-level-to-defaults', async (event, levelName) => {
+  try {
+    // Remove level-specific settings to use defaults
+    settingsManager.updateLevelSettings(levelName, {});
+    const saved = settingsManager.saveSettings();
+    return { success: saved };
+  } catch (error) {
+    console.error('Error resetting level settings:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-current-level-name', async () => {
+  return currentLevelName || '';
+});
+
 ipcMain.handle('capture-iphone-mirroring', async () => {
   try {
     const dataUrl = await captureScreenRegion();
