@@ -15,6 +15,38 @@
                 <h2 id="currentLevelName">Unnamed Level</h2>
                 <div class="level-timer" id="currentLevelDuration">0m 0s</div>
                 <div class="current-status" id="currentFunction">Idle</div>
+                
+                <!-- Current Level Actions Display -->
+                <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
+                    <h4>Level Actions:</h4>
+                    <div class="action-item" id="actionStartPosition">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">Start Position</span>
+                        <span class="action-value" id="startPositionValue">—</span>
+                    </div>
+                    <div class="action-item" id="actionFirstBuild">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">First Build</span>
+                        <span class="action-value" id="firstBuildValue">—</span>
+                    </div>
+                    <div class="action-item" id="actionSecondBuild">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">Second Build</span>
+                        <span class="action-value" id="secondBuildValue">—</span>
+                    </div>
+                    <div class="action-item">
+                        <span class="action-label">Research:</span>
+                        <span class="action-value" id="researchValue">—</span>
+                    </div>
+                    <div class="action-item">
+                        <span class="action-label">Hold Duration:</span>
+                        <span class="action-value" id="holdDurationValue">—</span>
+                    </div>
+                    <div class="action-item">
+                        <span class="action-label">Scroll Dir:</span>
+                        <span class="action-value" id="scrollDirValue">—</span>
+                    </div>
+                </div>
                 <div class="stage-info" id="currentStageInfo">
                     <div class="stage-name" id="currentStageName">No Stage</div>
                     <div class="stage-progress" id="currentStageProgress">—</div>
@@ -127,6 +159,7 @@
                         <button id="stopLiveViewBtn" class="btn btn-danger" style="display: none;">Stop Live View</button>
                         <button id="startBtn" class="btn btn-secondary">Start</button>
                         <button id="stopBtn" class="btn btn-danger">Stop</button>
+                        <button id="settingsBtn" class="btn btn-secondary">⚙️ Settings</button>
                         <button id="allStatisticsBtn" class="btn btn-info">📊 All Statistics</button>
                     </div>
                 </div>
@@ -268,6 +301,139 @@
                                 <!-- Populated by JavaScript -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="settings-modal" style="display: none;">
+        <div class="settings-modal-content">
+            <div class="settings-modal-header">
+                <h2>⚙️ Level Settings</h2>
+                <button id="closeSettingsBtn" class="settings-close">&times;</button>
+            </div>
+            
+            <div class="settings-modal-body">
+                <!-- Level Selector -->
+                <div class="settings-section">
+                    <label for="levelSelect">Select Level:</label>
+                    <select id="levelSelect" class="settings-select">
+                        <option value="">-- Current Level --</option>
+                    </select>
+                    <div id="currentLevelDisplay" class="current-level-display"></div>
+                </div>
+
+                <!-- Settings Form -->
+                <div class="settings-form" id="settingsForm">
+                    <div class="settings-section">
+                        <h3>Basic Settings</h3>
+                        
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="doResearch">
+                                Do Research
+                            </label>
+                            <span class="setting-help">Whether to check for and perform research during builds</span>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="scrollDirection">Scroll Direction:</label>
+                            <select id="scrollDirection">
+                                <option value="up">Scroll Up (select bottom-right blob)</option>
+                                <option value="down">Scroll Down (select top-left blob)</option>
+                            </select>
+                            <span class="setting-help">Direction to scroll when searching for red blobs</span>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="blueBoxClickHoldDuration">Blue Box Click Hold Duration (ms):</label>
+                            <input type="number" id="blueBoxClickHoldDuration" min="1000" max="10000" step="100">
+                            <span class="setting-help">How long to hold click on blue build box (4500ms = 4.5s)</span>
+                        </div>
+
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="scrollToBottomAfterFirstBuild">
+                                Scroll to Bottom After First Build
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="scrollToBottomAfterSecondBuild">
+                                Scroll to Bottom After Second Build
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Perfect Starting Position</h3>
+                        <select id="perfectStartingPosition">
+                            <option value="nothing">Nothing</option>
+                            <option value="scroll_down_1x">Scroll Down 1x</option>
+                            <option value="scroll_down_2x">Scroll Down 2x</option>
+                            <option value="scroll_down_3x">Scroll Down 3x</option>
+                            <option value="scroll_down_4x">Scroll Down 4x</option>
+                            <option value="scroll_to_bottom">Scroll to Bottom</option>
+                        </select>
+                        <span class="setting-help">What to do when starting a new level</span>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>First Build Action</h3>
+                        <div class="setting-item">
+                            <label for="firstBuildAction">Action:</label>
+                            <select id="firstBuildAction">
+                                <option value="nothing">Nothing</option>
+                                <option value="clickaround">Click Around</option>
+                                <option value="click_off">Click Off</option>
+                                <option value="click_off_and_scroll">Click Off and Scroll</option>
+                                <option value="scroll_to_bottom">Scroll to Bottom</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label for="firstBuildTriggerTime">Trigger Time (ms):</label>
+                            <input type="number" id="firstBuildTriggerTime" min="0" step="1000" placeholder="e.g., 60000">
+                            <span class="setting-help">When to trigger action (60000 = 1 minute, null = never)</span>
+                        </div>
+                        <div class="setting-item" id="firstBuildExcludeRedBlobs" style="display:none;">
+                            <label>
+                                <input type="checkbox" id="firstBuildExcludeRedBlobsCheck">
+                                Exclude Red Blobs (for Click Around)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Second Build Action</h3>
+                        <div class="setting-item">
+                            <label for="secondBuildAction">Action:</label>
+                            <select id="secondBuildAction">
+                                <option value="nothing">Nothing</option>
+                                <option value="clickaround">Click Around</option>
+                                <option value="click_off">Click Off</option>
+                                <option value="click_off_and_scroll">Click Off and Scroll</option>
+                                <option value="scroll_to_bottom">Scroll to Bottom</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label for="secondBuildTriggerTime">Trigger Time (ms):</label>
+                            <input type="number" id="secondBuildTriggerTime" min="0" step="1000" placeholder="e.g., 180000">
+                            <span class="setting-help">When to trigger action (180000 = 3 minutes, null = never)</span>
+                        </div>
+                        <div class="setting-item" id="secondBuildExcludeRedBlobs" style="display:none;">
+                            <label>
+                                <input type="checkbox" id="secondBuildExcludeRedBlobsCheck">
+                                Exclude Red Blobs (for Click Around)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button id="saveSettingsBtn" class="btn btn-success">💾 Save Settings</button>
+                        <button id="resetToDefaultsBtn" class="btn btn-secondary">🔄 Reset to Defaults</button>
                     </div>
                 </div>
             </div>
