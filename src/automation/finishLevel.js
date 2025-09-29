@@ -24,7 +24,7 @@ function startAutomation(dependencies) {
         return obj;
     }
 
-    let hasFinishedBuildOnce = false;
+    let buildCompletionCount = 0; // Track how many builds have completed
     const MAX_RED_BLOB_CLICK_ATTEMPTS = 3; // Define max retry attempts for red blob clicks
     const MAX_BLUE_BOX_CONFIRM_ATTEMPTS = 1; // New: Max retry attempts for confirming blue box
     const MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION = 2; // New: Max detection attempts before a single scroll up
@@ -122,15 +122,31 @@ function startAutomation(dependencies) {
             isFinishBuildRunningInternal = false;
             if (!getIsAutomationRunning()) return 'stopped';
 
-            // Modified: Check if finishBuild exits for the first time after completing a full build cycle.
-            // Exclude 'stopped', 'error', and 'max_build_at_startup' (which means MAX was detected immediately, no build cycle completed).
-            if (buildResult !== 'stopped' && buildResult !== 'error' && buildResult !== 'max_build_at_startup' && !hasFinishedBuildOnce) {
-                console.log(`DEBUG: First exit from Finish Build (status: ${buildResult}) detected. Scrolling to bottom.`);
-                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
-                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
-                if (!getIsAutomationRunning()) return 'stopped'; // Changed from break to return 'stopped'
-                hasFinishedBuildOnce = true;
+            // Check if we should scroll to bottom after build completion based on settings
+            if (buildResult !== 'stopped' && buildResult !== 'error' && buildResult !== 'max_build_at_startup') {
+                buildCompletionCount++;
+                console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult}`);
+                
+                // Get current level name to check settings
+                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                const levelSettings = settingsManager.getLevelSettings(currentLevelName);
+                
+                let shouldScrollToBottom = false;
+                if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
+                    shouldScrollToBottom = true;
+                    console.log(`DEBUG: Settings indicate scroll to bottom after first build for "${currentLevelName}"`);
+                } else if (buildCompletionCount === 2 && levelSettings.scrollToBottomAfterSecondBuild) {
+                    shouldScrollToBottom = true;
+                    console.log(`DEBUG: Settings indicate scroll to bottom after second build for "${currentLevelName}"`);
+                }
+                
+                if (shouldScrollToBottom) {
+                    console.log(`DEBUG: Scrolling to bottom after build ${buildCompletionCount}`);
+                    const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                    const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                    await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    if (!getIsAutomationRunning()) return 'stopped';
+                }
             }
 
             if (buildResult === 'max_build_achieved' || buildResult === 'max_build_at_startup') {
@@ -290,15 +306,31 @@ function startAutomation(dependencies) {
             isFinishBuildRunningInternal = false;
             if (!getIsAutomationRunning()) return 'stopped';
 
-            // Modified: Check if finishBuild exits for the first time, regardless of its specific success status.
-            // Exclude 'stopped' or 'error' from prepBuild itself.
-            if (buildResult !== 'stopped' && buildResult !== 'error' && !hasFinishedBuildOnce) {
-                console.log(`DEBUG: First exit from Finish Build (status: ${buildResult}) detected after red blob click. Scrolling to bottom.`);
-                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
-                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
-                if (!getIsAutomationRunning()) return 'stopped'; // Changed from break to return 'stopped'
-                hasFinishedBuildOnce = true;
+            // Check if we should scroll to bottom after build completion based on settings
+            if (buildResult !== 'stopped' && buildResult !== 'error') {
+                buildCompletionCount++;
+                console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult} after red blob click`);
+                
+                // Get current level name to check settings
+                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                const levelSettings = settingsManager.getLevelSettings(currentLevelName);
+                
+                let shouldScrollToBottom = false;
+                if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
+                    shouldScrollToBottom = true;
+                    console.log(`DEBUG: Settings indicate scroll to bottom after first build for "${currentLevelName}"`);
+                } else if (buildCompletionCount === 2 && levelSettings.scrollToBottomAfterSecondBuild) {
+                    shouldScrollToBottom = true;
+                    console.log(`DEBUG: Settings indicate scroll to bottom after second build for "${currentLevelName}"`);
+                }
+                
+                if (shouldScrollToBottom) {
+                    console.log(`DEBUG: Scrolling to bottom after build ${buildCompletionCount}`);
+                    const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                    const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                    await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    if (!getIsAutomationRunning()) return 'stopped';
+                }
             }
 
             if (buildResult === 'max_build_achieved' || buildResult === 'max_build_at_startup') {
@@ -454,10 +486,10 @@ function startAutomation(dependencies) {
         // After a successful exit and new level start, update the previous level duration
         updatePreviousLevelDuration(Date.now() - getCurrentLevelStartTime()); // Use the getter function
         
-        // Reset the flag so scroll-to-bottom will trigger after the first successful build on this new level
-        hasFinishedBuildOnce = false;
+        // Reset the build completion count for the new level
+        buildCompletionCount = 0;
         redBlobRetryCount.clear(); // Reset retry counters for new level
-        console.log('DEBUG: Reset hasFinishedBuildOnce to false for new level.');
+        console.log('DEBUG: Reset buildCompletionCount to 0 for new level.');
         
         // Final 2-second wait before exiting function
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -474,15 +506,15 @@ function startAutomation(dependencies) {
         while (getIsAutomationRunning()) {
             let blueBuildBox = null;
             
-            // Only detect blue builds if we haven't finished a build yet
-            if (!hasFinishedBuildOnce) {
+            // Only detect blue builds if we haven't completed a build yet
+            if (buildCompletionCount === 0) {
                 updateStatus('Checking for blue build box...', 'info');
                 const fullScreenDataUrl = await captureScreenRegion();
                 const blueBoxes = await detectBlueBoxes(fullScreenDataUrl, iphoneMirroringRegion);
                 blueBuildBox = blueBoxes.find(box => box.state === 'blue_build' || box.state === 'grey_build'); // Exclude 'unknown' from initial decision
             } else {
-                updateStatus('Build completed once, skipping blue build detection. Checking for red blobs...', 'info');
-                console.log('DEBUG: hasFinishedBuildOnce is true, skipping blue build detection and going directly to red blob detection.');
+                updateStatus(`Build completed ${buildCompletionCount} time(s), skipping blue build detection. Checking for red blobs...`, 'info');
+                console.log(`DEBUG: buildCompletionCount is ${buildCompletionCount}, skipping blue build detection and going directly to red blob detection.`);
             }
 
             if (blueBuildBox) {
@@ -548,8 +580,8 @@ function startAutomation(dependencies) {
                     lastRedBlobCoords = null; // Clear last red blob coords
                 }
             } else {
-                // Either no blue build box found (first time) or we're skipping blue detection (hasFinishedBuildOnce = true)
-                if (!hasFinishedBuildOnce) {
+                // Either no blue build box found (first time) or we're skipping blue detection (buildCompletionCount > 0)
+                if (buildCompletionCount === 0) {
                     updateStatus('No blue build box found. Detecting red blobs...', 'info');
                     console.log('DEBUG: No blue build box found. Detecting red blobs.');
                 }
@@ -790,17 +822,6 @@ function startAutomation(dependencies) {
                             lastRedBlobCoords = targetBlob; // Store the last successfully clicked red blob
                             updateStatus('Finish Build automation successfully launched from prepBuild after red blob click.', 'info');
                             console.log('DEBUG: Finish Build automation successfully launched after red blob click.');
-
-                            // Modified: Check if finishBuild exits for the first time, regardless of its specific success status.
-                            // Exclude 'stopped' or 'error' from prepBuild itself.
-                            if (prepBuildResult !== 'stopped' && prepBuildResult !== 'error' && !hasFinishedBuildOnce) {
-                                console.log(`DEBUG: First exit from Finish Build (status: ${prepBuildResult}) detected after red blob click. Scrolling to bottom.`);
-                                const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
-                                const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
-                                if (!getIsAutomationRunning()) return 'stopped'; // Changed from break to return 'stopped'
-                                hasFinishedBuildOnce = true;
-                            }
                         } else if (prepBuildResult === 'no_blue_build' || prepBuildResult === 'no_red_blobs_found' || prepBuildResult === 'finish_build_failed_no_blue_box') {
                             // Track retry attempts for this red blob location (approximate matching within 10 pixels)
                             const blobLocationKey = `${Math.round(targetBlob.x / 10) * 10},${Math.round(targetBlob.y / 10) * 10}`;
