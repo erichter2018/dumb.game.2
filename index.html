@@ -12,20 +12,13 @@
         <div class="status-bar">
             <!-- Current Level & Stage Info -->
             <div class="level-info">
-                <div class="level-header">
-                    <div class="level-main">
-                        <h2 id="currentLevelName">Unnamed Level</h2>
-                        <div class="level-timer" id="currentLevelDuration">0m 0s</div>
-                        <div class="current-status" id="currentFunction">Idle</div>
-                    </div>
-                    <div class="stage-info" id="currentStageInfo">
-                        <div class="stage-name" id="currentStageName">No Stage</div>
-                        <div class="stage-progress" id="currentStageProgress">—</div>
-                    </div>
-                </div>
+                <h2 id="currentLevelName">Unnamed Level</h2>
+                <div class="level-timer" id="currentLevelDuration">0m 0s</div>
+                <div class="current-status" id="currentFunction">Idle</div>
                 
-                <!-- Current Level Actions Display -->
-                <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
+                <!-- Current Level Actions Display with Stage Info -->
+                <div class="level-progress-wrapper">
+                    <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
                     <h4>Level Progress:</h4>
                     
                     <!-- Startup Behavior -->
@@ -78,6 +71,13 @@
                         <span class="action-value" id="scrollDirValue">—</span>
                     </div>
                 </div>
+                
+                <!-- Stage Info -->
+                <div class="stage-info" id="currentStageInfo">
+                    <div class="stage-name" id="currentStageName">No Stage</div>
+                    <div class="stage-progress" id="currentStageProgress">—</div>
+                </div>
+            </div>
             </div>
             
             <!-- Level Statistics -->

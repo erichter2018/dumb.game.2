@@ -43,15 +43,11 @@ body {
     text-align: left;
 }
 
-.level-header {
+.level-progress-wrapper {
     display: flex;
     gap: 24px;
     align-items: flex-start;
-    margin-bottom: 16px;
-}
-
-.level-main {
-    flex: 1;
+    margin-top: 16px;
 }
 
 .level-info h2 {
@@ -76,9 +72,11 @@ body {
 
 /* Stage Info Styles */
 .stage-info {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 16px;
+    background: rgba(255, 193, 7, 0.1);
+    border: 2px solid rgba(255, 193, 7, 0.3);
+    border-radius: 8px;
+    min-width: 180px;
 }
 
 .stage-name {
