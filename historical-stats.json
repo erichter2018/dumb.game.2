@@ -21,11 +21,13 @@
         44724,
         44724,
         44826,
-        44826
+        44826,
+        39145,
+        39145
       ],
-      "averageDuration": 45366,
-      "totalCompletions": 20,
-      "bestTime": 44116,
+      "averageDuration": 44800,
+      "totalCompletions": 22,
+      "bestTime": 39145,
       "worstTime": 50014
     },
     "Coffee Truck": {
@@ -508,10 +510,12 @@
         53369,
         53369,
         57007,
-        57007
+        57007,
+        57056,
+        57056
       ],
-      "averageDuration": 59482,
-      "totalCompletions": 33,
+      "averageDuration": 59343,
+      "totalCompletions": 35,
       "bestTime": 53369,
       "worstTime": 67588
     },
@@ -614,10 +618,12 @@
         92546,
         92546,
         98283,
-        98283
+        98283,
+        91969,
+        91969
       ],
-      "averageDuration": 93862,
-      "totalCompletions": 26,
+      "averageDuration": 93726,
+      "totalCompletions": 28,
       "bestTime": 61534,
       "worstTime": 113487
     },
@@ -695,10 +701,12 @@
         118057,
         125219,
         125219,
-        126713
+        126713,
+        120832,
+        120832
       ],
-      "averageDuration": 128526,
-      "totalCompletions": 13,
+      "averageDuration": 127500,
+      "totalCompletions": 15,
       "bestTime": 116406,
       "worstTime": 208203
     },
@@ -866,11 +874,13 @@
         116774,
         116774,
         204076,
-        204076
+        204076,
+        109357,
+        109357
       ],
-      "averageDuration": 131935,
-      "totalCompletions": 14,
-      "bestTime": 112192,
+      "averageDuration": 129113,
+      "totalCompletions": 16,
+      "bestTime": 109357,
       "worstTime": 204076
     },
     "Baklava Shop": {
@@ -997,11 +1007,13 @@
         28681,
         28681,
         28732,
-        28732
+        28732,
+        25859,
+        25859
       ],
-      "averageDuration": 31292,
-      "totalCompletions": 36,
-      "bestTime": 28681,
+      "averageDuration": 31006,
+      "totalCompletions": 38,
+      "bestTime": 25859,
       "worstTime": 31989
     },
     "Lemonade Stand": {
@@ -1387,7 +1399,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-09-30T13:14:06.925Z",
+    "lastUpdated": "2025-09-30T13:32:05.581Z",
     "totalLevelsTracked": 43,
     "totalStagesTracked": 33
   }

@@ -951,18 +951,34 @@
       "doResearch": true,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
-      "scrollToBottomAfterFirstBuild": true,
-      "scrollToBottomAfterSecondBuild": false,
+      "scrollToBottomAfterFirstBuild": false,
+      "scrollToBottomAfterSecondBuild": true,
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
         "action": "clickaround",
-        "triggerTimeMs": 60000,
-        "excludeRedBlobs": true
+        "triggerTimeMs": 6000,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 2,
+          "scrollUpDistance": 0,
+          "scrollUpCount": 0,
+          "initialScrollDown": 0,
+          "scrollToBottomAtEnd": false
+        }
       },
       "secondBuildAction": {
         "action": "clickaround",
-        "triggerTimeMs": 180000,
-        "excludeRedBlobs": true
+        "triggerTimeMs": 60000,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       }
     },
     "lobster house": {

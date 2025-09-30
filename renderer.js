@@ -1736,6 +1736,9 @@ function checkForChanges() {
 }
 
 function getCurrentFormSettings() {
+    const firstBuildAction = document.getElementById('firstBuildAction').value;
+    const secondBuildAction = document.getElementById('secondBuildAction').value;
+    
     return {
         doResearch: document.getElementById('doResearch').checked,
         scrollDirection: document.getElementById('scrollDirection').value,
@@ -1744,30 +1747,30 @@ function getCurrentFormSettings() {
         scrollToBottomAfterSecondBuild: document.getElementById('scrollToBottomAfterSecondBuild').checked,
         perfectStartingPosition: document.getElementById('perfectStartingPosition').value,
         firstBuildAction: {
-            action: document.getElementById('firstBuildAction').value,
+            action: firstBuildAction,
             triggerTimeMs: parseInt(document.getElementById('firstBuildTriggerTime').value) || null,
             clickOffAndScrollDistance: parseInt(document.getElementById('firstBuildClickOffScrollDistance').value) || 150,
-            clickaroundOptions: {
+            clickaroundOptions: firstBuildAction === 'clickaround' ? {
                 excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobs').checked,
-                clickaroundChunks: parseInt(document.getElementById('firstBuildClickaroundChunks').value),
-                scrollUpDistance: parseInt(document.getElementById('firstBuildScrollUpDistance').value),
-                scrollUpCount: parseInt(document.getElementById('firstBuildScrollUpCount').value),
-                initialScrollDown: parseInt(document.getElementById('firstBuildInitialScrollDown').value),
+                clickaroundChunks: parseInt(document.getElementById('firstBuildClickaroundChunks').value) || 3,
+                scrollUpDistance: parseInt(document.getElementById('firstBuildScrollUpDistance').value) || 200,
+                scrollUpCount: parseInt(document.getElementById('firstBuildScrollUpCount').value) || 5,
+                initialScrollDown: parseInt(document.getElementById('firstBuildInitialScrollDown').value) || 150,
                 scrollToBottomAtEnd: document.getElementById('firstBuildScrollToBottomAtEnd').checked
-            }
+            } : {}
         },
         secondBuildAction: {
-            action: document.getElementById('secondBuildAction').value,
+            action: secondBuildAction,
             triggerTimeMs: parseInt(document.getElementById('secondBuildTriggerTime').value) || null,
             clickOffAndScrollDistance: parseInt(document.getElementById('secondBuildClickOffScrollDistance').value) || 150,
-            clickaroundOptions: {
+            clickaroundOptions: secondBuildAction === 'clickaround' ? {
                 excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobs').checked,
-                clickaroundChunks: parseInt(document.getElementById('secondBuildClickaroundChunks').value),
-                scrollUpDistance: parseInt(document.getElementById('secondBuildScrollUpDistance').value),
-                scrollUpCount: parseInt(document.getElementById('secondBuildScrollUpCount').value),
-                initialScrollDown: parseInt(document.getElementById('secondBuildInitialScrollDown').value),
+                clickaroundChunks: parseInt(document.getElementById('secondBuildClickaroundChunks').value) || 3,
+                scrollUpDistance: parseInt(document.getElementById('secondBuildScrollUpDistance').value) || 200,
+                scrollUpCount: parseInt(document.getElementById('secondBuildScrollUpCount').value) || 5,
+                initialScrollDown: parseInt(document.getElementById('secondBuildInitialScrollDown').value) || 150,
                 scrollToBottomAtEnd: document.getElementById('secondBuildScrollToBottomAtEnd').checked
-            }
+            } : {}
         }
     };
 }
@@ -1809,7 +1812,7 @@ async function loadSettingsForLevel(levelName) {
     document.getElementById('firstBuildScrollUpCount').value = firstClickaroundOpts.scrollUpCount || 5;
     document.getElementById('firstBuildInitialScrollDown').value = firstClickaroundOpts.initialScrollDown || 150;
     document.getElementById('firstBuildScrollToBottomAtEnd').checked = 
-        firstClickaroundOpts.scrollToBottomAtEnd !== undefined ? firstClickaroundOpts.scrollToBottomAtEnd : true;
+        firstClickaroundOpts.scrollToBottomAtEnd !== undefined ? firstClickaroundOpts.scrollToBottomAtEnd : false;
     document.getElementById('firstBuildClickaroundOptions').style.display = 
         settings.firstBuildAction.action === 'clickaround' ? 'block' : 'none';
     document.getElementById('firstBuildClickOffScrollDistance').parentElement.style.display = 
@@ -1829,7 +1832,7 @@ async function loadSettingsForLevel(levelName) {
     document.getElementById('secondBuildScrollUpCount').value = secondClickaroundOpts.scrollUpCount || 5;
     document.getElementById('secondBuildInitialScrollDown').value = secondClickaroundOpts.initialScrollDown || 150;
     document.getElementById('secondBuildScrollToBottomAtEnd').checked = 
-        secondClickaroundOpts.scrollToBottomAtEnd !== undefined ? secondClickaroundOpts.scrollToBottomAtEnd : true;
+        secondClickaroundOpts.scrollToBottomAtEnd !== undefined ? secondClickaroundOpts.scrollToBottomAtEnd : false;
     document.getElementById('secondBuildClickaroundOptions').style.display = 
         settings.secondBuildAction.action === 'clickaround' ? 'block' : 'none';
     document.getElementById('secondBuildClickOffScrollDistance').parentElement.style.display = 
