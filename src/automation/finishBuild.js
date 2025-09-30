@@ -323,13 +323,6 @@ async function runBuildProtocol(dependencies) {
         updateStatus(`Initial build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${initialDetectedBox.state})`, 'info');
         console.log(`DEBUG: Initial build box found: ${JSON.stringify(omitImageFromLog(initialDetectedBox))}`);
 
-        // Notify which build is starting (send signal ONCE at the start of build)
-        const buildNumber = isFirstRunOnLevel ? 'first_build' : 'second_build';
-        if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
-            console.log(`🔨 Sending ${buildNumber} signal (build starting)`);
-            dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
-        }
-
         // Step 2: Start a loop
         while (getIsAutomationRunning()) {
             const currentTime = Date.now();

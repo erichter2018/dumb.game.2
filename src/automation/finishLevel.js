@@ -127,6 +127,13 @@ function startAutomation(dependencies) {
                 buildCompletionCount++;
                 console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult}`);
                 
+                // Send build completion signal (first_build or second_build)
+                const buildNumber = buildCompletionCount === 1 ? 'first_build' : 'second_build';
+                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    console.log(`🔨 Sending ${buildNumber} signal (build completed)`);
+                    dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
+                }
+                
                 // Get current level name to check settings
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
                 const levelSettings = settingsManager.getLevelSettings(currentLevelName);
@@ -320,6 +327,13 @@ function startAutomation(dependencies) {
                 buildCompletionCount++;
                 console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult} after red blob click`);
                 
+                // Send build completion signal (first_build or second_build)
+                const buildNumber = buildCompletionCount === 1 ? 'first_build' : 'second_build';
+                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    console.log(`🔨 Sending ${buildNumber} signal (build completed)`);
+                    dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
+                }
+                
                 // Get current level name to check settings
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
                 const levelSettings = settingsManager.getLevelSettings(currentLevelName);
@@ -339,6 +353,15 @@ function startAutomation(dependencies) {
                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                     await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                     if (!getIsAutomationRunning()) return 'stopped';
+                }
+                
+                // Mark the "after build" action as complete (always, even if no scroll)
+                const afterBuildAction = buildCompletionCount === 1 ? 'after_first_build' : 'after_second_build';
+                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    console.log(`🎯 Sending ${afterBuildAction} action completed signal`);
+                    dependencies.mainWindow.webContents.send('level-action-completed', afterBuildAction);
+                } else {
+                    console.log(`⚠️ Cannot send ${afterBuildAction} signal - mainWindow not available`);
                 }
             }
 
