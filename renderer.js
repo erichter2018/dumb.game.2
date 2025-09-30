@@ -1304,6 +1304,7 @@ function populateStagesView() {
                 name: stageName,
                 number: stageInfo.stageNumber,
                 completions: completions.length,
+                last: completions.length > 0 ? completions[completions.length - 1] : 0,
                 average: filteredCompletions.length > 0 ? Math.round(filteredCompletions.reduce((a, b) => a + b, 0) / filteredCompletions.length) : 0,
                 min: filteredCompletions.length > 0 ? Math.min(...filteredCompletions) : 0,
                 max: filteredCompletions.length > 0 ? Math.max(...filteredCompletions) : 0,
@@ -1324,6 +1325,7 @@ function populateStagesView() {
             case 'number': 
                 result = a.number - b.number;
                 break;
+            case 'last':
             case 'average': 
             case 'min':
             case 'max':
@@ -1358,6 +1360,7 @@ function populateStagesView() {
             <td>${stage.name}</td>
             <td>${stage.number}</td>
             <td>${stage.completions || '<span class="no-data">0</span>'}</td>
+            <td>${stage.last ? formatDuration(stage.last) : '<span class="no-data">—</span>'}</td>
             <td>${stage.average ? formatDuration(stage.average) : '<span class="no-data">—</span>'}</td>
             <td>${stage.min ? formatDuration(stage.min) : '<span class="no-data">—</span>'}</td>
             <td>${stage.max ? formatDuration(stage.max) : '<span class="no-data">—</span>'}</td>
@@ -1405,6 +1408,7 @@ function populateLevelsView() {
             positions: uniquePositions,
             positionsText: positionsText,
             completions: completions.length,
+            last: completions.length > 0 ? completions[completions.length - 1] : 0,
             average: filteredCompletions.length > 0 ? Math.round(filteredCompletions.reduce((a, b) => a + b, 0) / filteredCompletions.length) : 0,
             min: filteredCompletions.length > 0 ? Math.min(...filteredCompletions) : 0,
             max: filteredCompletions.length > 0 ? Math.max(...filteredCompletions) : 0,
@@ -1427,6 +1431,7 @@ function populateLevelsView() {
                 const bPos = b.positions.length > 0 ? b.positions[0] : 999;
                 result = aPos - bPos;
                 break;
+            case 'last':
             case 'average': 
             case 'min':
             case 'max':
@@ -1461,6 +1466,7 @@ function populateLevelsView() {
             <td>${level.name}</td>
             <td>${level.positionsText}</td>
             <td>${level.completions || '<span class="no-data">0</span>'}</td>
+            <td>${level.last ? formatDuration(level.last) : '<span class="no-data">—</span>'}</td>
             <td>${level.average ? formatDuration(level.average) : '<span class="no-data">—</span>'}</td>
             <td>${level.min ? formatDuration(level.min) : '<span class="no-data">—</span>'}</td>
             <td>${level.max ? formatDuration(level.max) : '<span class="no-data">—</span>'}</td>
