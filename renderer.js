@@ -1554,8 +1554,11 @@ async function initializeSettingsModal() {
     // Get all level names
     allLevelNames = await ipcRenderer.invoke('get-all-level-names');
     
+    // Sort level names alphabetically
+    const sortedLevelNames = [...allLevelNames].sort((a, b) => a.localeCompare(b));
+    
     // Populate level selector
-    allLevelNames.forEach(levelName => {
+    sortedLevelNames.forEach(levelName => {
         const option = document.createElement('option');
         option.value = levelName;
         option.textContent = levelName.charAt(0).toUpperCase() + levelName.slice(1);
