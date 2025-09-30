@@ -90,6 +90,16 @@ body {
     background: rgba(255, 193, 7, 0.05);
     border: 1px solid rgba(255, 193, 7, 0.2);
     border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.stage-section-header {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #ffc107;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.3);
 }
 
 .stage-levels-compact {
@@ -962,6 +972,12 @@ kbd {
 .stage-level-completed {
     border-color: #28a745;
     background: rgba(40, 167, 69, 0.1);
+}
+
+.stage-level-incomplete {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+    opacity: 0.5;
 }
 
 /* Statistics Modal */

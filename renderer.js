@@ -914,10 +914,13 @@ async function updateStageDisplay(stageInfo) {
     // Update longest stages
     updateLongestStages(stageInfo.longestStages || []);
     
+    // Show/hide and update previous stage levels (compact view)
+    await updatePreviousStageDetailsCompact(stageInfo.previous);
+    
     // Show/hide and update current stage details
     await updateCurrentStageDetails(stageInfo.current);
     
-    // Show/hide and update previous stage
+    // Show/hide and update previous stage (full view - in sidebar)
     updatePreviousStageDetails(stageInfo.previous);
 }
 
@@ -943,6 +946,60 @@ function updateLongestStages(longestStages) {
 
 let updateStageCallCounter = 0;
 
+async function updatePreviousStageDetailsCompact(previousStage) {
+    const prevStageDetails = document.getElementById('prevStageDetails');
+    const prevStageLevels = document.getElementById('prevStageLevels');
+    
+    if (!previousStage || !previousStage.levels || previousStage.levels.length === 0) {
+        if (prevStageDetails) prevStageDetails.style.display = 'none';
+        return;
+    }
+    
+    if (prevStageDetails) prevStageDetails.style.display = 'block';
+    
+    if (prevStageLevels) {
+        prevStageLevels.innerHTML = '';
+        
+        // Get the level database to show actual level names
+        let stageLevelNames = [];
+        try {
+            const levelDatabase = await ipcRenderer.invoke('get-level-database');
+            const stageInfo = levelDatabase[previousStage.name];
+            if (stageInfo && stageInfo.levels) {
+                stageLevelNames = stageInfo.levels.map(level => level.name);
+            }
+        } catch (error) {
+            console.error('Failed to load level database for previous stage:', error);
+        }
+        
+        // Show all 7 level positions for previous stage
+        for (let position = 0; position < 7; position++) {
+            const levelDiv = document.createElement('div');
+            
+            if (position < previousStage.levels.length) {
+                // Show completed level
+                const level = previousStage.levels[position];
+                levelDiv.className = 'stage-level-item stage-level-completed';
+                levelDiv.innerHTML = `
+                    <span class="stage-level-name">${level.name}</span>
+                    <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
+                `;
+            } else {
+                // Show level name without time (if available)
+                const levelIndex = position;
+                const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+                levelDiv.className = 'stage-level-item stage-level-incomplete';
+                levelDiv.innerHTML = `
+                    <span class="stage-level-name">${levelName}</span>
+                    <span class="stage-level-time">—</span>
+                `;
+            }
+            
+            prevStageLevels.appendChild(levelDiv);
+        }
+    }
+}
+
 async function updateCurrentStageDetails(currentStage) {
     updateStageCallCounter++;
     console.log(`DEBUG: updateCurrentStageDetails called #${updateStageCallCounter}`);
@@ -954,6 +1011,9 @@ async function updateCurrentStageDetails(currentStage) {
     
     if (!currentStage) {
         if (stageDetails) stageDetails.style.display = 'none';
+        // Also hide previous stage details when no current stage
+        const prevStageDetails = document.getElementById('prevStageDetails');
+        if (prevStageDetails) prevStageDetails.style.display = 'none';
         return;
     }
     
