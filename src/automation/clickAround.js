@@ -42,10 +42,26 @@ function filterRedBlobConflicts(validClicks, redBlobPositions, threshold, exclud
   });
 }
 
-async function clickAround(dependencies, exclude_red_blobs = true) {
-  const { updateStatus, detectRedBlobs, performClick, performBatchedClicks, iphoneMirroringRegion, getIsClickAroundRunning, getIsClickAroundPaused, updateCurrentFunction, CLICK_AREAS, captureScreenRegion, compareBottomRegions, captureBottomRegion } = dependencies;
-  updateStatus(`Starting Click Around automation... (exclude_red_blobs: ${exclude_red_blobs})`, 'info');
-  console.log(`DEBUG: ClickAround started with exclude_red_blobs: ${exclude_red_blobs}`);
+async function clickAround(dependencies, exclude_red_blobs = true, options = {}) {
+  // Default options for clickAround behavior
+  const defaultOptions = {
+    excludeRedBlobs: false,           // Do NOT avoid red blobs by default (changed to match new requirement)
+    scrollUpDistance: 200,             // Scroll up distance in pixels
+    scrollUpCount: 5,                  // How many times to scroll up
+    initialScrollDown: 150,            // Initial scroll down distance in pixels
+    scrollToBottomAtEnd: true          // Scroll to bottom when finished
+  };
+  
+  // Merge provided options with defaults
+  const config = { ...defaultOptions, ...options };
+  
+  // Note: exclude_red_blobs parameter maintained for backward compatibility, but overridden by config
+  const shouldExcludeRedBlobs = config.excludeRedBlobs;
+  
+  const { updateStatus, detectRedBlobs, performClick, performBatchedClicks, iphoneMirroringRegion, getIsClickAroundRunning, getIsClickAroundPaused, updateCurrentFunction, CLICK_AREAS, captureScreenRegion, compareBottomRegions, captureBottomRegion, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations } = dependencies;
+  
+  updateStatus(`Starting Click Around automation... (excludeRedBlobs: ${shouldExcludeRedBlobs}, scrollUp: ${config.scrollUpCount}x${config.scrollUpDistance}px, initialScrollDown: ${config.initialScrollDown}px, scrollToBottomAtEnd: ${config.scrollToBottomAtEnd})`, 'info');
+  console.log(`DEBUG: ClickAround started with config:`, config);
 
   const redBlobProximityThreshold = 250;
 
@@ -63,7 +79,7 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
 
   let redBlobHistory = [];
   let scrollCount = 0;
-  const maxScrolls = 7; // Fallback maximum scroll attempts (safety limit)
+  const maxScrolls = config.scrollUpCount; // Use configured scroll count
   const minCellSize = 27; // Minimum grid cell size (pixels)
   const maxCellSize = 31; // Maximum grid cell size (pixels)
   let previousBottomImage = null; // Store previous bottom image for comparison
@@ -87,9 +103,9 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
     });
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Initial scroll down (150 pixels total in single call)
-    updateStatus('Click Around: Initial scroll to top complete. Scrolling down by 150 pixels...', 'info');
-    await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, 150); // Single call with total distance
+    // Initial scroll down (configurable distance)
+    updateStatus(`Click Around: Initial scroll to top complete. Scrolling down by ${config.initialScrollDown} pixels...`, 'info');
+    await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, config.initialScrollDown);
 
     const checkPauseState = async () => {
       while (getIsClickAroundPaused() && getIsClickAroundRunning()) {
@@ -153,7 +169,7 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
       
       // Extract positions for exclusion filtering
       const redBlobPositions = currentRedBlobs.map(blob => ({ x: blob.x, y: blob.y }));
-      if (exclude_red_blobs) {
+      if (shouldExcludeRedBlobs) {
         console.log(`DEBUG: ClickAround will exclude ${redBlobPositions.length} red blobs from clicking:`, redBlobPositions);
       } else {
         console.log(`DEBUG: ClickAround detected ${redBlobPositions.length} red blobs but will NOT exclude them from clicking:`, redBlobPositions);
@@ -181,7 +197,7 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
       console.log(`DEBUG: Generated ${validClicks.length} valid click positions (after exclusion zones)`);
       
       // OPTIMIZED: Filter red blob conflicts once per screen
-      const finalClicks = filterRedBlobConflicts(validClicks, redBlobPositions, redBlobProximityThreshold, exclude_red_blobs);
+      const finalClicks = filterRedBlobConflicts(validClicks, redBlobPositions, redBlobProximityThreshold, shouldExcludeRedBlobs);
       console.log(`DEBUG: Final click count after red blob filtering: ${finalClicks.length} (filtered out ${validClicks.length - finalClicks.length})`);
       
       // OPTIMIZED: Single batch click for entire screen - MUCH faster!
@@ -197,8 +213,8 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
       if (!await checkPauseState()) return;
 
       // Scroll down (350 pixels total in single call)
-      updateStatus(`Click Around: Completed screen ${scrollCount + 1}/${maxScrolls}. Scrolling down by 350 pixels.`, 'info');
-      await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, 350); // Single call with total distance
+      updateStatus(`Click Around: Completed screen ${scrollCount + 1}/${maxScrolls}. Scrolling down by ${config.scrollUpDistance} pixels.`, 'info');
+      await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, config.scrollUpDistance);
       
       // Capture bottom image for next iteration's comparison
       try {
@@ -213,6 +229,19 @@ async function clickAround(dependencies, exclude_red_blobs = true) {
 
     if (scrollCount >= maxScrolls) {
       updateStatus('Click Around: Max scroll attempts reached. Stopping.', 'info');
+    }
+    
+    // Scroll to bottom at the end if configured
+    if (config.scrollToBottomAtEnd && scrollToBottom) {
+      updateStatus('Click Around: Scrolling to bottom...', 'info');
+      console.log('DEBUG: ClickAround scrolling to bottom at end');
+      const scrollX = regionX + regionWidth / 2;
+      const scrollY = regionY + regionHeight / 2;
+      await scrollToBottom(scrollX, scrollY, scrollSwipeDistance || 200, scrollToBottomIterations || 10, { 
+        updateCurrentFunction, 
+        performClick, 
+        CLICK_AREAS 
+      });
     }
 
   } catch (error) {

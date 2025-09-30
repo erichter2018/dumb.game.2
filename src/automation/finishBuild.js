@@ -338,9 +338,18 @@ async function runBuildProtocol(dependencies) {
                 
                 // Execute the action based on type
                 if (currentBuildAction.action === 'clickaround') {
-                    const excludeRedBlobs = currentBuildAction.excludeRedBlobs !== undefined ? currentBuildAction.excludeRedBlobs : true;
+                    // Get clickaround options from settings (with defaults)
+                    const clickaroundOptions = currentBuildAction.clickaroundOptions || {
+                        excludeRedBlobs: false,
+                        scrollUpDistance: 200,
+                        scrollUpCount: 5,
+                        initialScrollDown: 150,
+                        scrollToBottomAtEnd: true
+                    };
                     
-                    // Call clickAround with the configured excludeRedBlobs setting
+                    console.log('DEBUG: Finish Build: Using clickaround options:', clickaroundOptions);
+                    
+                    // Call clickAround with the configured options
                     const clickAroundDependencies = {
                         updateStatus: dependencies.updateStatus,
                         detectRedBlobs: dependencies.redBlobDetectorDetect,
@@ -365,10 +374,16 @@ async function runBuildProtocol(dependencies) {
                         },
                         getIsClickAroundRunning: () => true,
                         getIsClickAroundPaused: () => false,
+                        scrollToBottom: dependencies.scrollToBottom,
+                        scrollSwipeDistance: dependencies.scrollSwipeDistance,
+                        scrollToBottomIterations: dependencies.scrollToBottomIterations,
+                        compareBottomRegions: dependencies.compareBottomRegions,
+                        captureBottomRegion: dependencies.captureBottomRegion,
                     };
                     
                     const { clickAround } = require('./clickAround');
-                    await clickAround(clickAroundDependencies, excludeRedBlobs);
+                    // Pass options as third parameter (second param maintained for backward compatibility)
+                    await clickAround(clickAroundDependencies, true, clickaroundOptions);
                     
                     updateStatus('Finish Build: Action completed. Returning control to Finish Level.', 'success');
                     console.log('DEBUG: Finish Build: Action completed. Returning control to Finish Level.');

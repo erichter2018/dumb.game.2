@@ -36,11 +36,25 @@ class SettingsManager {
                 perfectStartingPosition: 'nothing',
                 firstBuildAction: {
                     action: 'nothing',
-                    triggerTimeMs: null
+                    triggerTimeMs: null,
+                    clickaroundOptions: {
+                        excludeRedBlobs: false,
+                        scrollUpDistance: 200,
+                        scrollUpCount: 5,
+                        initialScrollDown: 150,
+                        scrollToBottomAtEnd: true
+                    }
                 },
                 secondBuildAction: {
                     action: 'nothing',
-                    triggerTimeMs: null
+                    triggerTimeMs: null,
+                    clickaroundOptions: {
+                        excludeRedBlobs: false,
+                        scrollUpDistance: 200,
+                        scrollUpCount: 5,
+                        initialScrollDown: 150,
+                        scrollToBottomAtEnd: true
+                    }
                 }
             };
             this.settings = {};
