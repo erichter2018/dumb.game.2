@@ -71,12 +71,36 @@ body {
 }
 
 /* Stage Info Styles */
+.stage-info-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 .stage-info {
     padding: 12px 16px;
     background: rgba(255, 193, 7, 0.1);
     border: 2px solid rgba(255, 193, 7, 0.3);
     border-radius: 8px;
     min-width: 180px;
+}
+
+.stage-details-compact {
+    padding: 12px;
+    background: rgba(255, 193, 7, 0.05);
+    border: 1px solid rgba(255, 193, 7, 0.2);
+    border-radius: 8px;
+}
+
+.stage-levels-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+.stage-levels-compact .level-card {
+    padding: 8px 12px;
+    font-size: 0.85em;
 }
 
 .stage-name {

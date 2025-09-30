@@ -645,10 +645,11 @@
         108765,
         98632,
         103703,
-        103703
+        103703,
+        101334
       ],
-      "averageDuration": 106902,
-      "totalCompletions": 12,
+      "averageDuration": 106474,
+      "totalCompletions": 13,
       "bestTime": 98632,
       "worstTime": 116983
     },
@@ -676,10 +677,11 @@
         109988,
         109988,
         106998,
-        106998
+        106998,
+        118295
       ],
-      "averageDuration": 120263,
-      "totalCompletions": 9,
+      "averageDuration": 120067,
+      "totalCompletions": 10,
       "bestTime": 106998,
       "worstTime": 149931
     },
@@ -756,11 +758,12 @@
         99976,
         106275,
         106275,
-        103160
+        103160,
+        99770
       ],
-      "averageDuration": 104584,
-      "totalCompletions": 13,
-      "bestTime": 99912,
+      "averageDuration": 104240,
+      "totalCompletions": 14,
+      "bestTime": 99770,
       "worstTime": 116166
     },
     "Sushi Bar": {
@@ -949,12 +952,13 @@
         386016,
         346324,
         357943,
-        387889
+        387889,
+        392913
       ],
-      "averageDuration": 372838,
-      "totalCompletions": 5,
+      "averageDuration": 376184,
+      "totalCompletions": 6,
       "bestTime": 346324,
-      "worstTime": 387889
+      "worstTime": 392913
     },
     "Mezze Bar": {
       "completions": [
@@ -1258,7 +1262,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-09-30T01:20:56.209Z",
+    "lastUpdated": "2025-09-30T01:40:14.193Z",
     "totalLevelsTracked": 43,
     "totalStagesTracked": 31
   }
