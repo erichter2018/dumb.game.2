@@ -1606,12 +1606,12 @@ async function initializeSettingsModal() {
     
     // Show/hide excludeRedBlobs based on action selection
     document.getElementById('firstBuildAction').addEventListener('change', (e) => {
-        document.getElementById('firstBuildExcludeRedBlobs').style.display = 
+        document.getElementById('firstBuildClickaroundOptions').style.display = 
             e.target.value === 'clickaround' ? 'block' : 'none';
     });
     
     document.getElementById('secondBuildAction').addEventListener('change', (e) => {
-        document.getElementById('secondBuildExcludeRedBlobs').style.display = 
+        document.getElementById('secondBuildClickaroundOptions').style.display = 
             e.target.value === 'clickaround' ? 'block' : 'none';
     });
 }
@@ -1642,17 +1642,31 @@ async function loadSettingsForLevel(levelName) {
     // First build action
     document.getElementById('firstBuildAction').value = settings.firstBuildAction.action;
     document.getElementById('firstBuildTriggerTime').value = settings.firstBuildAction.triggerTimeMs || '';
-    document.getElementById('firstBuildExcludeRedBlobsCheck').checked = 
-        settings.firstBuildAction.excludeRedBlobs !== false;
-    document.getElementById('firstBuildExcludeRedBlobs').style.display = 
+    
+    // First build clickaround options
+    const firstClickaroundOpts = settings.firstBuildAction.clickaroundOptions || {};
+    document.getElementById('firstBuildExcludeRedBlobs').checked = firstClickaroundOpts.excludeRedBlobs || false;
+    document.getElementById('firstBuildScrollUpDistance').value = firstClickaroundOpts.scrollUpDistance || 200;
+    document.getElementById('firstBuildScrollUpCount').value = firstClickaroundOpts.scrollUpCount || 5;
+    document.getElementById('firstBuildInitialScrollDown').value = firstClickaroundOpts.initialScrollDown || 150;
+    document.getElementById('firstBuildScrollToBottomAtEnd').checked = 
+        firstClickaroundOpts.scrollToBottomAtEnd !== undefined ? firstClickaroundOpts.scrollToBottomAtEnd : true;
+    document.getElementById('firstBuildClickaroundOptions').style.display = 
         settings.firstBuildAction.action === 'clickaround' ? 'block' : 'none';
     
     // Second build action
     document.getElementById('secondBuildAction').value = settings.secondBuildAction.action;
     document.getElementById('secondBuildTriggerTime').value = settings.secondBuildAction.triggerTimeMs || '';
-    document.getElementById('secondBuildExcludeRedBlobsCheck').checked = 
-        settings.secondBuildAction.excludeRedBlobs !== false;
-    document.getElementById('secondBuildExcludeRedBlobs').style.display = 
+    
+    // Second build clickaround options
+    const secondClickaroundOpts = settings.secondBuildAction.clickaroundOptions || {};
+    document.getElementById('secondBuildExcludeRedBlobs').checked = secondClickaroundOpts.excludeRedBlobs || false;
+    document.getElementById('secondBuildScrollUpDistance').value = secondClickaroundOpts.scrollUpDistance || 200;
+    document.getElementById('secondBuildScrollUpCount').value = secondClickaroundOpts.scrollUpCount || 5;
+    document.getElementById('secondBuildInitialScrollDown').value = secondClickaroundOpts.initialScrollDown || 150;
+    document.getElementById('secondBuildScrollToBottomAtEnd').checked = 
+        secondClickaroundOpts.scrollToBottomAtEnd !== undefined ? secondClickaroundOpts.scrollToBottomAtEnd : true;
+    document.getElementById('secondBuildClickaroundOptions').style.display = 
         settings.secondBuildAction.action === 'clickaround' ? 'block' : 'none';
 }
 
@@ -1667,12 +1681,24 @@ async function saveCurrentSettings() {
         firstBuildAction: {
             action: document.getElementById('firstBuildAction').value,
             triggerTimeMs: parseInt(document.getElementById('firstBuildTriggerTime').value) || null,
-            excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobsCheck').checked
+            clickaroundOptions: {
+                excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobs').checked,
+                scrollUpDistance: parseInt(document.getElementById('firstBuildScrollUpDistance').value),
+                scrollUpCount: parseInt(document.getElementById('firstBuildScrollUpCount').value),
+                initialScrollDown: parseInt(document.getElementById('firstBuildInitialScrollDown').value),
+                scrollToBottomAtEnd: document.getElementById('firstBuildScrollToBottomAtEnd').checked
+            }
         },
         secondBuildAction: {
             action: document.getElementById('secondBuildAction').value,
             triggerTimeMs: parseInt(document.getElementById('secondBuildTriggerTime').value) || null,
-            excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobsCheck').checked
+            clickaroundOptions: {
+                excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobs').checked,
+                scrollUpDistance: parseInt(document.getElementById('secondBuildScrollUpDistance').value),
+                scrollUpCount: parseInt(document.getElementById('secondBuildScrollUpCount').value),
+                initialScrollDown: parseInt(document.getElementById('secondBuildInitialScrollDown').value),
+                scrollToBottomAtEnd: document.getElementById('secondBuildScrollToBottomAtEnd').checked
+            }
         }
     };
     
