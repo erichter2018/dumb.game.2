@@ -822,11 +822,13 @@
         31873,
         31873,
         31852,
-        31852
+        31852,
+        30225,
+        30225
       ],
-      "averageDuration": 32575,
-      "totalCompletions": 26,
-      "bestTime": 31335,
+      "averageDuration": 32407,
+      "totalCompletions": 28,
+      "bestTime": 30225,
       "worstTime": 37589
     },
     "Apple Juice Bar": {
@@ -1256,7 +1258,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-09-30T00:46:57.035Z",
+    "lastUpdated": "2025-09-30T01:20:56.209Z",
     "totalLevelsTracked": 43,
     "totalStagesTracked": 31
   }
