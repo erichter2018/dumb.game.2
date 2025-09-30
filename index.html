@@ -395,15 +395,18 @@
 
                     <div class="settings-section">
                         <h3>Perfect Starting Position</h3>
-                        <select id="perfectStartingPosition">
-                            <option value="nothing">Nothing</option>
-                            <option value="scroll_down_1x">Scroll Down 1x</option>
-                            <option value="scroll_down_2x">Scroll Down 2x</option>
-                            <option value="scroll_down_3x">Scroll Down 3x</option>
-                            <option value="scroll_down_4x">Scroll Down 4x</option>
-                            <option value="scroll_to_bottom">Scroll to Bottom</option>
-                        </select>
-                        <span class="setting-help">What to do when starting a new level</span>
+                        <div class="setting-item">
+                            <label for="perfectStartingPosition">Starting Action:</label>
+                            <select id="perfectStartingPosition">
+                                <option value="nothing">Nothing</option>
+                                <option value="scroll_down_1x">Scroll Down 1x</option>
+                                <option value="scroll_down_2x">Scroll Down 2x</option>
+                                <option value="scroll_down_3x">Scroll Down 3x</option>
+                                <option value="scroll_down_4x">Scroll Down 4x</option>
+                                <option value="scroll_to_bottom">Scroll to Bottom</option>
+                            </select>
+                            <span class="setting-help">What to do when starting a new level</span>
+                        </div>
                     </div>
 
                     <div class="settings-section">
@@ -429,7 +432,7 @@
                             <h4>Click Around Options</h4>
                             <div class="setting-item">
                                 <label>
-                                    <input type="checkbox" id="firstBuildExcludeRedBlobs">
+                                    <input type="checkbox" id="firstBuildExcludeRedBlobs" checked>
                                     Exclude Red Blobs
                                 </label>
                                 <span class="setting-help">Avoid clicking near red blobs</span>
@@ -482,7 +485,7 @@
                             <h4>Click Around Options</h4>
                             <div class="setting-item">
                                 <label>
-                                    <input type="checkbox" id="secondBuildExcludeRedBlobs">
+                                    <input type="checkbox" id="secondBuildExcludeRedBlobs" checked>
                                     Exclude Red Blobs
                                 </label>
                                 <span class="setting-help">Avoid clicking near red blobs</span>

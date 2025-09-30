@@ -38,7 +38,7 @@ class SettingsManager {
                     action: 'nothing',
                     triggerTimeMs: null,
                     clickaroundOptions: {
-                        excludeRedBlobs: false,
+                        excludeRedBlobs: true,
                         scrollUpDistance: 200,
                         scrollUpCount: 5,
                         initialScrollDown: 150,
@@ -49,7 +49,7 @@ class SettingsManager {
                     action: 'nothing',
                     triggerTimeMs: null,
                     clickaroundOptions: {
-                        excludeRedBlobs: false,
+                        excludeRedBlobs: true,
                         scrollUpDistance: 200,
                         scrollUpCount: 5,
                         initialScrollDown: 150,

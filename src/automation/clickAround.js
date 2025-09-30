@@ -45,7 +45,7 @@ function filterRedBlobConflicts(validClicks, redBlobPositions, threshold, exclud
 async function clickAround(dependencies, exclude_red_blobs = true, options = {}) {
   // Default options for clickAround behavior
   const defaultOptions = {
-    excludeRedBlobs: false,           // Do NOT avoid red blobs by default (changed to match new requirement)
+    excludeRedBlobs: true,             // Avoid red blobs by default
     scrollUpDistance: 200,             // Scroll up distance in pixels
     scrollUpCount: 5,                  // How many times to scroll up
     initialScrollDown: 150,            // Initial scroll down distance in pixels

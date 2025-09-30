@@ -1645,7 +1645,8 @@ async function loadSettingsForLevel(levelName) {
     
     // First build clickaround options
     const firstClickaroundOpts = settings.firstBuildAction.clickaroundOptions || {};
-    document.getElementById('firstBuildExcludeRedBlobs').checked = firstClickaroundOpts.excludeRedBlobs || false;
+    document.getElementById('firstBuildExcludeRedBlobs').checked = 
+        firstClickaroundOpts.excludeRedBlobs !== undefined ? firstClickaroundOpts.excludeRedBlobs : true;
     document.getElementById('firstBuildScrollUpDistance').value = firstClickaroundOpts.scrollUpDistance || 200;
     document.getElementById('firstBuildScrollUpCount').value = firstClickaroundOpts.scrollUpCount || 5;
     document.getElementById('firstBuildInitialScrollDown').value = firstClickaroundOpts.initialScrollDown || 150;
@@ -1660,7 +1661,8 @@ async function loadSettingsForLevel(levelName) {
     
     // Second build clickaround options
     const secondClickaroundOpts = settings.secondBuildAction.clickaroundOptions || {};
-    document.getElementById('secondBuildExcludeRedBlobs').checked = secondClickaroundOpts.excludeRedBlobs || false;
+    document.getElementById('secondBuildExcludeRedBlobs').checked = 
+        secondClickaroundOpts.excludeRedBlobs !== undefined ? secondClickaroundOpts.excludeRedBlobs : true;
     document.getElementById('secondBuildScrollUpDistance').value = secondClickaroundOpts.scrollUpDistance || 200;
     document.getElementById('secondBuildScrollUpCount').value = secondClickaroundOpts.scrollUpCount || 5;
     document.getElementById('secondBuildInitialScrollDown').value = secondClickaroundOpts.initialScrollDown || 150;
@@ -1756,7 +1758,7 @@ async function updateLevelActionsDisplay() {
     const isClickaroundModified = (options) => {
         if (!options) return false;
         const defaults = {
-            excludeRedBlobs: false,
+            excludeRedBlobs: true,
             scrollUpDistance: 200,
             scrollUpCount: 5,
             initialScrollDown: 150,

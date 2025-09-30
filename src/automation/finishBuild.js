@@ -340,7 +340,7 @@ async function runBuildProtocol(dependencies) {
                 if (currentBuildAction.action === 'clickaround') {
                     // Get clickaround options from settings (with defaults)
                     const clickaroundOptions = currentBuildAction.clickaroundOptions || {
-                        excludeRedBlobs: false,
+                        excludeRedBlobs: true,
                         scrollUpDistance: 200,
                         scrollUpCount: 5,
                         initialScrollDown: 150,
