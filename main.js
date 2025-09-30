@@ -960,6 +960,7 @@ async function startFinishBuildAutomationLoop() {
 
   // Dependencies for the automation protocol
   const automationDependencies = {
+    mainWindow, // Add mainWindow for IPC events
     performClick,
     performBatchedClicks, // Add missing performBatchedClicks for finishBuild
     clickDown,
@@ -1127,6 +1128,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
   }
 
   const automationDependencies = {
+    mainWindow, // Add mainWindow for IPC events
     performClick,
     performBatchedClicks, // Add missing performBatchedClicks for finishLevel
     clickDown,
