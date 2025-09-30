@@ -17,7 +17,7 @@
         "scrollUpDistance": 200,
         "scrollUpCount": 5,
         "initialScrollDown": 150,
-        "scrollToBottomAtEnd": true
+        "scrollToBottomAtEnd": false
       }
     },
     "secondBuildAction": {
@@ -30,7 +30,7 @@
         "scrollUpDistance": 200,
         "scrollUpCount": 5,
         "initialScrollDown": 150,
-        "scrollToBottomAtEnd": true
+        "scrollToBottomAtEnd": false
       }
     }
   },
@@ -84,7 +84,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -97,7 +97,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -149,7 +149,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -161,7 +161,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -195,7 +195,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -216,7 +216,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -229,7 +229,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -264,7 +264,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -275,7 +275,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -362,7 +362,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -375,7 +375,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -412,7 +412,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -425,7 +425,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -446,7 +446,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -459,7 +459,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -496,7 +496,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -509,7 +509,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -530,7 +530,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -543,7 +543,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -564,7 +564,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -577,7 +577,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -602,33 +602,69 @@
     "street nuts": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
-      "scrollToBottomAfterFirstBuild": true,
-      "scrollToBottomAfterSecondBuild": false,
-      "perfectStartingPosition": "nothing",
-      "firstBuildAction": {
-        "action": "nothing",
-        "triggerTimeMs": null
-      },
-      "secondBuildAction": {
-        "action": "nothing",
-        "triggerTimeMs": null
-      }
-    },
-    "floral stand": {
-      "doResearch": false,
-      "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 3500,
       "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       },
       "secondBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
+      }
+    },
+    "floral stand": {
+      "doResearch": false,
+      "scrollDirection": "up",
+      "blueBoxClickHoldDuration": 3500,
+      "scrollToBottomAfterFirstBuild": false,
+      "scrollToBottomAfterSecondBuild": false,
+      "perfectStartingPosition": "nothing",
+      "firstBuildAction": {
+        "action": "nothing",
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
+      },
+      "secondBuildAction": {
+        "action": "nothing",
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       }
     },
     "cheese shop": {
@@ -712,7 +748,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -725,7 +761,7 @@
           "scrollUpDistance": 200,
           "scrollUpCount": 5,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },
@@ -765,16 +801,34 @@
       "doResearch": true,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
-      "scrollToBottomAfterFirstBuild": true,
+      "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
-      "perfectStartingPosition": "scroll_down_3x",
+      "perfectStartingPosition": "scroll_down_2x",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       },
       "secondBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       }
     },
     "italiano": {
@@ -783,16 +837,32 @@
       "blueBoxClickHoldDuration": 6500,
       "scrollToBottomAfterFirstBuild": true,
       "scrollToBottomAfterSecondBuild": false,
-      "perfectStartingPosition": "scroll_down_4x",
+      "perfectStartingPosition": "scroll_down_2x",
       "firstBuildAction": {
         "action": "clickaround",
-        "triggerTimeMs": 60000,
-        "excludeRedBlobs": true
+        "triggerTimeMs": 30000,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 2,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       },
       "secondBuildAction": {
-        "action": "clickaround",
+        "action": "nothing",
         "triggerTimeMs": 180000,
-        "excludeRedBlobs": true
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       }
     },
     "baklava shop": {
@@ -840,10 +910,11 @@
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": true,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 1,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 0,
+          "scrollUpCount": 0,
           "initialScrollDown": 0,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
@@ -852,10 +923,11 @@
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
           "scrollUpDistance": 200,
           "scrollUpCount": 3,
           "initialScrollDown": 150,
-          "scrollToBottomAtEnd": true
+          "scrollToBottomAtEnd": false
         }
       }
     },

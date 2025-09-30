@@ -219,11 +219,13 @@
         43527,
         43527,
         40855,
-        40855
+        40855,
+        37645,
+        37645
       ],
-      "averageDuration": 43952,
-      "totalCompletions": 15,
-      "bestTime": 40855,
+      "averageDuration": 43210,
+      "totalCompletions": 17,
+      "bestTime": 37645,
       "worstTime": 44848
     },
     "Ice Cream Truck": {
@@ -389,10 +391,11 @@
         130714,
         138985,
         150347,
-        150347
+        150347,
+        133007
       ],
-      "averageDuration": 143502,
-      "totalCompletions": 17,
+      "averageDuration": 142919,
+      "totalCompletions": 18,
       "bestTime": 129882,
       "worstTime": 178369
     },
@@ -691,10 +694,11 @@
         118057,
         118057,
         125219,
-        125219
+        125219,
+        126713
       ],
-      "averageDuration": 128677,
-      "totalCompletions": 12,
+      "averageDuration": 128526,
+      "totalCompletions": 13,
       "bestTime": 116406,
       "worstTime": 208203
     },
@@ -712,11 +716,12 @@
         98632,
         103703,
         103703,
-        101334
+        101334,
+        96847
       ],
-      "averageDuration": 106474,
-      "totalCompletions": 13,
-      "bestTime": 98632,
+      "averageDuration": 105786,
+      "totalCompletions": 14,
+      "bestTime": 96847,
       "worstTime": 116983
     },
     "Seafood Restaurant": {
@@ -838,10 +843,11 @@
         101054,
         101054,
         105070,
-        105070
+        105070,
+        101025
       ],
-      "averageDuration": 103978,
-      "totalCompletions": 18,
+      "averageDuration": 103823,
+      "totalCompletions": 19,
       "bestTime": 99770,
       "worstTime": 116166
     },
@@ -872,10 +878,11 @@
         102567,
         94179,
         90426,
-        90426
+        90426,
+        91165
       ],
-      "averageDuration": 94400,
-      "totalCompletions": 4,
+      "averageDuration": 93753,
+      "totalCompletions": 5,
       "bestTime": 90426,
       "worstTime": 102567
     },
@@ -910,10 +917,12 @@
         30225,
         30225,
         30187,
-        30187
+        30187,
+        30266,
+        30266
       ],
-      "averageDuration": 32259,
-      "totalCompletions": 30,
+      "averageDuration": 32134,
+      "totalCompletions": 32,
       "bestTime": 30187,
       "worstTime": 37589
     },
@@ -1378,7 +1387,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-09-30T11:47:00.821Z",
+    "lastUpdated": "2025-09-30T13:14:06.925Z",
     "totalLevelsTracked": 43,
     "totalStagesTracked": 33
   }

@@ -44,7 +44,7 @@ class SettingsManager {
                         scrollUpDistance: 200,
                         scrollUpCount: 5,
                         initialScrollDown: 150,
-                        scrollToBottomAtEnd: true
+                        scrollToBottomAtEnd: false
                     }
                 },
                 secondBuildAction: {
@@ -57,7 +57,7 @@ class SettingsManager {
                         scrollUpDistance: 200,
                         scrollUpCount: 5,
                         initialScrollDown: 150,
-                        scrollToBottomAtEnd: true
+                        scrollToBottomAtEnd: false
                     }
                 }
             };
