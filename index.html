@@ -379,20 +379,6 @@
                             <input type="number" id="blueBoxClickHoldDuration" min="1000" max="10000" step="100">
                             <span class="setting-help">How long to hold click on blue build box (4500ms = 4.5s)</span>
                         </div>
-
-                        <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="scrollToBottomAfterFirstBuild">
-                                Scroll to Bottom After First Build
-                            </label>
-                        </div>
-
-                        <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="scrollToBottomAfterSecondBuild">
-                                Scroll to Bottom After Second Build
-                            </label>
-                        </div>
                     </div>
 
                     <div class="settings-section">
@@ -420,7 +406,6 @@
                                 <option value="clickaround">Click Around</option>
                                 <option value="click_off">Click Off</option>
                                 <option value="click_off_and_scroll">Click Off and Scroll</option>
-                                <option value="scroll_to_bottom">Scroll to Bottom</option>
                             </select>
                         </div>
                         <div class="setting-item">
@@ -472,6 +457,14 @@
                                 <span class="setting-help">Scroll to bottom when finished (default: true)</span>
                             </div>
                         </div>
+
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="scrollToBottomAfterFirstBuild">
+                                Scroll to Bottom After First Build
+                            </label>
+                            <span class="setting-help">Scroll to bottom after build completes</span>
+                        </div>
                     </div>
 
                     <div class="settings-section">
@@ -483,7 +476,6 @@
                                 <option value="clickaround">Click Around</option>
                                 <option value="click_off">Click Off</option>
                                 <option value="click_off_and_scroll">Click Off and Scroll</option>
-                                <option value="scroll_to_bottom">Scroll to Bottom</option>
                             </select>
                         </div>
                         <div class="setting-item">
@@ -534,6 +526,14 @@
                                 </label>
                                 <span class="setting-help">Scroll to bottom when finished (default: true)</span>
                             </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="scrollToBottomAfterSecondBuild">
+                                Scroll to Bottom After Second Build
+                            </label>
+                            <span class="setting-help">Scroll to bottom after build completes</span>
                         </div>
                     </div>
 

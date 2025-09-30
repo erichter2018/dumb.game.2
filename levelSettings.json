@@ -398,11 +398,29 @@
       "perfectStartingPosition": "scroll_down_4x",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": true
+        }
       },
       "secondBuildAction": {
-        "action": "nothing",
-        "triggerTimeMs": null
+        "action": "click_off",
+        "triggerTimeMs": 5000,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": true
+        }
       }
     },
     "sushi bar": {
