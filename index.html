@@ -18,22 +18,45 @@
                 
                 <!-- Current Level Actions Display -->
                 <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
-                    <h4>Level Actions:</h4>
-                    <div class="action-item" id="actionStartPosition">
+                    <h4>Level Progress:</h4>
+                    
+                    <!-- Startup Behavior -->
+                    <div class="action-item" id="actionStartup">
                         <span class="action-checkbox">☐</span>
-                        <span class="action-label">Start Position</span>
-                        <span class="action-value" id="startPositionValue">—</span>
+                        <span class="action-label">Startup</span>
+                        <span class="action-value" id="startupValue">—</span>
                     </div>
+                    
+                    <!-- First Build Action -->
                     <div class="action-item" id="actionFirstBuild">
                         <span class="action-checkbox">☐</span>
                         <span class="action-label">First Build</span>
                         <span class="action-value" id="firstBuildValue">—</span>
                     </div>
+                    
+                    <!-- After First Build -->
+                    <div class="action-item" id="actionAfterFirstBuild">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">After 1st Build</span>
+                        <span class="action-value" id="afterFirstBuildValue">—</span>
+                    </div>
+                    
+                    <!-- Second Build Action -->
                     <div class="action-item" id="actionSecondBuild">
                         <span class="action-checkbox">☐</span>
                         <span class="action-label">Second Build</span>
                         <span class="action-value" id="secondBuildValue">—</span>
                     </div>
+                    
+                    <!-- After Second Build -->
+                    <div class="action-item" id="actionAfterSecondBuild">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">After 2nd Build</span>
+                        <span class="action-value" id="afterSecondBuildValue">—</span>
+                    </div>
+                    
+                    <!-- Other Settings (no checkmarks) -->
+                    <div class="action-divider"></div>
                     <div class="action-item">
                         <span class="action-label">Research:</span>
                         <span class="action-value" id="researchValue">—</span>

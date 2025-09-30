@@ -1710,19 +1710,38 @@ async function updateLevelActionsDisplay() {
     
     actionsDisplay.style.display = 'block';
     
-    // Update values
-    document.getElementById('startPositionValue').textContent = 
+    // Reset all checkboxes
+    ['actionStartup', 'actionFirstBuild', 'actionAfterFirstBuild', 'actionSecondBuild', 'actionAfterSecondBuild'].forEach(id => {
+        const element = document.getElementById(id);
+        const checkbox = element.querySelector('.action-checkbox');
+        checkbox.textContent = '☐';
+        checkbox.classList.remove('checked');
+    });
+    
+    // Update Startup value
+    document.getElementById('startupValue').textContent = 
         settings.perfectStartingPosition === 'nothing' ? 'None' : 
         settings.perfectStartingPosition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     
+    // Update First Build value
     document.getElementById('firstBuildValue').textContent = 
         settings.firstBuildAction.action === 'nothing' ? 'None' : 
         `${settings.firstBuildAction.action} @ ${(settings.firstBuildAction.triggerTimeMs / 1000)}s`;
     
+    // Update After First Build value
+    document.getElementById('afterFirstBuildValue').textContent = 
+        settings.scrollToBottomAfterFirstBuild ? 'Scroll to Bottom' : 'None';
+    
+    // Update Second Build value
     document.getElementById('secondBuildValue').textContent = 
         settings.secondBuildAction.action === 'nothing' ? 'None' : 
         `${settings.secondBuildAction.action} @ ${(settings.secondBuildAction.triggerTimeMs / 1000)}s`;
     
+    // Update After Second Build value
+    document.getElementById('afterSecondBuildValue').textContent = 
+        settings.scrollToBottomAfterSecondBuild ? 'Scroll to Bottom' : 'None';
+    
+    // Update other settings
     document.getElementById('researchValue').textContent = settings.doResearch ? 'Yes' : 'No';
     document.getElementById('holdDurationValue').textContent = `${settings.blueBoxClickHoldDuration / 1000}s`;
     document.getElementById('scrollDirValue').textContent = settings.scrollDirection === 'up' ? 'Up ↑' : 'Down ↓';
@@ -1736,16 +1755,20 @@ ipcRenderer.on('update-current-level-name', async () => {
 // Listen for action completion events to update checkmarks
 ipcRenderer.on('level-action-completed', (event, actionType) => {
     const actionMap = {
-        'start_position': 'actionStartPosition',
+        'startup': 'actionStartup',
         'first_build': 'actionFirstBuild',
-        'second_build': 'actionSecondBuild'
+        'after_first_build': 'actionAfterFirstBuild',
+        'second_build': 'actionSecondBuild',
+        'after_second_build': 'actionAfterSecondBuild'
     };
     
     const elementId = actionMap[actionType];
     if (elementId) {
         const element = document.getElementById(elementId);
-        const checkbox = element.querySelector('.action-checkbox');
-        checkbox.textContent = '☑';
-        checkbox.classList.add('checked');
+        if (element) {
+            const checkbox = element.querySelector('.action-checkbox');
+            checkbox.textContent = '☑';
+            checkbox.classList.add('checked');
+        }
     }
 });

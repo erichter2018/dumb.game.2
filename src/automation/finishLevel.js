@@ -147,6 +147,12 @@ function startAutomation(dependencies) {
                     await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                     if (!getIsAutomationRunning()) return 'stopped';
                 }
+                
+                // Mark the "after build" action as complete (always, even if no scroll)
+                const afterBuildAction = buildCompletionCount === 1 ? 'after_first_build' : 'after_second_build';
+                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    dependencies.mainWindow.webContents.send('level-action-completed', afterBuildAction);
+                }
             }
 
             if (buildResult === 'max_build_achieved' || buildResult === 'max_build_at_startup') {
@@ -442,9 +448,9 @@ function startAutomation(dependencies) {
         
         console.log(`DEBUG: Perfect starting position for "${currentLevelName}": ${perfectStartingPosition}`);
         
-        // Notify that start position action is about to execute
-        if (perfectStartingPosition !== 'nothing' && dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
-            dependencies.mainWindow.webContents.send('level-action-completed', 'start_position');
+        // Notify that startup action is complete (always mark it, even if "nothing")
+        if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+            dependencies.mainWindow.webContents.send('level-action-completed', 'startup');
         }
         
         if (perfectStartingPosition === 'scroll_down_1x') {
