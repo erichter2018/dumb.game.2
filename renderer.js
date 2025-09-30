@@ -1726,19 +1726,46 @@ async function updateLevelActionsDisplay() {
         settings.perfectStartingPosition === 'nothing' ? 'None' : 
         settings.perfectStartingPosition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     
+    // Helper function to check if clickaround options are modified
+    const isClickaroundModified = (options) => {
+        if (!options) return false;
+        const defaults = {
+            excludeRedBlobs: false,
+            scrollUpDistance: 200,
+            scrollUpCount: 5,
+            initialScrollDown: 150,
+            scrollToBottomAtEnd: true
+        };
+        return Object.keys(defaults).some(key => options[key] !== defaults[key]);
+    };
+    
     // Update First Build value
-    document.getElementById('firstBuildValue').textContent = 
-        settings.firstBuildAction.action === 'nothing' ? 'None' : 
-        `${settings.firstBuildAction.action} @ ${(settings.firstBuildAction.triggerTimeMs / 1000)}s`;
+    if (settings.firstBuildAction.action === 'nothing') {
+        document.getElementById('firstBuildValue').textContent = 'None';
+    } else if (settings.firstBuildAction.action === 'clickaround') {
+        const modifier = isClickaroundModified(settings.firstBuildAction.clickaroundOptions) ? '(M)' : '(D)';
+        document.getElementById('firstBuildValue').textContent = 
+            `clickaround ${modifier} @ ${(settings.firstBuildAction.triggerTimeMs / 1000)}s`;
+    } else {
+        document.getElementById('firstBuildValue').textContent = 
+            `${settings.firstBuildAction.action} @ ${(settings.firstBuildAction.triggerTimeMs / 1000)}s`;
+    }
     
     // Update After First Build value
     document.getElementById('afterFirstBuildValue').textContent = 
         settings.scrollToBottomAfterFirstBuild ? 'Scroll to Bottom' : 'None';
     
     // Update Second Build value
-    document.getElementById('secondBuildValue').textContent = 
-        settings.secondBuildAction.action === 'nothing' ? 'None' : 
-        `${settings.secondBuildAction.action} @ ${(settings.secondBuildAction.triggerTimeMs / 1000)}s`;
+    if (settings.secondBuildAction.action === 'nothing') {
+        document.getElementById('secondBuildValue').textContent = 'None';
+    } else if (settings.secondBuildAction.action === 'clickaround') {
+        const modifier = isClickaroundModified(settings.secondBuildAction.clickaroundOptions) ? '(M)' : '(D)';
+        document.getElementById('secondBuildValue').textContent = 
+            `clickaround ${modifier} @ ${(settings.secondBuildAction.triggerTimeMs / 1000)}s`;
+    } else {
+        document.getElementById('secondBuildValue').textContent = 
+            `${settings.secondBuildAction.action} @ ${(settings.secondBuildAction.triggerTimeMs / 1000)}s`;
+    }
     
     // Update After Second Build value
     document.getElementById('afterSecondBuildValue').textContent = 
