@@ -339,7 +339,10 @@ async function runBuildProtocol(dependencies) {
                 // Notify which build action is executing
                 const buildNumber = isFirstRunOnLevel ? 'first_build' : 'second_build';
                 if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    console.log(`🔨 Sending ${buildNumber} action completed signal`);
                     dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
+                } else {
+                    console.log(`⚠️ Cannot send ${buildNumber} signal - mainWindow not available`);
                 }
                 
                 // Execute the action based on type

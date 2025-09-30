@@ -12,9 +12,17 @@
         <div class="status-bar">
             <!-- Current Level & Stage Info -->
             <div class="level-info">
-                <h2 id="currentLevelName">Unnamed Level</h2>
-                <div class="level-timer" id="currentLevelDuration">0m 0s</div>
-                <div class="current-status" id="currentFunction">Idle</div>
+                <div class="level-header">
+                    <div class="level-main">
+                        <h2 id="currentLevelName">Unnamed Level</h2>
+                        <div class="level-timer" id="currentLevelDuration">0m 0s</div>
+                        <div class="current-status" id="currentFunction">Idle</div>
+                    </div>
+                    <div class="stage-info" id="currentStageInfo">
+                        <div class="stage-name" id="currentStageName">No Stage</div>
+                        <div class="stage-progress" id="currentStageProgress">—</div>
+                    </div>
+                </div>
                 
                 <!-- Current Level Actions Display -->
                 <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
@@ -69,10 +77,6 @@
                         <span class="action-label">Scroll Dir:</span>
                         <span class="action-value" id="scrollDirValue">—</span>
                     </div>
-                </div>
-                <div class="stage-info" id="currentStageInfo">
-                    <div class="stage-name" id="currentStageName">No Stage</div>
-                    <div class="stage-progress" id="currentStageProgress">—</div>
                 </div>
             </div>
             

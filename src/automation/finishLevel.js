@@ -151,7 +151,10 @@ function startAutomation(dependencies) {
                 // Mark the "after build" action as complete (always, even if no scroll)
                 const afterBuildAction = buildCompletionCount === 1 ? 'after_first_build' : 'after_second_build';
                 if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    console.log(`🎯 Sending ${afterBuildAction} action completed signal`);
                     dependencies.mainWindow.webContents.send('level-action-completed', afterBuildAction);
+                } else {
+                    console.log(`⚠️ Cannot send ${afterBuildAction} signal - mainWindow not available`);
                 }
             }
 
@@ -450,7 +453,10 @@ function startAutomation(dependencies) {
         
         // Notify that startup action is complete (always mark it, even if "nothing")
         if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+            console.log('🚀 Sending startup action completed signal');
             dependencies.mainWindow.webContents.send('level-action-completed', 'startup');
+        } else {
+            console.log('⚠️ Cannot send startup signal - mainWindow not available');
         }
         
         if (perfectStartingPosition === 'scroll_down_1x') {

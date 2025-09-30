@@ -169,6 +169,9 @@ startBtn.addEventListener('click', async () => {
         startBtn.disabled = true;
         stopBtn.disabled = false;
         
+        // Show level actions display
+        await updateLevelActionsDisplay();
+        
         console.log(`DEBUG: Starting finish level automation`);
         const scrollSwipeDistance = parseInt(scrollSwipeDistanceInput.value, 10);
         const scrollToBottomIterations = parseInt(scrollToBottomIterationsInput.value, 10);
@@ -1745,6 +1748,8 @@ async function updateLevelActionsDisplay() {
     document.getElementById('researchValue').textContent = settings.doResearch ? 'Yes' : 'No';
     document.getElementById('holdDurationValue').textContent = `${settings.blueBoxClickHoldDuration / 1000}s`;
     document.getElementById('scrollDirValue').textContent = settings.scrollDirection === 'up' ? 'Up ↑' : 'Down ↓';
+    
+    console.log('✨ Level actions display updated and visible');
 }
 
 // Listen for level name changes to update actions display
@@ -1754,6 +1759,8 @@ ipcRenderer.on('update-current-level-name', async () => {
 
 // Listen for action completion events to update checkmarks
 ipcRenderer.on('level-action-completed', (event, actionType) => {
+    console.log(`🔔 Received level-action-completed event: ${actionType}`);
+    
     const actionMap = {
         'startup': 'actionStartup',
         'first_build': 'actionFirstBuild',
@@ -1763,12 +1770,21 @@ ipcRenderer.on('level-action-completed', (event, actionType) => {
     };
     
     const elementId = actionMap[actionType];
+    console.log(`📍 Mapped to element ID: ${elementId}`);
+    
     if (elementId) {
         const element = document.getElementById(elementId);
+        console.log(`🎯 Found element:`, element);
+        
         if (element) {
             const checkbox = element.querySelector('.action-checkbox');
-            checkbox.textContent = '☑';
-            checkbox.classList.add('checked');
+            console.log(`✅ Found checkbox:`, checkbox);
+            
+            if (checkbox) {
+                checkbox.textContent = '☑';
+                checkbox.classList.add('checked');
+                console.log(`✨ Checkbox updated for ${actionType}!`);
+            }
         }
     }
 });

@@ -43,6 +43,17 @@ body {
     text-align: left;
 }
 
+.level-header {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.level-main {
+    flex: 1;
+}
+
 .level-info h2 {
     margin: 0 0 4px 0;
     font-size: 1.5em;
