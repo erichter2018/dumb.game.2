@@ -40,6 +40,7 @@ class SettingsManager {
                     clickOffAndScrollDistance: 150,
                     clickaroundOptions: {
                         excludeRedBlobs: true,
+                        clickaroundChunks: 3,
                         scrollUpDistance: 200,
                         scrollUpCount: 5,
                         initialScrollDown: 150,
@@ -52,6 +53,7 @@ class SettingsManager {
                     clickOffAndScrollDistance: 150,
                     clickaroundOptions: {
                         excludeRedBlobs: true,
+                        clickaroundChunks: 3,
                         scrollUpDistance: 200,
                         scrollUpCount: 5,
                         initialScrollDown: 150,

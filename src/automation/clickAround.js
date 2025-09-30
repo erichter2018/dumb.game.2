@@ -46,8 +46,9 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
   // Default options for clickAround behavior
   const defaultOptions = {
     excludeRedBlobs: true,             // Avoid red blobs by default
+    clickaroundChunks: 3,              // Number of click chunks (screens) to process
     scrollUpDistance: 200,             // Scroll up distance in pixels
-    scrollUpCount: 5,                  // How many times to scroll up
+    scrollUpCount: 5,                  // How many times to scroll up (legacy, overridden by clickaroundChunks)
     initialScrollDown: 150,            // Initial scroll down distance in pixels
     scrollToBottomAtEnd: true          // Scroll to bottom when finished
   };
@@ -60,7 +61,7 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
   
   const { updateStatus, detectRedBlobs, performClick, performBatchedClicks, iphoneMirroringRegion, getIsClickAroundRunning, getIsClickAroundPaused, updateCurrentFunction, CLICK_AREAS, captureScreenRegion, compareBottomRegions, captureBottomRegion, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations } = dependencies;
   
-  updateStatus(`Starting Click Around automation... (excludeRedBlobs: ${shouldExcludeRedBlobs}, scrollUp: ${config.scrollUpCount}x${config.scrollUpDistance}px, initialScrollDown: ${config.initialScrollDown}px, scrollToBottomAtEnd: ${config.scrollToBottomAtEnd})`, 'info');
+  updateStatus(`Starting Click Around automation... (chunks: ${config.clickaroundChunks}, excludeRedBlobs: ${shouldExcludeRedBlobs}, scrollDistance: ${config.scrollUpDistance}px, initialScrollDown: ${config.initialScrollDown}px, scrollToBottomAtEnd: ${config.scrollToBottomAtEnd})`, 'info');
   console.log(`DEBUG: ClickAround started with config:`, config);
 
   const redBlobProximityThreshold = 250;
@@ -79,7 +80,7 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
 
   let redBlobHistory = [];
   let scrollCount = 0;
-  const maxScrolls = config.scrollUpCount; // Use configured scroll count
+  const maxScrolls = config.clickaroundChunks; // Use configured chunk count (number of screens to process)
   const minCellSize = 27; // Minimum grid cell size (pixels)
   const maxCellSize = 31; // Maximum grid cell size (pixels)
   let previousBottomImage = null; // Store previous bottom image for comparison
