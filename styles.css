@@ -1519,3 +1519,14 @@ kbd {
     background: rgba(79, 195, 247, 0.2);
     margin: 8px 0;
 }
+
+/* Disabled button styles */
+button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+button:not(:disabled) {
+    cursor: pointer;
+}

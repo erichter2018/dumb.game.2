@@ -1542,6 +1542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Settings Modal Implementation
 let allLevelNames = [];
 let currentEditingLevel = '';
+let originalSettings = null; // Track original settings to detect changes
 
 async function initializeSettingsModal() {
     const settingsBtn = document.getElementById('settingsBtn');
@@ -1607,16 +1608,100 @@ async function initializeSettingsModal() {
         }
     });
     
-    // Show/hide excludeRedBlobs based on action selection
+    // Show/hide options based on action selection
     document.getElementById('firstBuildAction').addEventListener('change', (e) => {
         document.getElementById('firstBuildClickaroundOptions').style.display = 
             e.target.value === 'clickaround' ? 'block' : 'none';
+        document.getElementById('firstBuildClickOffScrollDistance').parentElement.style.display = 
+            e.target.value === 'click_off_and_scroll' ? 'block' : 'none';
+        checkForChanges();
     });
     
     document.getElementById('secondBuildAction').addEventListener('change', (e) => {
         document.getElementById('secondBuildClickaroundOptions').style.display = 
             e.target.value === 'clickaround' ? 'block' : 'none';
+        document.getElementById('secondBuildClickOffScrollDistance').parentElement.style.display = 
+            e.target.value === 'click_off_and_scroll' ? 'block' : 'none';
+        checkForChanges();
     });
+    
+    // Add change listeners to all form inputs to track modifications
+    const formInputs = [
+        'doResearch', 'scrollDirection', 'blueBoxClickHoldDuration',
+        'scrollToBottomAfterFirstBuild', 'scrollToBottomAfterSecondBuild', 'perfectStartingPosition',
+        'firstBuildAction', 'firstBuildTriggerTime', 'firstBuildClickOffScrollDistance',
+        'firstBuildExcludeRedBlobs', 'firstBuildScrollUpDistance', 'firstBuildScrollUpCount',
+        'firstBuildInitialScrollDown', 'firstBuildScrollToBottomAtEnd',
+        'secondBuildAction', 'secondBuildTriggerTime', 'secondBuildClickOffScrollDistance',
+        'secondBuildExcludeRedBlobs', 'secondBuildScrollUpDistance', 'secondBuildScrollUpCount',
+        'secondBuildInitialScrollDown', 'secondBuildScrollToBottomAtEnd'
+    ];
+    
+    formInputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', checkForChanges);
+            element.addEventListener('input', checkForChanges);
+        }
+    });
+}
+
+function checkForChanges() {
+    if (!originalSettings) return;
+    
+    const saveBtn = document.getElementById('saveSettingsBtn');
+    
+    // Get current form values
+    const currentValues = getCurrentFormSettings();
+    
+    // Compare with original settings
+    const hasChanges = JSON.stringify(currentValues) !== JSON.stringify(originalSettings);
+    
+    // Enable/disable save button
+    if (hasChanges) {
+        saveBtn.disabled = false;
+        saveBtn.style.opacity = '1';
+        saveBtn.style.cursor = 'pointer';
+    } else {
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.5';
+        saveBtn.style.cursor = 'not-allowed';
+    }
+}
+
+function getCurrentFormSettings() {
+    return {
+        doResearch: document.getElementById('doResearch').checked,
+        scrollDirection: document.getElementById('scrollDirection').value,
+        blueBoxClickHoldDuration: parseInt(document.getElementById('blueBoxClickHoldDuration').value),
+        scrollToBottomAfterFirstBuild: document.getElementById('scrollToBottomAfterFirstBuild').checked,
+        scrollToBottomAfterSecondBuild: document.getElementById('scrollToBottomAfterSecondBuild').checked,
+        perfectStartingPosition: document.getElementById('perfectStartingPosition').value,
+        firstBuildAction: {
+            action: document.getElementById('firstBuildAction').value,
+            triggerTimeMs: parseInt(document.getElementById('firstBuildTriggerTime').value) || null,
+            clickOffAndScrollDistance: parseInt(document.getElementById('firstBuildClickOffScrollDistance').value) || 150,
+            clickaroundOptions: {
+                excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobs').checked,
+                scrollUpDistance: parseInt(document.getElementById('firstBuildScrollUpDistance').value),
+                scrollUpCount: parseInt(document.getElementById('firstBuildScrollUpCount').value),
+                initialScrollDown: parseInt(document.getElementById('firstBuildInitialScrollDown').value),
+                scrollToBottomAtEnd: document.getElementById('firstBuildScrollToBottomAtEnd').checked
+            }
+        },
+        secondBuildAction: {
+            action: document.getElementById('secondBuildAction').value,
+            triggerTimeMs: parseInt(document.getElementById('secondBuildTriggerTime').value) || null,
+            clickOffAndScrollDistance: parseInt(document.getElementById('secondBuildClickOffScrollDistance').value) || 150,
+            clickaroundOptions: {
+                excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobs').checked,
+                scrollUpDistance: parseInt(document.getElementById('secondBuildScrollUpDistance').value),
+                scrollUpCount: parseInt(document.getElementById('secondBuildScrollUpCount').value),
+                initialScrollDown: parseInt(document.getElementById('secondBuildInitialScrollDown').value),
+                scrollToBottomAtEnd: document.getElementById('secondBuildScrollToBottomAtEnd').checked
+            }
+        }
+    };
 }
 
 async function loadSettingsForLevel(levelName) {
@@ -1658,6 +1743,8 @@ async function loadSettingsForLevel(levelName) {
         firstClickaroundOpts.scrollToBottomAtEnd !== undefined ? firstClickaroundOpts.scrollToBottomAtEnd : true;
     document.getElementById('firstBuildClickaroundOptions').style.display = 
         settings.firstBuildAction.action === 'clickaround' ? 'block' : 'none';
+    document.getElementById('firstBuildClickOffScrollDistance').parentElement.style.display = 
+        settings.firstBuildAction.action === 'click_off_and_scroll' ? 'block' : 'none';
     
     // Second build action
     document.getElementById('secondBuildAction').value = settings.secondBuildAction.action;
@@ -1675,48 +1762,38 @@ async function loadSettingsForLevel(levelName) {
         secondClickaroundOpts.scrollToBottomAtEnd !== undefined ? secondClickaroundOpts.scrollToBottomAtEnd : true;
     document.getElementById('secondBuildClickaroundOptions').style.display = 
         settings.secondBuildAction.action === 'clickaround' ? 'block' : 'none';
+    document.getElementById('secondBuildClickOffScrollDistance').parentElement.style.display = 
+        settings.secondBuildAction.action === 'click_off_and_scroll' ? 'block' : 'none';
+    
+    // Store original settings for change detection
+    originalSettings = getCurrentFormSettings();
+    
+    // Disable save button initially (no changes yet)
+    const saveBtn = document.getElementById('saveSettingsBtn');
+    saveBtn.disabled = true;
+    saveBtn.style.opacity = '0.5';
+    saveBtn.style.cursor = 'not-allowed';
 }
 
 async function saveCurrentSettings() {
-    const settings = {
-        doResearch: document.getElementById('doResearch').checked,
-        scrollDirection: document.getElementById('scrollDirection').value,
-        blueBoxClickHoldDuration: parseInt(document.getElementById('blueBoxClickHoldDuration').value),
-        scrollToBottomAfterFirstBuild: document.getElementById('scrollToBottomAfterFirstBuild').checked,
-        scrollToBottomAfterSecondBuild: document.getElementById('scrollToBottomAfterSecondBuild').checked,
-        perfectStartingPosition: document.getElementById('perfectStartingPosition').value,
-        firstBuildAction: {
-            action: document.getElementById('firstBuildAction').value,
-            triggerTimeMs: parseInt(document.getElementById('firstBuildTriggerTime').value) || null,
-            clickOffAndScrollDistance: parseInt(document.getElementById('firstBuildClickOffScrollDistance').value) || 150,
-            clickaroundOptions: {
-                excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobs').checked,
-                scrollUpDistance: parseInt(document.getElementById('firstBuildScrollUpDistance').value),
-                scrollUpCount: parseInt(document.getElementById('firstBuildScrollUpCount').value),
-                initialScrollDown: parseInt(document.getElementById('firstBuildInitialScrollDown').value),
-                scrollToBottomAtEnd: document.getElementById('firstBuildScrollToBottomAtEnd').checked
-            }
-        },
-        secondBuildAction: {
-            action: document.getElementById('secondBuildAction').value,
-            triggerTimeMs: parseInt(document.getElementById('secondBuildTriggerTime').value) || null,
-            clickOffAndScrollDistance: parseInt(document.getElementById('secondBuildClickOffScrollDistance').value) || 150,
-            clickaroundOptions: {
-                excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobs').checked,
-                scrollUpDistance: parseInt(document.getElementById('secondBuildScrollUpDistance').value),
-                scrollUpCount: parseInt(document.getElementById('secondBuildScrollUpCount').value),
-                initialScrollDown: parseInt(document.getElementById('secondBuildInitialScrollDown').value),
-                scrollToBottomAtEnd: document.getElementById('secondBuildScrollToBottomAtEnd').checked
-            }
-        }
-    };
+    const settings = getCurrentFormSettings();
     
     const result = await ipcRenderer.invoke('save-level-settings', currentEditingLevel, settings);
     
     if (result.success) {
-        alert(`Settings saved for ${currentEditingLevel}!`);
+        // Update original settings to match current (no changes now)
+        originalSettings = getCurrentFormSettings();
+        
+        // Disable save button (settings are now saved)
+        const saveBtn = document.getElementById('saveSettingsBtn');
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.5';
+        saveBtn.style.cursor = 'not-allowed';
+        
         // Update level actions display if this is the current level
         await updateLevelActionsDisplay();
+        
+        console.log(`Settings saved for ${currentEditingLevel}`);
     } else {
         alert(`Error saving settings: ${result.error}`);
     }
