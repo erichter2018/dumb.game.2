@@ -932,11 +932,13 @@
         32848,
         32848,
         33039,
-        33039
+        33039,
+        29860,
+        29860
       ],
-      "averageDuration": 32878,
-      "totalCompletions": 10,
-      "bestTime": 32811,
+      "averageDuration": 32375,
+      "totalCompletions": 12,
+      "bestTime": 29860,
       "worstTime": 33039
     },
     "Italiano": {
@@ -1254,7 +1256,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-09-29T11:02:54.559Z",
+    "lastUpdated": "2025-09-30T00:46:57.035Z",
     "totalLevelsTracked": 43,
     "totalStagesTracked": 31
   }

@@ -31,7 +31,7 @@ class SettingsManager {
                 doResearch: true,
                 scrollDirection: 'up',
                 blueBoxClickHoldDuration: 4500,
-                scrollToBottomAfterFirstBuild: true,
+                scrollToBottomAfterFirstBuild: false,
                 scrollToBottomAfterSecondBuild: false,
                 perfectStartingPosition: 'nothing',
                 firstBuildAction: {
