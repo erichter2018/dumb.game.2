@@ -281,12 +281,13 @@
         113112,
         113112,
         112906,
-        112906
+        112906,
+        134597
       ],
-      "averageDuration": 118814,
-      "totalCompletions": 18,
+      "averageDuration": 119644,
+      "totalCompletions": 19,
       "bestTime": 112906,
-      "worstTime": 128641
+      "worstTime": 134597
     },
     "Mocktail Bar": {
       "completions": [
@@ -575,11 +576,12 @@
         212328,
         212328,
         204958,
-        204958
+        204958,
+        78115
       ],
-      "averageDuration": 213552,
-      "totalCompletions": 9,
-      "bestTime": 204958,
+      "averageDuration": 200008,
+      "totalCompletions": 10,
+      "bestTime": 78115,
       "worstTime": 230053
     },
     "Cafe": {
@@ -668,11 +670,12 @@
         50283,
         50283,
         50081,
-        50081
+        50081,
+        40148
       ],
-      "averageDuration": 48010,
-      "totalCompletions": 10,
-      "bestTime": 45783,
+      "averageDuration": 47296,
+      "totalCompletions": 11,
+      "bestTime": 40148,
       "worstTime": 50348
     },
     "Kebab Shop": {
@@ -1375,7 +1378,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-09-30T05:35:43.850Z",
+    "lastUpdated": "2025-09-30T11:47:00.821Z",
     "totalLevelsTracked": 43,
     "totalStagesTracked": 33
   }
