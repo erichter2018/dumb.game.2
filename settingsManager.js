@@ -37,6 +37,7 @@ class SettingsManager {
                 firstBuildAction: {
                     action: 'nothing',
                     triggerTimeMs: null,
+                    clickOffAndScrollDistance: 150,
                     clickaroundOptions: {
                         excludeRedBlobs: true,
                         scrollUpDistance: 200,
@@ -48,6 +49,7 @@ class SettingsManager {
                 secondBuildAction: {
                     action: 'nothing',
                     triggerTimeMs: null,
+                    clickOffAndScrollDistance: 150,
                     clickaroundOptions: {
                         excludeRedBlobs: true,
                         scrollUpDistance: 200,

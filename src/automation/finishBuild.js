@@ -396,17 +396,37 @@ async function runBuildProtocol(dependencies) {
                         return 'click_off_completed';
                     }
                 } else if (currentBuildAction.action === 'click_off_and_scroll') {
-                    // Perform click off and scroll
-                    if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF && scrollToBottom) {
+                    // Perform click off and scroll opposite to the level's scroll direction
+                    if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
+                        // Click off
                         await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                        
+                        // Get scroll distance (default 150px)
+                        const scrollDistance = currentBuildAction.clickOffAndScrollDistance || 150;
+                        
+                        // Get level's scroll direction and scroll in OPPOSITE direction
+                        const scrollDirection = levelSettings.scrollDirection || 'up';
                         const scrollX = dependencies.iphoneMirroringRegion.x + dependencies.iphoneMirroringRegion.width / 2;
                         const scrollY = dependencies.iphoneMirroringRegion.y + dependencies.iphoneMirroringRegion.height / 2;
-                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, dependencies.scrollToBottomIterations || 10, { 
-                            updateCurrentFunction, 
-                            performClick: dependencies.performClick, 
-                            CLICK_AREAS: dependencies.CLICK_AREAS 
-                        });
-                        updateStatus('Finish Build: Click off and scroll completed.', 'success');
+                        
+                        console.log(`DEBUG: Click off and scroll - Level scroll direction: ${scrollDirection}, scrolling opposite direction with distance: ${scrollDistance}px`);
+                        
+                        if (scrollDirection === 'up') {
+                            // Level normally scrolls up, so scroll DOWN
+                            const { scrollDown } = require('./scrolling');
+                            await scrollDown(scrollX, scrollY, scrollDistance);
+                            updateStatus(`Finish Build: Click off and scrolled down ${scrollDistance}px.`, 'success');
+                        } else {
+                            // Level normally scrolls down, so scroll UP
+                            await dependencies.scrollUp(scrollX, scrollY, { 
+                                updateCurrentFunction, 
+                                CLICK_AREAS: dependencies.CLICK_AREAS, 
+                                performClick: dependencies.performClick,
+                                getRandomInt: dependencies.getRandomInt
+                            });
+                            updateStatus(`Finish Build: Click off and scrolled up.`, 'success');
+                        }
+                        
                         return 'click_off_scroll_completed';
                     }
                 } else if (currentBuildAction.action === 'scroll_to_bottom') {

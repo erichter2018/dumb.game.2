@@ -10,6 +10,7 @@
     "firstBuildAction": {
       "action": "nothing",
       "triggerTimeMs": null,
+      "clickOffAndScrollDistance": 150,
       "clickaroundOptions": {
         "excludeRedBlobs": true,
         "scrollUpDistance": 200,
@@ -21,6 +22,7 @@
     "secondBuildAction": {
       "action": "nothing",
       "triggerTimeMs": null,
+      "clickOffAndScrollDistance": 150,
       "clickaroundOptions": {
         "excludeRedBlobs": true,
         "scrollUpDistance": 200,

@@ -426,6 +426,11 @@
                             <input type="number" id="firstBuildTriggerTime" min="0" step="1000" placeholder="e.g., 60000">
                             <span class="setting-help">When to trigger action (60000 = 1 minute, null = never)</span>
                         </div>
+                        <div class="setting-item">
+                            <label for="firstBuildClickOffScrollDistance">Click Off & Scroll Distance (px):</label>
+                            <input type="number" id="firstBuildClickOffScrollDistance" min="50" max="500" step="10" value="150">
+                            <span class="setting-help">Distance to scroll after clicking off (default: 150px, scrolls opposite to level direction)</span>
+                        </div>
                         
                         <!-- Clickaround Options for First Build -->
                         <div class="clickaround-options" id="firstBuildClickaroundOptions" style="display:none;">
@@ -478,6 +483,11 @@
                             <label for="secondBuildTriggerTime">Trigger Time (ms):</label>
                             <input type="number" id="secondBuildTriggerTime" min="0" step="1000" placeholder="e.g., 180000">
                             <span class="setting-help">When to trigger action (180000 = 3 minutes, null = never)</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="secondBuildClickOffScrollDistance">Click Off & Scroll Distance (px):</label>
+                            <input type="number" id="secondBuildClickOffScrollDistance" min="50" max="500" step="10" value="150">
+                            <span class="setting-help">Distance to scroll after clicking off (default: 150px, scrolls opposite to level direction)</span>
                         </div>
                         
                         <!-- Clickaround Options for Second Build -->

@@ -1645,6 +1645,7 @@ async function loadSettingsForLevel(levelName) {
     // First build action
     document.getElementById('firstBuildAction').value = settings.firstBuildAction.action;
     document.getElementById('firstBuildTriggerTime').value = settings.firstBuildAction.triggerTimeMs || '';
+    document.getElementById('firstBuildClickOffScrollDistance').value = settings.firstBuildAction.clickOffAndScrollDistance || 150;
     
     // First build clickaround options
     const firstClickaroundOpts = settings.firstBuildAction.clickaroundOptions || {};
@@ -1661,6 +1662,7 @@ async function loadSettingsForLevel(levelName) {
     // Second build action
     document.getElementById('secondBuildAction').value = settings.secondBuildAction.action;
     document.getElementById('secondBuildTriggerTime').value = settings.secondBuildAction.triggerTimeMs || '';
+    document.getElementById('secondBuildClickOffScrollDistance').value = settings.secondBuildAction.clickOffAndScrollDistance || 150;
     
     // Second build clickaround options
     const secondClickaroundOpts = settings.secondBuildAction.clickaroundOptions || {};
@@ -1686,6 +1688,7 @@ async function saveCurrentSettings() {
         firstBuildAction: {
             action: document.getElementById('firstBuildAction').value,
             triggerTimeMs: parseInt(document.getElementById('firstBuildTriggerTime').value) || null,
+            clickOffAndScrollDistance: parseInt(document.getElementById('firstBuildClickOffScrollDistance').value) || 150,
             clickaroundOptions: {
                 excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobs').checked,
                 scrollUpDistance: parseInt(document.getElementById('firstBuildScrollUpDistance').value),
@@ -1697,6 +1700,7 @@ async function saveCurrentSettings() {
         secondBuildAction: {
             action: document.getElementById('secondBuildAction').value,
             triggerTimeMs: parseInt(document.getElementById('secondBuildTriggerTime').value) || null,
+            clickOffAndScrollDistance: parseInt(document.getElementById('secondBuildClickOffScrollDistance').value) || 150,
             clickaroundOptions: {
                 excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobs').checked,
                 scrollUpDistance: parseInt(document.getElementById('secondBuildScrollUpDistance').value),
