@@ -79,7 +79,7 @@ async function scrollUp(x, y, dependencies) { // Accept dependencies to access C
     console.log(`DEBUG: scrollUp - Click off completed.`);
 
     // Re-adjust mouse to scroll start point after click off
-    const scrollDistance = 50; // Fixed 50 pixel scroll distance
+    const scrollDistance = 200; // Fixed 200 pixel scroll distance
     const startY = y - scrollDistance / 2;
     const endY = y + scrollDistance / 2;
     
@@ -96,7 +96,7 @@ async function scrollUp(x, y, dependencies) { // Accept dependencies to access C
     const duration = 400; // Longer duration for smoother gesture
     const steps = 40; // More steps for smoother motion
     const stepDelay = duration / steps;
-    console.log(`DEBUG: scrollUp - Performing smooth scroll up ${scrollDistance}px over ${duration}ms`);
+    console.log(`DEBUG: scrollUp - Performing smooth scroll up 200px over ${duration}ms`);
     
     // Use easing function for natural touch-like movement
     const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);

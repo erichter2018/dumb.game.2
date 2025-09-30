@@ -181,16 +181,30 @@
       "doResearch": true,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
-      "scrollToBottomAfterFirstBuild": true,
+      "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
-      "perfectStartingPosition": "nothing",
+      "perfectStartingPosition": "scroll_down_1x",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": true
+        }
       },
       "secondBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": true
+        }
       }
     },
     "pizzeria": {
@@ -620,18 +634,30 @@
       "doResearch": true,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
-      "scrollToBottomAfterFirstBuild": true,
+      "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
         "action": "clickaround",
         "triggerTimeMs": 60000,
-        "excludeRedBlobs": true
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 1,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": true
+        }
       },
       "secondBuildAction": {
         "action": "clickaround",
         "triggerTimeMs": 180000,
-        "excludeRedBlobs": true
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 3,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": true
+        }
       }
     },
     "curry wurst stand": {

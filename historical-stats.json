@@ -66,11 +66,12 @@
         58611,
         58611,
         57750,
-        57750
+        57750,
+        53809
       ],
-      "averageDuration": 61055,
-      "totalCompletions": 37,
-      "bestTime": 55907,
+      "averageDuration": 60864,
+      "totalCompletions": 38,
+      "bestTime": 53809,
       "worstTime": 68031
     },
     "Cheese Shop": {
@@ -1262,7 +1263,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-09-30T01:40:14.193Z",
+    "lastUpdated": "2025-09-30T02:53:20.027Z",
     "totalLevelsTracked": 43,
     "totalStagesTracked": 31
   }
