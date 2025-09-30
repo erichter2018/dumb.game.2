@@ -12,20 +12,42 @@ async function scrollDown(x, y, distance) {
   // updateCurrentFunction is passed as a dependency from main.js
   // updateCurrentFunction('scrollDown'); // Update current function
   try {
+    console.log(`DEBUG: scrollDown - Performing smooth scroll down ${distance}px at (${x}, ${y})`);
+    
+    // Calculate start and end positions for scrolling down
+    const startY = y + distance / 2;
+    const endY = y - distance / 2;
+    
     // 1. Move mouse to start point
-    robot.moveMouse(x, y);
-    await new Promise(resolve => setTimeout(resolve, 50)); 
+    robot.moveMouse(x, startY);
+    await new Promise(resolve => setTimeout(resolve, 100)); 
 
     // 2. Press and hold left mouse button
     robot.mouseToggle('down', 'left');
-    await new Promise(resolve => setTimeout(resolve, 50)); 
+    await new Promise(resolve => setTimeout(resolve, 100)); 
 
-    // 3. Drag mouse to end point
-    robot.dragMouse(x, y - distance); // Drag upwards to scroll down
-    await new Promise(resolve => setTimeout(resolve, 50)); 
+    // 3. Perform smooth drag with easing
+    const duration = 400; // Longer duration for smoother gesture
+    const steps = 40; // More steps for smoother motion
+    const stepDelay = duration / steps;
+    
+    // Use easing function for natural touch-like movement
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+    
+    for (let i = 0; i <= steps; i++) {
+      const progress = i / steps;
+      const easedProgress = easeOutCubic(progress);
+      const currentY = startY + (endY - startY) * easedProgress;
+      
+      robot.dragMouse(x, currentY);
+      await new Promise(resolve => setTimeout(resolve, stepDelay));
+    }
 
     // 4. Release left mouse button
     robot.mouseToggle('up', 'left');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    console.log(`DEBUG: scrollDown - Smooth scroll completed`);
     return { success: true };
   } catch (error) {
     console.error(`Error executing RobotJS scroll down: ${error.message}`);
@@ -56,36 +78,39 @@ async function scrollUp(x, y, dependencies) { // Accept dependencies to access C
     await new Promise(resolve => setTimeout(resolve, 50)); // Small delay after click off
     console.log(`DEBUG: scrollUp - Click off completed.`);
 
-    // Re-adjust mouse to original scroll point after click off
-    robot.moveMouse(x, y);
-    await new Promise(resolve => setTimeout(resolve, 50));
-    console.log(`DEBUG: scrollUp - Mouse re-adjusted to X:${x}, Y:${y} for drag.`);
+    // Re-adjust mouse to scroll start point after click off
+    const scrollDistance = 50; // Fixed 50 pixel scroll distance
+    const startY = y - scrollDistance / 2;
+    const endY = y + scrollDistance / 2;
+    
+    robot.moveMouse(x, startY);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    console.log(`DEBUG: scrollUp - Mouse positioned at X:${x}, Y:${startY} for smooth drag.`);
 
     // 2. Press and hold left mouse button
     robot.mouseToggle('down', 'left');
-    await new Promise(resolve => setTimeout(resolve, 50)); 
+    await new Promise(resolve => setTimeout(resolve, 100)); 
     console.log(`DEBUG: scrollUp - Mouse button down.`);
 
-    // 3. Drag mouse to end point with duration
-    const scrollDistance = 50; // Fixed 50 pixel scroll distance
-    const targetY = y + scrollDistance;
-    const dragDuration = 20; // Duration in milliseconds for the drag
-    console.log(`DEBUG: scrollUp - Generated scroll distance: ${scrollDistance}. Dragging to X:${x}, Y:${targetY} over ${dragDuration}ms`);
+    // 3. Perform smooth drag with easing for natural scrolling
+    const duration = 400; // Longer duration for smoother gesture
+    const steps = 40; // More steps for smoother motion
+    const stepDelay = duration / steps;
+    console.log(`DEBUG: scrollUp - Performing smooth scroll up ${scrollDistance}px over ${duration}ms`);
     
-    // Perform gradual drag over specified duration
-    const startY = y;
-    const totalDistance = targetY - startY;
-    const steps = 10; // Number of intermediate steps
-    const stepDelay = dragDuration / steps;
-    const stepDistance = totalDistance / steps;
+    // Use easing function for natural touch-like movement
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
     
-    for (let i = 1; i <= steps; i++) {
-      const currentY = startY + (stepDistance * i);
-      robot.dragMouse(x, currentY); // Use dragMouse instead of moveMouse when button is down
+    for (let i = 0; i <= steps; i++) {
+      const progress = i / steps;
+      const easedProgress = easeOutCubic(progress);
+      const currentY = startY + (endY - startY) * easedProgress;
+      
+      robot.dragMouse(x, currentY);
       await new Promise(resolve => setTimeout(resolve, stepDelay));
     }
     
-    console.log(`DEBUG: scrollUp - Mouse dragged gradually over ${dragDuration}ms.`);
+    console.log(`DEBUG: scrollUp - Smooth scroll drag completed over ${duration}ms.`);
 
     // 4. Release left mouse button
     robot.mouseToggle('up', 'left');
