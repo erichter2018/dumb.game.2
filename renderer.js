@@ -1752,10 +1752,10 @@ function getCurrentFormSettings() {
             clickOffAndScrollDistance: parseInt(document.getElementById('firstBuildClickOffScrollDistance').value) || 150,
             clickaroundOptions: firstBuildAction === 'clickaround' ? {
                 excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobs').checked,
-                clickaroundChunks: parseInt(document.getElementById('firstBuildClickaroundChunks').value) || 3,
-                scrollUpDistance: parseInt(document.getElementById('firstBuildScrollUpDistance').value) || 200,
-                scrollUpCount: parseInt(document.getElementById('firstBuildScrollUpCount').value) || 5,
-                initialScrollDown: parseInt(document.getElementById('firstBuildInitialScrollDown').value) || 150,
+                clickaroundChunks: parseInt(document.getElementById('firstBuildClickaroundChunks').value) ?? 3,
+                scrollUpDistance: parseInt(document.getElementById('firstBuildScrollUpDistance').value) ?? 200,
+                scrollUpCount: parseInt(document.getElementById('firstBuildScrollUpCount').value) ?? 5,
+                initialScrollDown: parseInt(document.getElementById('firstBuildInitialScrollDown').value) ?? 150,
                 scrollToBottomAtEnd: document.getElementById('firstBuildScrollToBottomAtEnd').checked
             } : {}
         },
@@ -1765,10 +1765,10 @@ function getCurrentFormSettings() {
             clickOffAndScrollDistance: parseInt(document.getElementById('secondBuildClickOffScrollDistance').value) || 150,
             clickaroundOptions: secondBuildAction === 'clickaround' ? {
                 excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobs').checked,
-                clickaroundChunks: parseInt(document.getElementById('secondBuildClickaroundChunks').value) || 3,
-                scrollUpDistance: parseInt(document.getElementById('secondBuildScrollUpDistance').value) || 200,
-                scrollUpCount: parseInt(document.getElementById('secondBuildScrollUpCount').value) || 5,
-                initialScrollDown: parseInt(document.getElementById('secondBuildInitialScrollDown').value) || 150,
+                clickaroundChunks: parseInt(document.getElementById('secondBuildClickaroundChunks').value) ?? 3,
+                scrollUpDistance: parseInt(document.getElementById('secondBuildScrollUpDistance').value) ?? 200,
+                scrollUpCount: parseInt(document.getElementById('secondBuildScrollUpCount').value) ?? 5,
+                initialScrollDown: parseInt(document.getElementById('secondBuildInitialScrollDown').value) ?? 150,
                 scrollToBottomAtEnd: document.getElementById('secondBuildScrollToBottomAtEnd').checked
             } : {}
         }
@@ -1807,10 +1807,10 @@ async function loadSettingsForLevel(levelName) {
     const firstClickaroundOpts = settings.firstBuildAction.clickaroundOptions || {};
     document.getElementById('firstBuildExcludeRedBlobs').checked = 
         firstClickaroundOpts.excludeRedBlobs !== undefined ? firstClickaroundOpts.excludeRedBlobs : true;
-    document.getElementById('firstBuildClickaroundChunks').value = firstClickaroundOpts.clickaroundChunks || 3;
-    document.getElementById('firstBuildScrollUpDistance').value = firstClickaroundOpts.scrollUpDistance || 200;
-    document.getElementById('firstBuildScrollUpCount').value = firstClickaroundOpts.scrollUpCount || 5;
-    document.getElementById('firstBuildInitialScrollDown').value = firstClickaroundOpts.initialScrollDown || 150;
+    document.getElementById('firstBuildClickaroundChunks').value = firstClickaroundOpts.clickaroundChunks ?? 3;
+    document.getElementById('firstBuildScrollUpDistance').value = firstClickaroundOpts.scrollUpDistance ?? 200;
+    document.getElementById('firstBuildScrollUpCount').value = firstClickaroundOpts.scrollUpCount ?? 5;
+    document.getElementById('firstBuildInitialScrollDown').value = firstClickaroundOpts.initialScrollDown ?? 150;
     document.getElementById('firstBuildScrollToBottomAtEnd').checked = 
         firstClickaroundOpts.scrollToBottomAtEnd !== undefined ? firstClickaroundOpts.scrollToBottomAtEnd : false;
     document.getElementById('firstBuildClickaroundOptions').style.display = 
@@ -1827,10 +1827,10 @@ async function loadSettingsForLevel(levelName) {
     const secondClickaroundOpts = settings.secondBuildAction.clickaroundOptions || {};
     document.getElementById('secondBuildExcludeRedBlobs').checked = 
         secondClickaroundOpts.excludeRedBlobs !== undefined ? secondClickaroundOpts.excludeRedBlobs : true;
-    document.getElementById('secondBuildClickaroundChunks').value = secondClickaroundOpts.clickaroundChunks || 3;
-    document.getElementById('secondBuildScrollUpDistance').value = secondClickaroundOpts.scrollUpDistance || 200;
-    document.getElementById('secondBuildScrollUpCount').value = secondClickaroundOpts.scrollUpCount || 5;
-    document.getElementById('secondBuildInitialScrollDown').value = secondClickaroundOpts.initialScrollDown || 150;
+    document.getElementById('secondBuildClickaroundChunks').value = secondClickaroundOpts.clickaroundChunks ?? 3;
+    document.getElementById('secondBuildScrollUpDistance').value = secondClickaroundOpts.scrollUpDistance ?? 200;
+    document.getElementById('secondBuildScrollUpCount').value = secondClickaroundOpts.scrollUpCount ?? 5;
+    document.getElementById('secondBuildInitialScrollDown').value = secondClickaroundOpts.initialScrollDown ?? 150;
     document.getElementById('secondBuildScrollToBottomAtEnd').checked = 
         secondClickaroundOpts.scrollToBottomAtEnd !== undefined ? secondClickaroundOpts.scrollToBottomAtEnd : false;
     document.getElementById('secondBuildClickaroundOptions').style.display = 

@@ -105,16 +105,20 @@
       "doResearch": true,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
-      "scrollToBottomAfterFirstBuild": true,
+      "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
-      "perfectStartingPosition": "scroll_to_bottom",
+      "perfectStartingPosition": "scroll_down_1x",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       },
       "secondBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       }
     },
     "fast food": {
@@ -179,8 +183,8 @@
         "clickaroundOptions": {
           "excludeRedBlobs": true,
           "clickaroundChunks": 2,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 1,
+          "scrollUpDistance": 300,
+          "scrollUpCount": 2,
           "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
@@ -189,14 +193,7 @@
         "action": "nothing",
         "triggerTimeMs": 180000,
         "clickOffAndScrollDistance": 150,
-        "clickaroundOptions": {
-          "excludeRedBlobs": true,
-          "clickaroundChunks": 3,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 5,
-          "initialScrollDown": 150,
-          "scrollToBottomAtEnd": false
-        }
+        "clickaroundOptions": {}
       }
     },
     "hot dog stand": {
@@ -431,7 +428,7 @@
     },
     "mocktail bar": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
@@ -440,27 +437,13 @@
         "action": "nothing",
         "triggerTimeMs": null,
         "clickOffAndScrollDistance": 150,
-        "clickaroundOptions": {
-          "excludeRedBlobs": true,
-          "clickaroundChunks": 3,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 5,
-          "initialScrollDown": 150,
-          "scrollToBottomAtEnd": false
-        }
+        "clickaroundOptions": {}
       },
       "secondBuildAction": {
         "action": "nothing",
         "triggerTimeMs": null,
         "clickOffAndScrollDistance": 150,
-        "clickaroundOptions": {
-          "excludeRedBlobs": true,
-          "clickaroundChunks": 3,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 5,
-          "initialScrollDown": 150,
-          "scrollToBottomAtEnd": false
-        }
+        "clickaroundOptions": {}
       }
     },
     "joghurt house": {
@@ -481,7 +464,7 @@
     },
     "tapas bar": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
@@ -490,27 +473,13 @@
         "action": "nothing",
         "triggerTimeMs": null,
         "clickOffAndScrollDistance": 150,
-        "clickaroundOptions": {
-          "excludeRedBlobs": true,
-          "clickaroundChunks": 3,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 5,
-          "initialScrollDown": 150,
-          "scrollToBottomAtEnd": false
-        }
+        "clickaroundOptions": {}
       },
       "secondBuildAction": {
-        "action": "click_off_and_scroll",
+        "action": "nothing",
         "triggerTimeMs": null,
         "clickOffAndScrollDistance": 400,
-        "clickaroundOptions": {
-          "excludeRedBlobs": true,
-          "clickaroundChunks": 3,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 5,
-          "initialScrollDown": 150,
-          "scrollToBottomAtEnd": false
-        }
+        "clickaroundOptions": {}
       }
     },
     "big drive thru": {
@@ -586,17 +555,33 @@
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
       "scrollToBottomAfterFirstBuild": true,
-      "scrollToBottomAfterSecondBuild": false,
+      "scrollToBottomAfterSecondBuild": true,
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
         "action": "clickaround",
-        "triggerTimeMs": 60000,
-        "excludeRedBlobs": true
+        "triggerTimeMs": 50000,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 4,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 2,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       },
       "secondBuildAction": {
         "action": "clickaround",
         "triggerTimeMs": 180000,
-        "excludeRedBlobs": true
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 4,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 5,
+          "initialScrollDown": 150,
+          "scrollToBottomAtEnd": false
+        }
       }
     },
     "street nuts": {
@@ -689,14 +674,18 @@
       "blueBoxClickHoldDuration": 4500,
       "scrollToBottomAfterFirstBuild": true,
       "scrollToBottomAfterSecondBuild": false,
-      "perfectStartingPosition": "scroll_down_3x",
+      "perfectStartingPosition": "scroll_down_1x",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       },
       "secondBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       }
     },
     "dango stand": {
@@ -769,16 +758,20 @@
       "doResearch": false,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
-      "scrollToBottomAfterFirstBuild": true,
+      "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       },
       "secondBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       }
     },
     "cafe napolita": {
@@ -990,13 +983,22 @@
       "perfectStartingPosition": "scroll_down_3x",
       "firstBuildAction": {
         "action": "clickaround",
-        "triggerTimeMs": 60000,
-        "excludeRedBlobs": true
+        "triggerTimeMs": 6000,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 3,
+          "initialScrollDown": 0,
+          "scrollToBottomAtEnd": false
+        }
       },
       "secondBuildAction": {
-        "action": "clickaround",
-        "triggerTimeMs": 120000,
-        "excludeRedBlobs": false
+        "action": "click_off",
+        "triggerTimeMs": 6000,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       }
     },
     "dumpling hut": {
@@ -1019,34 +1021,47 @@
       "doResearch": true,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
-      "scrollToBottomAfterFirstBuild": true,
-      "scrollToBottomAfterSecondBuild": false,
+      "scrollToBottomAfterFirstBuild": false,
+      "scrollToBottomAfterSecondBuild": true,
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
-        "action": "clickaround",
+        "action": "click_off_and_scroll",
         "triggerTimeMs": 60000,
-        "excludeRedBlobs": true
+        "clickOffAndScrollDistance": 400,
+        "clickaroundOptions": {}
       },
       "secondBuildAction": {
         "action": "clickaround",
         "triggerTimeMs": 180000,
-        "excludeRedBlobs": true
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {
+          "excludeRedBlobs": true,
+          "clickaroundChunks": 3,
+          "scrollUpDistance": 200,
+          "scrollUpCount": 4,
+          "initialScrollDown": 50,
+          "scrollToBottomAtEnd": false
+        }
       }
     },
     "burrito king": {
       "doResearch": true,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
-      "scrollToBottomAfterFirstBuild": true,
+      "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": false,
       "perfectStartingPosition": "scroll_to_bottom",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       },
       "secondBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       }
     },
     "drive thru take out": {

@@ -1,5 +1,5 @@
 const { getRandomInt } = require('./scrolling');
-const { scrollToTop, scrollDown } = require('./scrolling');
+const { scrollToTop, scrollDown, scrollUpWithDistance } = require('./scrolling');
 
 // Helper function to generate all valid click positions for a screen (calculated once per screen)
 function generateValidClickPositions(regionX, regionY, regionWidth, regionHeight, exclusionZones, cellSizeX, cellSizeY) {
@@ -47,9 +47,9 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
   const defaultOptions = {
     excludeRedBlobs: true,             // Avoid red blobs by default
     clickaroundChunks: 3,              // Number of click chunks (screens) to process
-    scrollUpDistance: 200,             // Scroll up distance in pixels
+    scrollUpDistance: 200,             // Scroll up distance in pixels BEFORE processing chunks (replaces scroll to top)
     scrollUpCount: 5,                  // How many times to scroll up (legacy, overridden by clickaroundChunks)
-    initialScrollDown: 150,            // Initial scroll down distance in pixels
+    initialScrollDown: 150,            // Initial scroll down distance in pixels AFTER scroll up
     scrollToBottomAtEnd: true          // Scroll to bottom when finished
   };
   
@@ -94,19 +94,19 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // 1. Scroll to top once at the beginning
-    updateStatus('Click Around: Scrolling to top...', 'info');
-    await scrollToTop({ 
-      updateCurrentFunction: dependencies.updateCurrentFunction, 
-      performClick, 
-      CLICK_AREAS: dependencies.CLICK_AREAS,
-      iphoneMirroringRegion: iphoneMirroringRegion 
-    });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // 1. Scroll up by scrollUpDistance (if configured)
+    if (config.scrollUpDistance > 0) {
+      updateStatus(`Click Around: Scrolling up by ${config.scrollUpDistance} pixels...`, 'info');
+      await scrollUpWithDistance(regionX + regionWidth / 2, regionY + regionHeight / 2, config.scrollUpDistance);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
-    // Initial scroll down (configurable distance)
-    updateStatus(`Click Around: Initial scroll to top complete. Scrolling down by ${config.initialScrollDown} pixels...`, 'info');
-    await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, config.initialScrollDown);
+    // 2. Initial scroll down (configurable distance)
+    if (config.initialScrollDown > 0) {
+      updateStatus(`Click Around: Scrolling down by ${config.initialScrollDown} pixels...`, 'info');
+      await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, config.initialScrollDown);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     const checkPauseState = async () => {
       while (getIsClickAroundPaused() && getIsClickAroundRunning()) {
@@ -213,9 +213,10 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
       // Check pause state once per screen instead of every 5 rows
       if (!await checkPauseState()) return;
 
-      // Scroll down (350 pixels total in single call)
-      updateStatus(`Click Around: Completed screen ${scrollCount + 1}/${maxScrolls}. Scrolling down by ${config.scrollUpDistance} pixels.`, 'info');
-      await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, config.scrollUpDistance);
+      // Scroll down (350 pixels hardcoded between chunks)
+      const scrollDownBetweenChunks = 350;
+      updateStatus(`Click Around: Completed screen ${scrollCount + 1}/${maxScrolls}. Scrolling down by ${scrollDownBetweenChunks} pixels.`, 'info');
+      await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, scrollDownBetweenChunks);
       
       // Capture bottom image for next iteration's comparison
       try {

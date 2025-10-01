@@ -55,6 +55,52 @@ async function scrollDown(x, y, distance) {
   }
 }
 
+// Simple scrollUp with distance parameter (matches scrollDown signature)
+async function scrollUpWithDistance(x, y, distance) {
+  try {
+    console.log(`DEBUG: scrollUpWithDistance - Performing smooth scroll up ${distance}px at (${x}, ${y})`);
+    
+    // Calculate start and end positions for scrolling up (opposite of down)
+    const startY = y - distance / 2;
+    const endY = y + distance / 2;
+    
+    // 1. Move mouse to start point
+    robot.moveMouse(x, startY);
+    await new Promise(resolve => setTimeout(resolve, 100)); 
+
+    // 2. Press and hold left mouse button
+    robot.mouseToggle('down', 'left');
+    await new Promise(resolve => setTimeout(resolve, 100)); 
+
+    // 3. Perform smooth drag with easing
+    const duration = 400; // Longer duration for smoother gesture
+    const steps = 40; // More steps for smoother motion
+    const stepDelay = duration / steps;
+    
+    // Use easing function for natural touch-like movement
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+    
+    for (let i = 0; i <= steps; i++) {
+      const progress = i / steps;
+      const easedProgress = easeOutCubic(progress);
+      const currentY = startY + (endY - startY) * easedProgress;
+      
+      robot.dragMouse(x, currentY);
+      await new Promise(resolve => setTimeout(resolve, stepDelay));
+    }
+
+    // 4. Release left mouse button
+    robot.mouseToggle('up', 'left');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    console.log(`DEBUG: scrollUpWithDistance - Smooth scroll completed`);
+    return { success: true };
+  } catch (error) {
+    console.error(`Error executing RobotJS scroll up: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
 async function scrollUp(x, y, dependencies) { // Accept dependencies to access CLICK_AREAS and performClick
   const { updateCurrentFunction, CLICK_AREAS, performClick } = dependencies;
   updateCurrentFunction('scrollUp'); // Update current function
@@ -211,6 +257,7 @@ module.exports = {
   getRandomInt,
   scrollDown,
   scrollUp,
+  scrollUpWithDistance,
   scrollToBottom,
   scrollToTop, // Export the new function
 };

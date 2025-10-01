@@ -73,8 +73,9 @@ body {
 /* Stage Info Styles */
 .stage-info-wrapper {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 .stage-info {
@@ -83,6 +84,7 @@ body {
     border: 2px solid rgba(255, 193, 7, 0.3);
     border-radius: 8px;
     min-width: 180px;
+    margin-bottom: 12px;
 }
 
 .stage-details-compact {
@@ -91,6 +93,8 @@ body {
     border: 1px solid rgba(255, 193, 7, 0.2);
     border-radius: 8px;
     margin-bottom: 8px;
+    flex: 1;
+    min-width: 200px;
 }
 
 .stage-section-header {
