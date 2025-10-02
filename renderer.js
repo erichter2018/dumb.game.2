@@ -819,14 +819,26 @@ ipcRenderer.on('update-average-level-duration', (event, durationText) => {
 });
 
 // New: IPC listener for current level name updates
-ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs) => {
+ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, levelBestMs) => {
+    // Toggle compact header depending on name
+    try {
+        const levelInfo = document.querySelector('.level-info');
+        if (levelInfo) {
+            if (!levelName || levelName === 'Unknown Level' || levelName === '') {
+                levelInfo.classList.add('compact');
+            } else {
+                levelInfo.classList.remove('compact');
+            }
+        }
+    } catch {}
     if (currentLevelNameDisplay) {
         const name = levelName || 'Unnamed Level';
         
-        if (levelAverageMs) {
-            // Format the average duration
-            const avgText = formatDuration(levelAverageMs);
-            currentLevelNameDisplay.innerHTML = `${name}<br><span style="font-size: 0.8em; color: #888;">avg: ${avgText}</span>`;
+        if (levelAverageMs || levelBestMs) {
+            // Format the durations
+            const avgText = levelAverageMs ? formatDuration(levelAverageMs) : '—';
+            const bestText = levelBestMs ? formatDuration(levelBestMs) : '—';
+            currentLevelNameDisplay.innerHTML = `${name}<br><span style="font-size: 0.8em; color: #888;">avg: ${avgText} | best: ${bestText}</span>`;
         } else {
             currentLevelNameDisplay.textContent = name;
         }
@@ -835,6 +847,23 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs) =
 
 // New: IPC listener for stage information updates
 ipcRenderer.on('update-stage-info', async (event, stageInfo) => {
+    // Stage pill vs full card
+    try {
+        const stageInfoBox = document.getElementById('currentStageInfo');
+        if (stageInfoBox) {
+            if (stageInfo && stageInfo.current && stageInfo.trackingEnabled) {
+                stageInfoBox.classList.remove('pill');
+            } else {
+                stageInfoBox.classList.add('pill');
+            }
+        }
+        // Show records section when we have any data
+        const systemStatus = document.querySelector('.system-status');
+        if (systemStatus) {
+            const hasAny = !!(stageInfo && (stageInfo.completedCount > 0 || (stageInfo.longestStages && stageInfo.longestStages.length > 0)));
+            systemStatus.style.display = hasAny ? 'block' : 'none';
+        }
+    } catch {}
     await updateStageDisplay(stageInfo);
 });
 
@@ -883,8 +912,10 @@ async function updateStageDisplay(stageInfo) {
     if (stageInfo.current && stageInfo.trackingEnabled) {
         if (currentStageName) {
             const historicalAvg = stageInfo.current.historicalAverage;
+            const historicalBest = stageInfo.current.historicalBest;
             const avgText = historicalAvg ? ` (avg: ${formatDuration(historicalAvg)})` : '';
-            currentStageName.textContent = stageInfo.current.name + avgText;
+            const bestText = historicalBest ? ` • best: ${formatDuration(historicalBest)}` : '';
+            currentStageName.textContent = stageInfo.current.name + avgText + bestText;
         }
         if (currentStageProgress) {
             currentStageProgress.textContent = `Level ${stageInfo.current.level}/7`;
@@ -922,6 +953,28 @@ async function updateStageDisplay(stageInfo) {
     
     // Show/hide and update previous stage (full view - in sidebar)
     updatePreviousStageDetails(stageInfo.previous);
+
+    // Update summaries above stage lists
+    const currentSummary = document.getElementById('currentStageSummary');
+    if (currentSummary) {
+        if (stageInfo.current) {
+            const a = stageInfo.current.historicalAverage ? formatDuration(stageInfo.current.historicalAverage) : '—';
+            const b = stageInfo.current.historicalBest ? formatDuration(stageInfo.current.historicalBest) : '—';
+            currentSummary.textContent = `${stageInfo.current.name} • avg: ${a} • best: ${b}`;
+        } else {
+            currentSummary.textContent = '';
+        }
+    }
+    const prevSummary = document.getElementById('previousStageSummary');
+    if (prevSummary) {
+        if (stageInfo.previous) {
+            const a = stageInfo.previous.historicalAverage ? formatDuration(stageInfo.previous.historicalAverage) : '—';
+            const b = stageInfo.previous.historicalBest ? formatDuration(stageInfo.previous.historicalBest) : '—';
+            prevSummary.textContent = `${stageInfo.previous.name} • avg: ${a} • best: ${b}`;
+        } else {
+            prevSummary.textContent = '';
+        }
+    }
 }
 
 function updateLongestStages(longestStages) {
@@ -1602,6 +1655,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize settings modal
     initializeSettingsModal();
     
+    // Apply compact header and pill stage look initially
+    try {
+        const levelInfo = document.querySelector('.level-info');
+        if (levelInfo) levelInfo.classList.add('compact');
+        const stageInfo = document.getElementById('currentStageInfo');
+        if (stageInfo) stageInfo.classList.add('pill');
+        const systemStatus = document.querySelector('.system-status');
+        if (systemStatus) systemStatus.style.display = 'none';
+    } catch (e) { console.warn('Header compact styling failed to init', e); }
+
     console.log('DEBUG: DOMContentLoaded handler finished.');
 });
 

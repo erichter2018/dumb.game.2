@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- Enhanced Status Bar with Stage Tracking -->
+        <!-- Top Summary Pane -->
         <div class="status-bar">
             <!-- Current Level & Stage Info -->
             <div class="level-info">
@@ -16,86 +16,6 @@
                 <div class="level-timer" id="currentLevelDuration">0m 0s</div>
                 <div class="current-status" id="currentFunction">Idle</div>
                 
-                <!-- Current Level Actions Display with Stage Info -->
-                <div class="level-progress-wrapper">
-                    <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
-                    <h4>Level Progress:</h4>
-                    
-                    <!-- Startup Behavior -->
-                    <div class="action-item" id="actionStartup">
-                        <span class="action-checkbox">☐</span>
-                        <span class="action-label">Startup</span>
-                        <span class="action-value" id="startupValue">—</span>
-                    </div>
-                    
-                    <!-- First Build Action -->
-                    <div class="action-item" id="actionFirstBuild">
-                        <span class="action-checkbox">☐</span>
-                        <span class="action-label">First Build</span>
-                        <span class="action-value" id="firstBuildValue">—</span>
-                    </div>
-                    
-                    <!-- After First Build -->
-                    <div class="action-item" id="actionAfterFirstBuild">
-                        <span class="action-checkbox">☐</span>
-                        <span class="action-label">After 1st Build</span>
-                        <span class="action-value" id="afterFirstBuildValue">—</span>
-                    </div>
-                    
-                    <!-- Second Build Action -->
-                    <div class="action-item" id="actionSecondBuild">
-                        <span class="action-checkbox">☐</span>
-                        <span class="action-label">Second Build</span>
-                        <span class="action-value" id="secondBuildValue">—</span>
-                    </div>
-                    
-                    <!-- After Second Build -->
-                    <div class="action-item" id="actionAfterSecondBuild">
-                        <span class="action-checkbox">☐</span>
-                        <span class="action-label">After 2nd Build</span>
-                        <span class="action-value" id="afterSecondBuildValue">—</span>
-                    </div>
-                    
-                    <!-- Other Settings (no checkmarks) -->
-                    <div class="action-divider"></div>
-                    <div class="action-item">
-                        <span class="action-label">Research:</span>
-                        <span class="action-value" id="researchValue">—</span>
-                    </div>
-                    <div class="action-item">
-                        <span class="action-label">Hold Duration:</span>
-                        <span class="action-value" id="holdDurationValue">—</span>
-                    </div>
-                    <div class="action-item">
-                        <span class="action-label">Scroll Dir:</span>
-                        <span class="action-value" id="scrollDirValue">—</span>
-                    </div>
-                    </div>
-                    
-                    <!-- Stage Info & Details Combined -->
-                    <div class="stage-info" id="currentStageInfo">
-                        <div class="stage-name" id="currentStageName">No Stage</div>
-                        <div class="stage-progress" id="currentStageProgress">—</div>
-                    </div>
-                    
-                    <div class="stage-info-wrapper">
-                        <!-- Previous Stage Levels Detail -->
-                        <div class="stage-details-compact" id="prevStageDetails" style="display: none;">
-                            <div class="stage-section-header">Previous Stage</div>
-                            <div class="stage-levels-compact" id="prevStageLevels">
-                                <!-- Previous stage level details will be populated here -->
-                            </div>
-                        </div>
-                        
-                        <!-- Current Stage Levels Detail -->
-                        <div class="stage-details-compact" id="stageDetails" style="display: none;">
-                            <div class="stage-section-header">Current Stage</div>
-                            <div class="stage-levels-compact" id="stageLevels">
-                                <!-- Current stage level details will be populated here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
             
             <!-- Level Statistics -->
@@ -158,15 +78,69 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Previous Stage Summary -->
-        <div class="previous-stage" id="previousStage" style="display: none;">
-            <div class="previous-stage-header">
-                <h3 id="previousStageTitle">Previous Stage: None</h3>
-                <div class="previous-stage-time" id="previousStageDuration">—</div>
-            </div>
-            <div class="previous-stage-levels" id="previousStageLevels">
-                <!-- Previous stage level details will be populated here -->
+
+        <!-- Stage/Progress Pane -->
+        <div class="stage-details">
+            <div class="level-progress-wrapper">
+                <div class="stage-info-wrapper">
+                    <!-- Current Stage Levels Detail -->
+                    <div class="stage-details-compact" id="stageDetails" style="display: none;">
+                        <div class="stage-section-header">Current Stage
+                            <span id="currentStageSummary" style="font-size:0.9em; color:#a8b2c4; margin-left:8px;"></span>
+                        </div>
+                        <div class="stage-levels-compact" id="stageLevels"></div>
+                    </div>
+                    
+                    <!-- Previous Stage Levels Detail -->
+                    <div class="stage-details-compact" id="prevStageDetails" style="display: none;">
+                        <div class="stage-section-header">Previous Stage
+                            <span id="previousStageSummary" style="font-size:0.9em; color:#a8b2c4; margin-left:8px;"></span>
+                        </div>
+                        <div class="stage-levels-compact" id="prevStageLevels"></div>
+                    </div>
+                </div>
+                <!-- Level Progress moved here into second pane -->
+                <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
+                    <h4>Level Progress:</h4>
+                    <div class="action-item" id="actionStartup">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">Startup</span>
+                        <span class="action-value" id="startupValue">—</span>
+                    </div>
+                    <div class="action-item" id="actionFirstBuild">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">First Build</span>
+                        <span class="action-value" id="firstBuildValue">—</span>
+                    </div>
+                    <div class="action-item" id="actionAfterFirstBuild">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">After 1st Build</span>
+                        <span class="action-value" id="afterFirstBuildValue">—</span>
+                    </div>
+                    <div class="action-item" id="actionSecondBuild">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">Second Build</span>
+                        <span class="action-value" id="secondBuildValue">—</span>
+                    </div>
+                    <div class="action-item" id="actionAfterSecondBuild">
+                        <span class="action-checkbox">☐</span>
+                        <span class="action-label">After 2nd Build</span>
+                        <span class="action-value" id="afterSecondBuildValue">—</span>
+                    </div>
+                    <div class="action-divider"></div>
+                    <div class="action-item">
+                        <span class="action-label">Research:</span>
+                        <span class="action-value" id="researchValue">—</span>
+                    </div>
+                    <div class="action-item">
+                        <span class="action-label">Hold Duration:</span>
+                        <span class="action-value" id="holdDurationValue">—</span>
+                    </div>
+                    <div class="action-item">
+                        <span class="action-label">Scroll Dir:</span>
+                        <span class="action-value" id="scrollDirValue">—</span>
+                    </div>
+                </div>
             </div>
         </div>
 

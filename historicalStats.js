@@ -191,6 +191,19 @@ function getLevelAverage(levelName) {
     return levelStats.averageDuration;
 }
 
+function getLevelBest(levelName) {
+    if (!levelName) return null;
+
+    const stats = loadStats();
+    const levelStats = stats.levels[levelName];
+    
+    if (!levelStats || levelStats.totalCompletions === 0) {
+        return null;
+    }
+
+    return levelStats.bestTime;
+}
+
 /**
  * Gets the average duration for a specific stage
  */
@@ -205,6 +218,19 @@ function getStageAverage(stageName) {
     }
 
     return stageStats.averageDuration;
+}
+
+function getStageBest(stageName) {
+    if (!stageName) return null;
+
+    const stats = loadStats();
+    const stageStats = stats.stages[stageName];
+    
+    if (!stageStats || stageStats.totalCompletions === 0) {
+        return null;
+    }
+
+    return stageStats.bestTime;
 }
 
 /**
@@ -243,7 +269,9 @@ module.exports = {
     recordLevelCompletion,
     recordStageCompletion,
     getLevelAverage,
+    getLevelBest,
     getStageAverage,
+    getStageBest,
     getAllLevelStats,
     getAllStageStats,
     formatDuration,

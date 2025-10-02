@@ -134,8 +134,9 @@ function updateCurrentLevelName(levelName) {
                 ? finishedLevelName 
                 : currentLevelName;
             const levelAverage = historicalStats.getLevelAverage(levelForAverage);
+            const levelBest = historicalStats.getLevelBest(levelForAverage);
             console.log(`DEBUG: Sending level average for "${levelForAverage}" (current: "${currentLevelName}", finished: "${finishedLevelName}")`);
-            mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage);
+            mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBest);
         }
         return;
     }
@@ -200,7 +201,8 @@ function updateCurrentLevelName(levelName) {
     // Send to renderer for UI update
     if (mainWindow && !mainWindow.isDestroyed()) {
         const levelAverage = historicalStats.getLevelAverage(currentLevelName);
-        mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage);
+        const levelBest = historicalStats.getLevelBest(currentLevelName);
+        mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBest);
         // Also send stage info for enhanced UI
         sendStageInfoToRenderer();
     }
@@ -386,11 +388,13 @@ function sendStageInfoToRenderer() {
             level: currentStageLevel,
             levels: currentStage.levels,
             startTime: currentStage.startTime,
-            historicalAverage: historicalStats.getStageAverage(currentStage.name)
+            historicalAverage: historicalStats.getStageAverage(currentStage.name),
+            historicalBest: historicalStats.getStageBest(currentStage.name)
         } : null,
         previous: previousStage ? {
             ...previousStage,
-            historicalAverage: historicalStats.getStageAverage(previousStage.name)
+            historicalAverage: historicalStats.getStageAverage(previousStage.name),
+            historicalBest: historicalStats.getStageBest(previousStage.name)
         } : null,
         longestStages: longestStages,
         shortestStages: shortestStages,

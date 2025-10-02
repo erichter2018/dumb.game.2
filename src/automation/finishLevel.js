@@ -1,7 +1,7 @@
 const settingsManager = require('../../settingsManager');
 
 function startAutomation(dependencies) {
-    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
+    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
 
     updateCurrentFunction('startAutomation'); // Update current function display
     updateStatus('Finish Level Automation Started', 'info');
@@ -381,8 +381,8 @@ function startAutomation(dependencies) {
         }
     }
 
-    async function exitAndStartNewLevel(dependencies) {
-        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, setFinishedLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = dependencies;
+    async function exitAndStartNewLevel(exitDependencies) {
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, setFinishedLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = exitDependencies;
 
         // Store the current level name as the finished level name before clearing it
         const currentLevel = getCurrentLevelName();
@@ -410,10 +410,10 @@ function startAutomation(dependencies) {
         console.log('DEBUG: Continuing "Exit and Start New Level" routine. Performing click at "Confirm Exit".');
         await performClick(CLICK_AREAS.CONFIRM_EXIT.x, CLICK_AREAS.CONFIRM_EXIT.y);
         updateStatus('Clicked "Confirm Exit".', 'info');
-        console.log(`DEBUG: Finished click at "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}). Waiting 9,000ms.`);
+        console.log(`DEBUG: Finished click at "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}). Waiting 7,500ms.`);
 
-        // Wait 9,000ms
-        await new Promise(resolve => setTimeout(resolve, 9000));
+        // Wait 7,500ms
+        await new Promise(resolve => setTimeout(resolve, 7500));
         if (!getIsAutomationRunning()) { return; }
 
         // Capture level name using OCR before clicking "Start Level"
@@ -543,6 +543,13 @@ function startAutomation(dependencies) {
 
     async function runFinishLevelProtocol() {
         updateCurrentFunction('runFinishLevelProtocol'); // Update current function display
+        
+        // Get scroll direction from level settings
+        const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+        const levelSettings = settingsManager.getLevelSettings(currentLevelName);
+        const scrollDirection = levelSettings.scrollDirection || 'up';
+        console.log(`DEBUG: runFinishLevelProtocol - Level "${currentLevelName}" scroll direction: ${scrollDirection}`);
+        
         while (getIsAutomationRunning()) {
             let blueBuildBox = null;
             
@@ -675,29 +682,45 @@ function startAutomation(dependencies) {
                             continue; // Go back to main loop with new blobs
                         }
                         
-                        console.log(`DEBUG: Second detection also found no actionable blobs. Proceeding to scroll up.`);
-                        console.log(`DEBUG: No red blobs or blue boxes found after ${detectionAttemptCount} attempts (including second detection). Scrolling up.`);
-                        updateStatus(`No objects found after ${detectionAttemptCount} attempts (including second detection). Scrolling up...`, 'warn');
+                        console.log(`DEBUG: Second detection also found no actionable blobs. Proceeding to scroll.`);
+                        console.log(`DEBUG: No red blobs or blue boxes found after ${detectionAttemptCount} attempts (including second detection). Scrolling ${scrollDirection}.`);
+                        updateStatus(`No objects found after ${detectionAttemptCount} attempts (including second detection). Scrolling ${scrollDirection}...`, 'warn');
                         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                         
-                        // First do incremental scroll up
-                        await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
+                        // Scroll in the appropriate direction based on settings
+                        if (scrollDirection === 'down') {
+                            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                        } else {
+                            await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
+                        }
                         scrollUpCount++;
-                        console.log(`DEBUG: Scroll up count incremented to ${scrollUpCount}, limit is ${scrollUpAttempts}.`);
+                        console.log(`DEBUG: Scroll count incremented to ${scrollUpCount}, limit is ${scrollUpAttempts}.`);
                         detectionAttemptCount = 0; // Reset attempt count after scrolling
 
                         if (scrollUpCount >= scrollUpAttempts) {
-                            console.log(`DEBUG: Scrolled up ${scrollUpCount} times (reached limit). Scrolling to top then bottom and restarting search.`);
-                            updateStatus(`Scrolled up ${scrollUpCount} times (reached limit). Scrolling to top then bottom and restarting search...`, 'warn');
-                            await scrollToTop({ 
-                                updateCurrentFunction, 
-                                performClick, 
-                                CLICK_AREAS: dependencies.CLICK_AREAS,
-                                iphoneMirroringRegion: iphoneMirroringRegion 
-                            });
-                            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
-                            scrollUpCount = 0; // Reset scroll up count
+                            console.log(`DEBUG: Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Scrolling to ${scrollDirection === 'down' ? 'top then bottom' : 'top then bottom'} and restarting search.`);
+                            updateStatus(`Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting position and restarting search...`, 'warn');
+                            if (scrollDirection === 'down') {
+                                // For scroll down mode: scroll to top, then to bottom
+                                await scrollToTop({ 
+                                    updateCurrentFunction, 
+                                    performClick, 
+                                    CLICK_AREAS: dependencies.CLICK_AREAS,
+                                    iphoneMirroringRegion: iphoneMirroringRegion 
+                                });
+                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                            } else {
+                                // For scroll up mode: scroll to top, then to bottom
+                                await scrollToTop({ 
+                                    updateCurrentFunction, 
+                                    performClick, 
+                                    CLICK_AREAS: dependencies.CLICK_AREAS,
+                                    iphoneMirroringRegion: iphoneMirroringRegion 
+                                });
+                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                            }
+                            scrollUpCount = 0; // Reset scroll count
                         }
                     }
                     continue; // Continue the loop to re-detect from scratch
@@ -759,29 +782,45 @@ function startAutomation(dependencies) {
                                         continue; // Go back to main loop with new blobs
                                     }
                                     
-                                    console.log(`DEBUG: Second detection also found no new actionable blobs. Proceeding to scroll up.`);
-                                    console.log(`DEBUG: No usable red blobs found after ${detectionAttemptCount} attempts (including second detection). Scrolling up.`);
-                                    updateStatus(`No usable objects found after ${detectionAttemptCount} attempts (including second detection). Scrolling up...`, 'warn');
+                                    console.log(`DEBUG: Second detection also found no new actionable blobs. Proceeding to scroll.`);
+                                    console.log(`DEBUG: No usable red blobs found after ${detectionAttemptCount} attempts (including second detection). Scrolling ${scrollDirection}.`);
+                                    updateStatus(`No usable objects found after ${detectionAttemptCount} attempts (including second detection). Scrolling ${scrollDirection}...`, 'warn');
                                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                                     
-                                    // Simple scroll up
-                                    await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
+                                    // Scroll in the appropriate direction based on settings
+                                    if (scrollDirection === 'down') {
+                                        await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                                    } else {
+                                        await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
+                                    }
                                     scrollUpCount++;
-                                    console.log(`DEBUG: Scroll up count incremented to ${scrollUpCount}, limit is ${scrollUpAttempts}.`);
+                                    console.log(`DEBUG: Scroll count incremented to ${scrollUpCount}, limit is ${scrollUpAttempts}.`);
                                     detectionAttemptCount = 0; // Reset attempt count after scrolling
 
                                     if (scrollUpCount >= scrollUpAttempts) {
-                                        console.log(`DEBUG: Scrolled up ${scrollUpCount} times (reached limit). Scrolling to top then bottom and restarting search.`);
-                                        updateStatus(`Scrolled up ${scrollUpCount} times (reached limit). Scrolling to top then bottom and restarting search...`, 'warn');
-                                        await scrollToTop({ 
-                                            updateCurrentFunction, 
-                                            performClick, 
-                                            CLICK_AREAS: dependencies.CLICK_AREAS,
-                                            iphoneMirroringRegion: iphoneMirroringRegion 
-                                        });
-                                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
-                                        scrollUpCount = 0; // Reset scroll up count
+                                        console.log(`DEBUG: Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting position and restarting search.`);
+                                        updateStatus(`Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting position and restarting search...`, 'warn');
+                                        if (scrollDirection === 'down') {
+                                            // For scroll down mode: scroll to top, then to bottom
+                                            await scrollToTop({ 
+                                                updateCurrentFunction, 
+                                                performClick, 
+                                                CLICK_AREAS: dependencies.CLICK_AREAS,
+                                                iphoneMirroringRegion: iphoneMirroringRegion 
+                                            });
+                                            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                        } else {
+                                            // For scroll up mode: scroll to top, then to bottom
+                                            await scrollToTop({ 
+                                                updateCurrentFunction, 
+                                                performClick, 
+                                                CLICK_AREAS: dependencies.CLICK_AREAS,
+                                                iphoneMirroringRegion: iphoneMirroringRegion 
+                                            });
+                                            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                        }
+                                        scrollUpCount = 0; // Reset scroll count
                                     }
                                     continue; // Skip the rest of this iteration and start fresh
                                 } else {
@@ -796,18 +835,34 @@ function startAutomation(dependencies) {
                             // Reset detection attempt count and scroll up count when we find actionable red blobs
                             detectionAttemptCount = 0;
                             scrollUpCount = 0;
-                            // Find the highest Y-coordinate among untried blobs
-                            const highestY = untriedRedBlobs.reduce((maxY, blob) => Math.max(maxY, blob.y), -Infinity);
+                            
+                            if (scrollDirection === 'down') {
+                                // For scroll down mode: select top-left blob (lowest Y, then lowest X)
+                                const lowestY = untriedRedBlobs.reduce((minY, blob) => Math.min(minY, blob.y), Infinity);
+                                
+                                // Filter for blobs within 5 pixels of the lowest Y-coordinate
+                                const topRedBlobs = untriedRedBlobs.filter(blob => Math.abs(blob.y - lowestY) <= 5);
+                                
+                                // From these, select the one with the lowest X-coordinate
+                                targetBlob = topRedBlobs.reduce((prev, current) =>
+                                    (prev.x < current.x) ? prev : current
+                                );
+                                updateStatus('No last clicked red blob or not found, selecting lowest Y-axis (and then lowest X-axis) untried red blob (scroll down mode).', 'info');
+                                console.log('DEBUG: No last clicked red blob or not found, selecting lowest Y-axis (and then lowest X-axis) untried red blob (scroll down mode):', JSON.stringify(omitImageFromLog(targetBlob)));
+                            } else {
+                                // For scroll up mode (default): select bottom-right blob (highest Y, then highest X)
+                                const highestY = untriedRedBlobs.reduce((maxY, blob) => Math.max(maxY, blob.y), -Infinity);
 
-                            // Filter for blobs within 5 pixels of the highest Y-coordinate
-                            const topRedBlobs = untriedRedBlobs.filter(blob => Math.abs(blob.y - highestY) <= 5);
+                                // Filter for blobs within 5 pixels of the highest Y-coordinate
+                                const bottomRedBlobs = untriedRedBlobs.filter(blob => Math.abs(blob.y - highestY) <= 5);
 
-                            // From these, select the one with the highest X-coordinate
-                            targetBlob = topRedBlobs.reduce((prev, current) =>
-                                (prev.x > current.x) ? prev : current
-                            );
-                            updateStatus('No last clicked red blob or not found, selecting highest Y-axis (and then highest X-axis) untried red blob.', 'info');
-                            console.log('DEBUG: No last clicked red blob or not found, selecting highest Y-axis (and then highest X-axis) untried red blob:', JSON.stringify(omitImageFromLog(targetBlob)));
+                                // From these, select the one with the highest X-coordinate
+                                targetBlob = bottomRedBlobs.reduce((prev, current) =>
+                                    (prev.x > current.x) ? prev : current
+                                );
+                                updateStatus('No last clicked red blob or not found, selecting highest Y-axis (and then highest X-axis) untried red blob (scroll up mode).', 'info');
+                                console.log('DEBUG: No last clicked red blob or not found, selecting highest Y-axis (and then highest X-axis) untried red blob (scroll up mode):', JSON.stringify(omitImageFromLog(targetBlob)));
+                            }
                         }
                     }
 
@@ -873,24 +928,36 @@ function startAutomation(dependencies) {
                             
                             // Check if we've exceeded the retry limit for this location
                             if (newRetryCount >= MAX_RED_BLOB_RETRIES) {
-                                console.log(`DEBUG: Red blob location ${blobLocationKey} has failed ${newRetryCount} times. Triggering scroll-to-bottom reset.`);
-                                updateStatus(`Red blob failed ${newRetryCount} times. Scrolling to bottom to reset...`, 'warn');
+                                const resetPosition = scrollDirection === 'down' ? 'top' : 'bottom';
+                                console.log(`DEBUG: Red blob location ${blobLocationKey} has failed ${newRetryCount} times. Triggering scroll-to-${resetPosition} reset.`);
+                                updateStatus(`Red blob failed ${newRetryCount} times. Scrolling to ${resetPosition} to reset...`, 'warn');
                                 
-                                // Clear retry counters and perform scroll-to-bottom reset
+                                // Clear retry counters and perform scroll reset
                                 redBlobRetryCount.clear();
                                 redBlobsTried.clear();
                                 lastRedBlobCoords = null;
                                 
                                 const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                                 const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                
+                                // For scroll down mode: reset to top. For scroll up mode: reset to bottom
+                                if (scrollDirection === 'down') {
+                                    await scrollToTop({ 
+                                        updateCurrentFunction, 
+                                        performClick, 
+                                        CLICK_AREAS: dependencies.CLICK_AREAS,
+                                        iphoneMirroringRegion: iphoneMirroringRegion 
+                                    });
+                                } else {
+                                    await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                }
                                 
                                 // Reset counters
                                 scrollUpCount = 0;
                                 detectionAttemptCount = 0;
                                 
-                                console.log('DEBUG: Scroll-to-bottom reset completed due to red blob retry limit exceeded.');
-                                continue; // Continue to restart detection from the top
+                                console.log(`DEBUG: Scroll-to-${resetPosition} reset completed due to red blob retry limit exceeded.`);
+                                continue; // Continue to restart detection from the appropriate position
                             }
                             
                             redBlobsTried.add(JSON.stringify(targetBlob));
@@ -913,30 +980,47 @@ function startAutomation(dependencies) {
                     // Removed: await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before re-attempting
 
                     if (detectionAttemptCount >= 2) { // Changed from 3 to 2
-                        console.log(`DEBUG: No red blobs found after ${detectionAttemptCount} attempts. Checking if we should scroll up.`);
+                        console.log(`DEBUG: No red blobs found after ${detectionAttemptCount} attempts. Checking if we should scroll.`);
                         
-                        // First try normal scroll up
-                        updateStatus(`No objects found after ${detectionAttemptCount} attempts. Scrolling up...`, 'warn');
+                        // Scroll in the appropriate direction
+                        updateStatus(`No objects found after ${detectionAttemptCount} attempts. Scrolling ${scrollDirection}...`, 'warn');
                         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                         
-                        await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
+                        // Scroll in the appropriate direction based on settings
+                        if (scrollDirection === 'down') {
+                            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                        } else {
+                            await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
+                        }
                         scrollUpCount++;
                         detectionAttemptCount = 0; // Reset attempt count after scrolling
                         
-                        // Check if we've reached the scroll up limit
+                        // Check if we've reached the scroll limit
                         if (scrollUpCount >= scrollUpAttempts) {
-                            console.log(`DEBUG: Reached scroll up limit (${scrollUpAttempts}). Scrolling to top then bottom and restarting search.`);
-                            updateStatus(`Scrolled up ${scrollUpCount} times (reached limit). Scrolling to top then bottom and restarting search...`, 'warn');
+                            console.log(`DEBUG: Reached scroll limit (${scrollUpAttempts}). Resetting position and restarting search.`);
+                            updateStatus(`Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting position and restarting search...`, 'warn');
                             
-                            await scrollToTop({ 
-                                updateCurrentFunction, 
-                                performClick, 
-                                CLICK_AREAS: dependencies.CLICK_AREAS,
-                                iphoneMirroringRegion: iphoneMirroringRegion 
-                            });
-                            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
-                            scrollUpCount = 0; // Reset scroll up count
+                            if (scrollDirection === 'down') {
+                                // For scroll down mode: scroll to top, then to bottom
+                                await scrollToTop({ 
+                                    updateCurrentFunction, 
+                                    performClick, 
+                                    CLICK_AREAS: dependencies.CLICK_AREAS,
+                                    iphoneMirroringRegion: iphoneMirroringRegion 
+                                });
+                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                            } else {
+                                // For scroll up mode: scroll to top, then to bottom
+                                await scrollToTop({ 
+                                    updateCurrentFunction, 
+                                    performClick, 
+                                    CLICK_AREAS: dependencies.CLICK_AREAS,
+                                    iphoneMirroringRegion: iphoneMirroringRegion 
+                                });
+                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                            }
+                            scrollUpCount = 0; // Reset scroll count
                         }
                     }
                     // Do not `continue` here, let the main loop handle the 2-second delay for consistency.

@@ -27,8 +27,8 @@ body {
 /* Enhanced Status Bar with Stage Tracking */
 .status-bar {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 25px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
     background: rgba(30, 35, 50, 0.95);
     padding: 20px 30px;
     border-radius: 12px;
@@ -41,6 +41,8 @@ body {
 
 .level-info {
     text-align: left;
+    /* Give level section more horizontal space so Current/Previous Stage can sit side-by-side */
+    grid-column: span 2;
 }
 
 .level-progress-wrapper {
@@ -64,6 +66,16 @@ body {
     margin: 2px 0 4px 0;
 }
 
+/* Compact header state (e.g., Unknown Level before data) */
+.level-info.compact h2 {
+    font-size: 1.25em;
+}
+.level-info.compact .level-timer,
+.level-info.compact .current-status {
+    font-size: 0.95em;
+    opacity: 0.9;
+}
+
 .current-status {
     font-size: 0.9em;
     color: #a8b2c4;
@@ -75,7 +87,8 @@ body {
     display: flex;
     flex-direction: row;
     gap: 12px;
-    flex-wrap: wrap;
+    /* Keep Current and Previous Stage on the same row */
+    flex-wrap: nowrap;
 }
 
 .stage-info {
@@ -87,6 +100,17 @@ body {
     margin-bottom: 12px;
 }
 
+/* Pill style when no stage yet */
+.stage-info.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 193, 7, 0.15);
+    border: 1px solid rgba(255, 193, 7, 0.25);
+}
+
 .stage-details-compact {
     padding: 12px;
     background: rgba(255, 193, 7, 0.05);
@@ -94,7 +118,7 @@ body {
     border-radius: 8px;
     margin-bottom: 8px;
     flex: 1;
-    min-width: 200px;
+    min-width: 220px; /* ensure readability while allowing two columns */
 }
 
 .stage-section-header {
@@ -186,7 +210,7 @@ body {
 
 .system-status {
     text-align: right;
-    display: flex;
+    display: none; /* hidden until meaningful data arrives */
     flex-direction: column;
     gap: 8px;
 }
