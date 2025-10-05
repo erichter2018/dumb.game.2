@@ -58,6 +58,11 @@ let scrollOccurred = false; // Track if scrolling has happened
 let overlayCanvas = null;
 let overlayCtx = null;
 
+// Stage ETA tracking variables
+let currentLevelStartTime = null;
+let currentStageInfo = null;
+let stageETAUpdateInterval = null;
+
 // Function to update status - now unified with activity log
 function updateStatus(message, type = 'info') {
     statusText.textContent = message; // Update the general statusText
@@ -781,6 +786,22 @@ ipcRenderer.on('update-current-level-duration', (event, durationText) => {
     if (currentLevelDurationDisplay) {
         currentLevelDurationDisplay.textContent = `Current Level: ${durationText}`;
     }
+    // Update the inline timer in the level name display
+    const inlineTimer = document.getElementById('currentLevelTimer');
+    if (inlineTimer) {
+        inlineTimer.textContent = durationText;
+    }
+    // Also update currentLevelStartTime tracking for ETA calculations
+    // Extract milliseconds from durationText (format: "Xm Ys")
+    const match = durationText.match(/(\d+)m\s+(\d+)s/);
+    if (match) {
+        const minutes = parseInt(match[1], 10);
+        const seconds = parseInt(match[2], 10);
+        const elapsedMs = (minutes * 60 + seconds) * 1000;
+        currentLevelStartTime = Date.now() - elapsedMs;
+    }
+    // Update ETAs in real-time
+    updateStageETAs();
 });
 
 // IPC listener for previous level duration updates
@@ -819,7 +840,7 @@ ipcRenderer.on('update-average-level-duration', (event, durationText) => {
 });
 
 // New: IPC listener for current level name updates
-ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, levelBestMs) => {
+ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, levelBestMs, levelLastMs) => {
     // Toggle compact header depending on name
     try {
         const levelInfo = document.querySelector('.level-info');
@@ -838,7 +859,25 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
             // Format the durations
             const avgText = levelAverageMs ? formatDuration(levelAverageMs) : '—';
             const bestText = levelBestMs ? formatDuration(levelBestMs) : '—';
-            currentLevelNameDisplay.innerHTML = `${name}<br><span style="font-size: 0.8em; color: #888;">avg: ${avgText} | best: ${bestText}</span>`;
+            const lastText = levelLastMs ? formatDuration(levelLastMs) : '—';
+            
+            currentLevelNameDisplay.innerHTML = `
+                <div style="font-size: 1.6em; font-weight: 700; margin-bottom: 6px; color: #e0e6ed;">${name}</div>
+                <div style="font-size: 1em; margin-bottom: 3px;">
+                    <span style="color: #ffc107; font-weight: 600;">average:</span> 
+                    <span style="color: #e0e6ed; font-weight: 500;">${avgText}</span>
+                    <span style="color: #666; margin: 0 6px;">|</span>
+                    <span style="color: #4caf50; font-weight: 600;">best:</span> 
+                    <span style="color: #e0e6ed; font-weight: 500;">${bestText}</span>
+                </div>
+                <div style="font-size: 1em;">
+                    <span style="color: #9c27b0; font-weight: 600;">last:</span> 
+                    <span style="color: #e0e6ed; font-weight: 500;">${lastText}</span>
+                    <span style="color: #666; margin: 0 6px;">|</span>
+                    <span style="color: #2196f3; font-weight: 600;">current:</span> 
+                    <span id="currentLevelTimer" style="color: #e0e6ed; font-weight: 500;">—</span>
+                </div>
+            `;
         } else {
             currentLevelNameDisplay.textContent = name;
         }
@@ -847,6 +886,9 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
 
 // New: IPC listener for stage information updates
 ipcRenderer.on('update-stage-info', async (event, stageInfo) => {
+    // Store current stage info for ETA calculations
+    currentStageInfo = stageInfo;
+    
     // Stage pill vs full card
     try {
         const stageInfoBox = document.getElementById('currentStageInfo');
@@ -857,11 +899,12 @@ ipcRenderer.on('update-stage-info', async (event, stageInfo) => {
                 stageInfoBox.classList.add('pill');
             }
         }
-        // Show records section when we have any data
+        // Show/hide records section based on data availability
         const systemStatus = document.querySelector('.system-status');
         if (systemStatus) {
-            const hasAny = !!(stageInfo && (stageInfo.completedCount > 0 || (stageInfo.longestStages && stageInfo.longestStages.length > 0)));
-            systemStatus.style.display = hasAny ? 'block' : 'none';
+            // Show if we have any meaningful data
+            const hasAnyData = !!(stageInfo && (stageInfo.completedCount > 0 || (stageInfo.longestStages && stageInfo.longestStages.length > 0)));
+            systemStatus.style.display = hasAnyData ? 'block' : 'none';
         }
     } catch {}
     await updateStageDisplay(stageInfo);
@@ -872,16 +915,136 @@ ipcRenderer.on('update-longest-levels', (event, longestLevels) => {
     const longestLevel1 = document.getElementById('longestLevel1');
     const longestLevel2 = document.getElementById('longestLevel2');
     const longestLevel3 = document.getElementById('longestLevel3');
-    
+
     if (longestLevel1) longestLevel1.textContent = longestLevels[0] ? `${longestLevels[0].name} (${formatDuration(longestLevels[0].duration)})` : '—';
     if (longestLevel2) longestLevel2.textContent = longestLevels[1] ? `${longestLevels[1].name} (${formatDuration(longestLevels[1].duration)})` : '—';
     if (longestLevel3) longestLevel3.textContent = longestLevels[2] ? `${longestLevels[2].name} (${formatDuration(longestLevels[2].duration)})` : '—';
+
+    // Show records section if we have longest levels data
+    const systemStatus = document.querySelector('.system-status');
+    if (systemStatus && longestLevels && longestLevels.length > 0) {
+        systemStatus.style.display = 'block';
+    }
 });
 
 function formatDuration(durationMs) {
     const minutes = Math.floor(durationMs / 60000);
     const seconds = Math.floor((durationMs % 60000) / 1000);
     return `${minutes}m ${seconds}s`;
+}
+
+// Calculate ETA for completing the current stage (using historical averages for each level)
+async function calculateStageETA(currentStage, stageLevelNames) {
+    if (!currentStage || !stageLevelNames) return null;
+    
+    const currentLevelPosition = currentStage.level - 1; // 0-based
+    const totalLevels = 7;
+    
+    if (currentLevelPosition >= totalLevels) return 0; // Stage complete
+    
+    let totalETA = 0;
+    
+    // Add ETA for current level (historical avg - elapsed time)
+    const currentLevelName = stageLevelNames[currentLevelPosition];
+    if (currentLevelName && currentLevelName !== 'N/A') {
+        const currentLevelAvg = await ipcRenderer.invoke('get-level-average', currentLevelName);
+        if (currentLevelAvg) {
+            const currentLevelElapsed = currentLevelStartTime ? Date.now() - currentLevelStartTime : 0;
+            const currentLevelETA = Math.max(0, currentLevelAvg - currentLevelElapsed);
+            totalETA += currentLevelETA;
+        } else {
+            return null; // No data for current level
+        }
+    }
+    
+    // Add historical averages for remaining levels (skip N/A levels)
+    for (let pos = currentLevelPosition + 1; pos < totalLevels; pos++) {
+        const levelName = stageLevelNames[pos];
+        if (levelName && levelName !== 'N/A') {
+            const levelAvg = await ipcRenderer.invoke('get-level-average', levelName);
+            if (levelAvg) {
+                totalETA += levelAvg;
+            } else {
+                // If any level has no data, can't calculate accurate ETA
+                return null;
+            }
+        }
+    }
+    
+    return Math.round(totalETA);
+}
+
+// Calculate ETA for a specific level position (using historical average for that level)
+async function calculateLevelETA(currentStage, levelPosition, levelName) {
+    if (!currentStage || !levelName || levelName === 'N/A') return null;
+    
+    const currentLevelPosition = currentStage.level - 1; // 0-based
+    
+    if (levelPosition === currentLevelPosition) {
+        // For current level: ETA = historical avg - elapsed time
+        const levelAvg = await ipcRenderer.invoke('get-level-average', levelName);
+        if (!levelAvg) return null;
+        
+        const currentLevelElapsed = currentLevelStartTime ? Date.now() - currentLevelStartTime : 0;
+        return Math.max(0, Math.round(levelAvg - currentLevelElapsed));
+    } else if (levelPosition > currentLevelPosition) {
+        // For upcoming levels: just return the historical average for that level
+        const levelAvg = await ipcRenderer.invoke('get-level-average', levelName);
+        return levelAvg ? Math.round(levelAvg) : null;
+    }
+    
+    return null; // Should not happen for completed levels
+}
+
+// Update all stage ETAs in real-time (only updates current level ETA as it counts down)
+async function updateStageETAs() {
+    if (!currentStageInfo || !currentStageInfo.current) return;
+    
+    // Get level names for the current stage
+    let stageLevelNames = [];
+    try {
+        const levelDatabase = await ipcRenderer.invoke('get-level-database');
+        const stageInfo = levelDatabase[currentStageInfo.current.name];
+        if (stageInfo && stageInfo.levels) {
+            stageLevelNames = stageInfo.levels.map(level => level.name);
+        }
+    } catch (error) {
+        console.error('Failed to load level database for ETA update:', error);
+        return;
+    }
+    
+    if (stageLevelNames.length === 0) return;
+    
+    // Update stage ETA in header
+    const currentSummary = document.getElementById('currentStageSummary');
+    if (currentSummary && currentStageInfo.current) {
+        const a = currentStageInfo.current.historicalAverage ? formatDuration(currentStageInfo.current.historicalAverage) : '—';
+        const b = currentStageInfo.current.historicalBest ? formatDuration(currentStageInfo.current.historicalBest) : '—';
+        const eta = await calculateStageETA(currentStageInfo.current, stageLevelNames);
+        const etaText = eta !== null ? ` • eta: ${formatDuration(eta)}` : '';
+        currentSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Current Stage: ${currentStageInfo.current.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b}${etaText}</div>`;
+    }
+    
+    // Update ONLY current level ETA (upcoming levels stay at their historical average)
+    const stageLevels = document.getElementById('stageLevels');
+    if (!stageLevels) return;
+    
+    const levelItems = stageLevels.querySelectorAll('.stage-level-item');
+    const currentLevelPosition = currentStageInfo.current.level - 1;
+    
+    // Only update the current level's ETA
+    if (currentLevelPosition >= 0 && currentLevelPosition < levelItems.length) {
+        const currentLevelItem = levelItems[currentLevelPosition];
+        const timeSpan = currentLevelItem.querySelector('.stage-level-time');
+        const levelName = stageLevelNames[currentLevelPosition];
+        
+        if (timeSpan && !currentLevelItem.classList.contains('stage-level-completed') && levelName) {
+            const eta = await calculateLevelETA(currentStageInfo.current, currentLevelPosition, levelName);
+            if (eta !== null) {
+                timeSpan.textContent = `eta: ${formatDuration(eta)}`;
+            }
+        }
+    }
 }
 
 // IPC listener for click around stopped events to reset button states
@@ -960,7 +1123,22 @@ async function updateStageDisplay(stageInfo) {
         if (stageInfo.current) {
             const a = stageInfo.current.historicalAverage ? formatDuration(stageInfo.current.historicalAverage) : '—';
             const b = stageInfo.current.historicalBest ? formatDuration(stageInfo.current.historicalBest) : '—';
-            currentSummary.textContent = `${stageInfo.current.name} • avg: ${a} • best: ${b}`;
+            
+            // Get level names for ETA calculation
+            let stageLevelNames = [];
+            try {
+                const levelDatabase = await ipcRenderer.invoke('get-level-database');
+                const stageInfoDb = levelDatabase[stageInfo.current.name];
+                if (stageInfoDb && stageInfoDb.levels) {
+                    stageLevelNames = stageInfoDb.levels.map(level => level.name);
+                }
+            } catch (error) {
+                console.error('Failed to load level database for stage summary:', error);
+            }
+            
+            const eta = await calculateStageETA(stageInfo.current, stageLevelNames);
+            const etaText = eta !== null ? ` • eta: ${formatDuration(eta)}` : '';
+            currentSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Current Stage: ${stageInfo.current.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b}${etaText}</div>`;
         } else {
             currentSummary.textContent = '';
         }
@@ -970,7 +1148,7 @@ async function updateStageDisplay(stageInfo) {
         if (stageInfo.previous) {
             const a = stageInfo.previous.historicalAverage ? formatDuration(stageInfo.previous.historicalAverage) : '—';
             const b = stageInfo.previous.historicalBest ? formatDuration(stageInfo.previous.historicalBest) : '—';
-            prevSummary.textContent = `${stageInfo.previous.name} • avg: ${a} • best: ${b}`;
+            prevSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Previous Stage: ${stageInfo.previous.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b}</div>`;
         } else {
             prevSummary.textContent = '';
         }
@@ -1025,8 +1203,17 @@ async function updatePreviousStageDetailsCompact(previousStage) {
             console.error('Failed to load level database for previous stage:', error);
         }
         
-        // Show all 7 level positions for previous stage
+        // Show all 7 level positions for previous stage (skip N/A)
         for (let position = 0; position < 7; position++) {
+            const levelIndex = position;
+            const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+            
+            // Skip N/A levels - they don't exist in the game
+            if (levelName === 'N/A') {
+                console.log(`DEBUG: Skipping N/A level at position ${position} in previous stage`);
+                continue;
+            }
+            
             const levelDiv = document.createElement('div');
             
             if (position < previousStage.levels.length) {
@@ -1039,8 +1226,6 @@ async function updatePreviousStageDetailsCompact(previousStage) {
                 `;
             } else {
                 // Show level name without time (if available)
-                const levelIndex = position;
-                const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
                 levelDiv.className = 'stage-level-item stage-level-incomplete';
                 levelDiv.innerHTML = `
                     <span class="stage-level-name">${levelName}</span>
@@ -1112,6 +1297,15 @@ async function updateCurrentStageDetails(currentStage) {
         console.log(`DEBUG: Completed levels: [${currentStage.levels.map(l => `${l.name}(${formatDuration(l.durationMs)})`).join(', ')}]`);
         
         for (let position = 0; position < 7; position++) {
+            const levelIndex = position;
+            const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+            
+            // Skip N/A levels - they don't exist in the game
+            if (levelName === 'N/A') {
+                console.log(`DEBUG: Skipping N/A level at position ${position}`);
+                continue;
+            }
+            
             const levelDiv = document.createElement('div');
             
             // Check if there's a completed level at this position (levels are stored in order)
@@ -1126,25 +1320,33 @@ async function updateCurrentStageDetails(currentStage) {
                 levelItemsAdded++;
                 console.log(`DEBUG: Added completed level #${levelItemsAdded} at position ${position}: ${level.name} (${formatDuration(level.durationMs)})`);
             } else if (position === currentLevelPosition) {
-                // Show current level placeholder at the correct position
+                // Show current level with actual name and ETA
                 levelDiv.className = 'stage-level-item stage-level-current';
-                levelDiv.innerHTML = `
-                    <span class="stage-level-name">Current Level</span>
-                    <span class="stage-level-time">In Progress...</span>
-                `;
-                levelItemsAdded++;
-                console.log(`DEBUG: Added current level placeholder #${levelItemsAdded} at position ${position} (level ${currentStage.level})`);
-            } else {
-                // Show upcoming level
-                const levelIndex = position;
-                const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
-                levelDiv.className = 'stage-level-item';
+                
+                // Calculate ETA for current level (historical avg - elapsed time)
+                const eta = await calculateLevelETA(currentStage, position, levelName);
+                const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
+                
                 levelDiv.innerHTML = `
                     <span class="stage-level-name">${levelName}</span>
-                    <span class="stage-level-time">Pending</span>
+                    <span class="stage-level-time">${etaText}</span>
                 `;
                 levelItemsAdded++;
-                console.log(`DEBUG: Added upcoming level #${levelItemsAdded} at position ${position}: ${levelName}`);
+                console.log(`DEBUG: Added current level #${levelItemsAdded} at position ${position}: ${levelName} (${etaText})`);
+            } else {
+                // Show upcoming level with historical average as static ETA
+                levelDiv.className = 'stage-level-item';
+                
+                // Get historical average for this specific level (static, doesn't count down)
+                const eta = await calculateLevelETA(currentStage, position, levelName);
+                const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : '—';
+                
+                levelDiv.innerHTML = `
+                    <span class="stage-level-name">${levelName}</span>
+                    <span class="stage-level-time">${etaText}</span>
+                `;
+                levelItemsAdded++;
+                console.log(`DEBUG: Added upcoming level #${levelItemsAdded} at position ${position}: ${levelName} (${etaText})`);
             }
             
             stageLevels.appendChild(levelDiv);

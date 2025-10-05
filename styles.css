@@ -27,7 +27,7 @@ body {
 /* Enhanced Status Bar with Stage Tracking */
 .status-bar {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: 1fr 1fr 1fr 1fr;
     gap: 20px;
     background: rgba(30, 35, 50, 0.95);
     padding: 20px 30px;
@@ -41,8 +41,6 @@ body {
 
 .level-info {
     text-align: left;
-    /* Give level section more horizontal space so Current/Previous Stage can sit side-by-side */
-    grid-column: span 2;
 }
 
 .level-progress-wrapper {
@@ -59,27 +57,20 @@ body {
     font-weight: 600;
 }
 
-.level-timer {
-    font-size: 1.2em;
-    color: #007bff;
-    font-weight: 600;
-    margin: 2px 0 4px 0;
-}
-
 /* Compact header state (e.g., Unknown Level before data) */
-.level-info.compact h2 {
-    font-size: 1.25em;
+.level-info.compact #currentLevelName {
+    font-size: 1em;
 }
-.level-info.compact .level-timer,
 .level-info.compact .current-status {
     font-size: 0.95em;
     opacity: 0.9;
 }
 
 .current-status {
-    font-size: 0.9em;
+    font-size: 1em;
     color: #a8b2c4;
     font-weight: 500;
+    margin-top: 4px;
 }
 
 /* Stage Info Styles */
@@ -125,9 +116,10 @@ body {
     font-size: 0.9em;
     font-weight: 600;
     color: #ffc107;
-    margin-bottom: 8px;
-    padding-bottom: 4px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid rgba(255, 193, 7, 0.3);
+    line-height: 1.4;
 }
 
 .stage-levels-compact {
@@ -209,8 +201,8 @@ body {
 }
 
 .system-status {
-    text-align: right;
-    display: none; /* hidden until meaningful data arrives */
+    text-align: center;
+    display: block; /* show by default, will be hidden if no data */
     flex-direction: column;
     gap: 8px;
 }

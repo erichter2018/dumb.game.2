@@ -204,6 +204,20 @@ function getLevelBest(levelName) {
     return levelStats.bestTime;
 }
 
+function getLevelLast(levelName) {
+    if (!levelName) return null;
+
+    const stats = loadStats();
+    const levelStats = stats.levels[levelName];
+    
+    if (!levelStats || levelStats.totalCompletions === 0) {
+        return null;
+    }
+
+    // Return the most recent completion (last element in array)
+    return levelStats.completions[levelStats.completions.length - 1];
+}
+
 /**
  * Gets the average duration for a specific stage
  */
@@ -270,6 +284,7 @@ module.exports = {
     recordStageCompletion,
     getLevelAverage,
     getLevelBest,
+    getLevelLast,
     getStageAverage,
     getStageBest,
     getAllLevelStats,

@@ -135,8 +135,9 @@ function updateCurrentLevelName(levelName) {
                 : currentLevelName;
             const levelAverage = historicalStats.getLevelAverage(levelForAverage);
             const levelBest = historicalStats.getLevelBest(levelForAverage);
+            const levelLast = historicalStats.getLevelLast(levelForAverage);
             console.log(`DEBUG: Sending level average for "${levelForAverage}" (current: "${currentLevelName}", finished: "${finishedLevelName}")`);
-            mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBest);
+            mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBest, levelLast);
         }
         return;
     }
@@ -156,10 +157,10 @@ function updateCurrentLevelName(levelName) {
         // Start new stage
         startNewStage(stageCityName);
         
-        // Get the proper first level name from the database
+        // Get the proper first level name from the database (use 'name', not 'originalName')
         const stageInfo = levelDatabase.getStageByCity(stageCityName);
-        if (stageInfo && stageInfo.levels[0] && stageInfo.levels[0].originalName) {
-            currentLevelName = stageInfo.levels[0].originalName;
+        if (stageInfo && stageInfo.levels[0] && stageInfo.levels[0].name) {
+            currentLevelName = stageInfo.levels[0].name; // This will be "Level 1"
             console.log(`DEBUG: Stage start level renamed from "${originalLevelName}" to "${currentLevelName}" (proper first level name)`);
         } else {
             // Fallback to "Level 1" if database lookup fails
@@ -202,7 +203,8 @@ function updateCurrentLevelName(levelName) {
     if (mainWindow && !mainWindow.isDestroyed()) {
         const levelAverage = historicalStats.getLevelAverage(currentLevelName);
         const levelBest = historicalStats.getLevelBest(currentLevelName);
-        mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBest);
+        const levelLast = historicalStats.getLevelLast(currentLevelName);
+        mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBest, levelLast);
         // Also send stage info for enhanced UI
         sendStageInfoToRenderer();
     }
@@ -320,9 +322,13 @@ function addLevelToCurrentStage(levelName, durationMs) {
     console.log(`DEBUG: Added level to stage "${currentStage.name}": "${levelName}" (${durationMs}ms) - Stage progress: ${currentStage.levels.length}/7`);
     console.log(`DEBUG: Current stage levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
     
-    // Check if stage is complete (7 levels)
-    if (currentStage.levels.length >= 7) {
-        console.log(`DEBUG: Stage "${currentStage.name}" complete with 7 levels - moving to previous`);
+    // Check if stage is complete (6 or 7 levels depending on whether stage has N/A)
+    // Get expected level count for this stage
+    const stageInfo = levelDatabase.getStageByCity(currentStage.name);
+    const expectedLevelCount = stageInfo ? stageInfo.levels.filter(l => l.name !== 'N/A').length : 7;
+    
+    if (currentStage.levels.length >= expectedLevelCount) {
+        console.log(`DEBUG: Stage "${currentStage.name}" complete with ${currentStage.levels.length}/${expectedLevelCount} levels - moving to previous`);
         completeCurrentStage();
         currentStage = null;
         currentStageLevel = 0;
@@ -845,6 +851,10 @@ ipcMain.handle('get-historical-stats', async () => {
 
 ipcMain.handle('get-level-database', async () => {
   return levelDatabase.LEVEL_DATABASE;
+});
+
+ipcMain.handle('get-level-average', async (event, levelName) => {
+  return historicalStats.getLevelAverage(levelName);
 });
 
 // Settings IPC handlers

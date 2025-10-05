@@ -316,11 +316,16 @@ async function detect(imageDataUrl, captureRegion) {
                             const q = [{ x: cx, y: cy }];
                             circleVisited.add(key);
                             let currentBlobPixels = 0;
+                            let whitePixelsInCircle = 0; // Track white pixels
                             let cminX = cx, cmaxX = cx, cminY = cy, cmaxY = cy;
 
                             while(q.length > 0) {
                                 const { x: qx, y: qy } = q.shift();
                                 currentBlobPixels++;
+                                const qPixel = getCirclePixel(qx, qy);
+                                if (qPixel && qPixel.r > 200 && qPixel.g > 200 && qPixel.b > 200) {
+                                    whitePixelsInCircle++;
+                                }
                                 cminX = Math.min(cminX, qx);
                                 cmaxX = Math.max(cmaxX, qx);
                                 cminY = Math.min(cminY, qy);
@@ -347,12 +352,13 @@ async function detect(imageDataUrl, captureRegion) {
                             const circleWidth = cmaxX - cminX + 1;
                             const circleHeight = cmaxY - cminY + 1;
                             const circleAspectRatio = circleWidth / circleHeight;
+                            const whitePixelPercent = (currentBlobPixels > 0) ? ((whitePixelsInCircle / currentBlobPixels) * 100).toFixed(1) : 0;
 
                             console.log(`DEBUG: Red/Orange Circle detected - currentBlobPixels: ${currentBlobPixels}, circleWidth: ${circleWidth}, circleHeight: ${circleHeight}, circleAspectRatio: ${circleAspectRatio.toFixed(2)}`);
 
                             if (currentBlobPixels > 20 && currentBlobPixels < 1000 && circleAspectRatio > 0.37 && circleAspectRatio < 1.5) {
                                 hasRedOrangeCircle = true;
-                                console.log(`DEBUG: [RED CIRCLE] hasRedOrangeCircle set to TRUE (pixels: ${currentBlobPixels}, ratio: ${circleAspectRatio.toFixed(2)})`);
+                                console.log(`DEBUG: [RED CIRCLE] hasRedOrangeCircle set to TRUE (pixels: ${currentBlobPixels}, ratio: ${circleAspectRatio.toFixed(2)}, whitePixels: ${whitePixelsInCircle}/${currentBlobPixels} = ${whitePixelPercent}%)`);
                                 break;
                             } else {
                                 console.log(`DEBUG: [RED CIRCLE] Circle detected but failed criteria (pixels: ${currentBlobPixels}, ratio: ${circleAspectRatio.toFixed(2)})`);
@@ -482,7 +488,10 @@ async function detect(imageDataUrl, captureRegion) {
             console.log(`DEBUG: [BLUE %] Box at x:${box.x}, y:${box.y} - Blue Pixel Percentage: ${(diagnosticBluePixelDensity * 100).toFixed(1)}% (${diagnosticBluePixelCount}/${totalPixels} pixels) - DIAGNOSTIC ONLY`);
 
             // Debug state before main decision logic
-            console.log(`DEBUG: [PRE-DECISION] Final state before classification - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}, isGrey: ${isGrey(averageColor)}, greenPixelDensity: ${greenPixelDensity.toFixed(3)}`);
+            const avgRGB = `RGB(${averageColor.r.toFixed(0)},${averageColor.g.toFixed(0)},${averageColor.b.toFixed(0)})`;
+            const isGreyCheck = isGrey(averageColor);
+            console.log(`DEBUG: [PRE-DECISION] Final state before classification - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}, isGrey: ${isGreyCheck}, greenPixelDensity: ${greenPixelDensity.toFixed(3)}`);
+            console.log(`DEBUG: [BOX SUMMARY] Box at x:${box.x}, y:${box.y} - Avg ${avgRGB}, Circle:${hasRedOrangeCircle}, WhiteText:${hasWhiteText}, RedText:${hasRedTextResult}, isGrey:${isGreyCheck}`);
             
             // Determine box state more directly after sub-detections
             if (greenPixelDensity > greenPixelThreshold) {

@@ -10,14 +10,12 @@
     <div class="container">
         <!-- Top Summary Pane -->
         <div class="status-bar">
-            <!-- Current Level & Stage Info -->
+            <!-- Current Level Info -->
             <div class="level-info">
-                <h2 id="currentLevelName">Unnamed Level</h2>
-                <div class="level-timer" id="currentLevelDuration">0m 0s</div>
+                <div id="currentLevelName">Unnamed Level</div>
                 <div class="current-status" id="currentFunction">Idle</div>
-                
             </div>
-            
+
             <!-- Level Statistics -->
             <div class="stats-section">
                 <div class="stats-title">Level Stats</div>
@@ -44,7 +42,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Stage Statistics -->
             <div class="stage-section">
                 <div class="stats-title">Stage Stats</div>
@@ -59,8 +57,8 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Records & Previous Info -->
+
+            <!-- Records & Info -->
             <div class="system-status">
                 <div class="records-grid">
                     <div class="longest-levels">
@@ -85,17 +83,13 @@
                 <div class="stage-info-wrapper">
                     <!-- Current Stage Levels Detail -->
                     <div class="stage-details-compact" id="stageDetails" style="display: none;">
-                        <div class="stage-section-header">Current Stage
-                            <span id="currentStageSummary" style="font-size:0.9em; color:#a8b2c4; margin-left:8px;"></span>
-                        </div>
+                        <div class="stage-section-header" id="currentStageSummary"></div>
                         <div class="stage-levels-compact" id="stageLevels"></div>
                     </div>
                     
                     <!-- Previous Stage Levels Detail -->
                     <div class="stage-details-compact" id="prevStageDetails" style="display: none;">
-                        <div class="stage-section-header">Previous Stage
-                            <span id="previousStageSummary" style="font-size:0.9em; color:#a8b2c4; margin-left:8px;"></span>
-                        </div>
+                        <div class="stage-section-header" id="previousStageSummary"></div>
                         <div class="stage-levels-compact" id="prevStageLevels"></div>
                     </div>
                 </div>
