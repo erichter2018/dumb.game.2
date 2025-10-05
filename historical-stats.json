@@ -339,10 +339,12 @@
         33972,
         33972,
         33965,
-        33965
+        33965,
+        34088,
+        34088
       ],
-      "averageDuration": 38873,
-      "totalCompletions": 33,
+      "averageDuration": 38600,
+      "totalCompletions": 35,
       "bestTime": 32641,
       "worstTime": 44848
     },
@@ -388,10 +390,12 @@
         49343,
         49343,
         58530,
-        58530
+        58530,
+        58761,
+        58761
       ],
-      "averageDuration": 59365,
-      "totalCompletions": 41,
+      "averageDuration": 59337,
+      "totalCompletions": 43,
       "bestTime": 43737,
       "worstTime": 65351
     },
@@ -575,10 +579,12 @@
         131406,
         131406,
         146678,
-        146678
+        146678,
+        133291,
+        133291
       ],
-      "averageDuration": 140368,
-      "totalCompletions": 27,
+      "averageDuration": 139880,
+      "totalCompletions": 29,
       "bestTime": 129882,
       "worstTime": 178369
     },
@@ -1002,10 +1008,12 @@
         132535,
         132535,
         124777,
-        124777
+        124777,
+        119242,
+        119242
       ],
-      "averageDuration": 121283,
-      "totalCompletions": 26,
+      "averageDuration": 121137,
+      "totalCompletions": 28,
       "bestTime": 110732,
       "worstTime": 132535
     },
@@ -1264,11 +1272,13 @@
         104896,
         104896,
         105005,
-        105005
+        105005,
+        89427,
+        89427
       ],
-      "averageDuration": 99012,
-      "totalCompletions": 14,
-      "bestTime": 89658,
+      "averageDuration": 97814,
+      "totalCompletions": 16,
+      "bestTime": 89427,
       "worstTime": 107892
     },
     "Street Nuts": {
@@ -1543,10 +1553,12 @@
         376746,
         376746,
         351059,
-        619612
+        619612,
+        376906,
+        376906
       ],
-      "averageDuration": 389771,
-      "totalCompletions": 9,
+      "averageDuration": 387432,
+      "totalCompletions": 11,
       "bestTime": 339623,
       "worstTime": 619612
     },
@@ -1577,12 +1589,14 @@
         26223,
         26223,
         27830,
-        27830
+        27830,
+        28024,
+        28024
       ],
-      "averageDuration": 26746,
-      "totalCompletions": 6,
+      "averageDuration": 27066,
+      "totalCompletions": 8,
       "bestTime": 26186,
-      "worstTime": 27830
+      "worstTime": 28024
     }
   },
   "stages": {
@@ -1854,11 +1868,12 @@
     },
     "Marrakesh": {
       "completions": [
-        861848
+        861848,
+        839787
       ],
-      "averageDuration": 861848,
-      "totalCompletions": 1,
-      "bestTime": 861848,
+      "averageDuration": 850818,
+      "totalCompletions": 2,
+      "bestTime": 839787,
       "worstTime": 861848
     },
     "Cologne": {
@@ -2022,7 +2037,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-10-05T03:45:01.862Z",
+    "lastUpdated": "2025-10-05T04:15:24.022Z",
     "totalLevelsTracked": 46,
     "totalStagesTracked": 46
   }

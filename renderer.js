@@ -1006,7 +1006,10 @@ async function updateStageETAs() {
         const levelDatabase = await ipcRenderer.invoke('get-level-database');
         const stageInfo = levelDatabase[currentStageInfo.current.name];
         if (stageInfo && stageInfo.levels) {
-            stageLevelNames = stageInfo.levels.map(level => level.name);
+            // For stage display, use originalName for first level (if exists), else use name
+            stageLevelNames = stageInfo.levels.map(level => 
+                (level.position === 1 && level.originalName) ? level.originalName : level.name
+            );
         }
     } catch (error) {
         console.error('Failed to load level database for ETA update:', error);
@@ -1130,7 +1133,10 @@ async function updateStageDisplay(stageInfo) {
                 const levelDatabase = await ipcRenderer.invoke('get-level-database');
                 const stageInfoDb = levelDatabase[stageInfo.current.name];
                 if (stageInfoDb && stageInfoDb.levels) {
-                    stageLevelNames = stageInfoDb.levels.map(level => level.name);
+                    // For stage display, use originalName for first level (if exists), else use name
+                    stageLevelNames = stageInfoDb.levels.map(level => 
+                        (level.position === 1 && level.originalName) ? level.originalName : level.name
+                    );
                 }
             } catch (error) {
                 console.error('Failed to load level database for stage summary:', error);
@@ -1197,7 +1203,10 @@ async function updatePreviousStageDetailsCompact(previousStage) {
             const levelDatabase = await ipcRenderer.invoke('get-level-database');
             const stageInfo = levelDatabase[previousStage.name];
             if (stageInfo && stageInfo.levels) {
-                stageLevelNames = stageInfo.levels.map(level => level.name);
+                // For stage display, use originalName for first level (if exists), else use name
+                stageLevelNames = stageInfo.levels.map(level => 
+                    (level.position === 1 && level.originalName) ? level.originalName : level.name
+                );
             }
         } catch (error) {
             console.error('Failed to load level database for previous stage:', error);
@@ -1282,7 +1291,10 @@ async function updateCurrentStageDetails(currentStage) {
             console.log(`DEBUG: Looking up stage "${currentStage.name}" in level database`);
             const stageInfo = levelDatabase[currentStage.name];
             if (stageInfo && stageInfo.levels) {
-                stageLevelNames = stageInfo.levels.map(level => level.name);
+                // For stage display, use originalName for first level (if exists), else use name
+                stageLevelNames = stageInfo.levels.map(level => 
+                    (level.position === 1 && level.originalName) ? level.originalName : level.name
+                );
                 console.log(`DEBUG: Found ${stageLevelNames.length} levels for "${currentStage.name}": [${stageLevelNames.join(', ')}]`);
             } else {
                 console.log(`DEBUG: No stage info found for "${currentStage.name}" in database. Available stages: [${Object.keys(levelDatabase).slice(0, 5).join(', ')}...]`);
