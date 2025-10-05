@@ -866,14 +866,14 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
                 <div style="font-size: 1em; margin-bottom: 3px;">
                     <span style="color: #ffc107; font-weight: 600;">average:</span> 
                     <span style="color: #e0e6ed; font-weight: 500;">${avgText}</span>
-                    <span style="color: #666; margin: 0 6px;">|</span>
+                    <span style="color: #666; margin: 0 8px;">|</span>
                     <span style="color: #4caf50; font-weight: 600;">best:</span> 
                     <span style="color: #e0e6ed; font-weight: 500;">${bestText}</span>
                 </div>
                 <div style="font-size: 1em;">
                     <span style="color: #9c27b0; font-weight: 600;">last:</span> 
-                    <span style="color: #e0e6ed; font-weight: 500;">${lastText}</span>
-                    <span style="color: #666; margin: 0 6px;">|</span>
+                    <span style="color: #e0e6ed; font-weight: 500; margin-right: 10px;">${lastText}</span>
+                    <span style="color: #666; margin: 0 8px;">|</span>
                     <span style="color: #2196f3; font-weight: 600;">current:</span> 
                     <span id="currentLevelTimer" style="color: #e0e6ed; font-weight: 500;">—</span>
                 </div>

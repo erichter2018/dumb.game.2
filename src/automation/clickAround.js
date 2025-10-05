@@ -47,8 +47,8 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
   const defaultOptions = {
     excludeRedBlobs: true,             // Avoid red blobs by default
     clickaroundChunks: 3,              // Number of click chunks (screens) to process
-    scrollUpDistance: 200,             // Scroll up distance in pixels BEFORE processing chunks (replaces scroll to top)
-    scrollUpCount: 5,                  // How many times to scroll up (legacy, overridden by clickaroundChunks)
+    scrollUpDistance: 200,             // Scroll up distance in pixels per iteration
+    scrollUpCount: 5,                  // How many times to scroll up by scrollUpDistance
     initialScrollDown: 150,            // Initial scroll down distance in pixels AFTER scroll up
     scrollToBottomAtEnd: true          // Scroll to bottom when finished
   };
@@ -94,11 +94,15 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // 1. Scroll up by scrollUpDistance (if configured)
-    if (config.scrollUpDistance > 0) {
-      updateStatus(`Click Around: Scrolling up by ${config.scrollUpDistance} pixels...`, 'info');
-      await scrollUpWithDistance(regionX + regionWidth / 2, regionY + regionHeight / 2, config.scrollUpDistance);
-      await new Promise(resolve => setTimeout(resolve, 100));
+    // 1. Scroll up by scrollUpDistance × scrollUpCount times (if configured)
+    if (config.scrollUpDistance > 0 && config.scrollUpCount > 0) {
+      updateStatus(`Click Around: Scrolling up ${config.scrollUpCount} times by ${config.scrollUpDistance} pixels each...`, 'info');
+      console.log(`DEBUG: ClickAround scrolling up ${config.scrollUpCount} times by ${config.scrollUpDistance}px each`);
+      for (let i = 0; i < config.scrollUpCount; i++) {
+        await scrollUpWithDistance(regionX + regionWidth / 2, regionY + regionHeight / 2, config.scrollUpDistance);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      console.log(`DEBUG: ClickAround completed ${config.scrollUpCount} scroll-up iterations`);
     }
 
     // 2. Initial scroll down (configurable distance)

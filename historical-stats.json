@@ -114,10 +114,11 @@
         51968,
         51968,
         53520,
-        53520
+        53520,
+        50374
       ],
-      "averageDuration": 57941,
-      "totalCompletions": 65,
+      "averageDuration": 57827,
+      "totalCompletions": 66,
       "bestTime": 50100,
       "worstTime": 68031
     },
@@ -1034,10 +1035,11 @@
         90640,
         90640,
         101831,
-        101831
+        101831,
+        92332
       ],
-      "averageDuration": 100433,
-      "totalCompletions": 25,
+      "averageDuration": 100121,
+      "totalCompletions": 26,
       "bestTime": 87406,
       "worstTime": 116983
     },
@@ -1082,10 +1084,11 @@
         109795,
         109795,
         105464,
-        105464
+        105464,
+        112290
       ],
-      "averageDuration": 114183,
-      "totalCompletions": 20,
+      "averageDuration": 114093,
+      "totalCompletions": 21,
       "bestTime": 101021,
       "worstTime": 149931
     },
@@ -1203,10 +1206,11 @@
         91853,
         91853,
         95646,
-        95646
+        95646,
+        98910
       ],
-      "averageDuration": 101713,
-      "totalCompletions": 28,
+      "averageDuration": 101617,
+      "totalCompletions": 29,
       "bestTime": 91853,
       "worstTime": 116166
     },
@@ -2018,7 +2022,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-10-04T04:00:03.049Z",
+    "lastUpdated": "2025-10-05T03:45:01.862Z",
     "totalLevelsTracked": 46,
     "totalStagesTracked": 46
   }
