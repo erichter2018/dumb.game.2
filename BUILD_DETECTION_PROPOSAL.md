@@ -4,6 +4,16 @@
 
 The blue box detector is incorrectly classifying MAX build boxes as blue_build boxes. This causes the automation to continue building after reaching MAX, leading to infinite loops.
 
+## Critical Requirements
+
+1. **Never miss a real MAX build** - Must reliably detect grey boxes with white "MAX" text
+2. **Never false positive on MAX** - NEVER classify a buildable box (blue or grey with circle) as MAX
+3. **Priority: High precision on MAX detection** - It's better to occasionally miss a MAX (and keep building) than to falsely detect MAX and stop building prematurely
+
+**Why this matters:**
+- False negative MAX (miss it): Minor issue - we keep building, eventually find exit button
+- False positive MAX (detect it when it's not): CRITICAL BUG - we stop building when we shouldn't, potentially breaking automation flow
+
 ## Three Box Types (Clarified)
 
 1. **Blue Build Box** (Active building that can be upgraded)
@@ -33,7 +43,8 @@ Looking at the log output, the detector is:
 
 ## Proposed Solution
 
-### Step 1: Fix the Detection Order
+### Step 1: Fix the Detection Order (CONSERVATIVE APPROACH)
+
 **Current logic:**
 ```
 if (greenPixelDensity > threshold) → green_excluded
@@ -44,21 +55,27 @@ else → unknown
 
 **Problem:** If `isGrey()` fails, a grey box with false-positive circle detection becomes blue_build
 
-**Proposed logic:**
+**Proposed logic (CONSERVATIVE - prioritize no false MAX positives):**
 ```
-1. Calculate grey-ness of the ENTIRE box first (more reliable)
-2. If box is grey:
-   - Check for yellow/orange circle
-   - If circle exists:
-     - Check text color (red vs white)
-     - If RED text → grey_build (treat as blue_build)
-     - If WHITE text → grey_max
-   - If NO circle:
-     - grey_max (this is the MAX build box)
-3. If box is blue:
-   - Must have yellow/orange circle AND white text → blue_build
-4. If neither grey nor blue → unknown
+1. If box is grey AND has NO circle AND has white text:
+   → grey_max (VERY SPECIFIC CRITERIA - this is MAX!)
+
+2. If box is grey AND has circle (regardless of text):
+   → grey_build (treat as buildable - safer than risking false MAX)
+
+3. If box is blue AND has circle AND has white text:
+   → blue_build
+
+4. If box is grey without specific patterns:
+   → other_grey (treat as buildable - safer than false MAX)
+
+5. Else → unknown (treat as buildable)
 ```
+
+**Key principle:** Only declare `grey_max` when ALL three conditions are met:
+- Box is definitively grey
+- NO circle detected (or circle has >50% white pixels = false positive)
+- Has white text
 
 ### Step 2: Improve Grey Detection
 
@@ -71,19 +88,29 @@ else → unknown
 2. Expand value range to `30-90` (account for lighting variations)
 3. Add fallback: check if `max(r,g,b) - min(r,g,b) < 40` (all channels similar)
 
-### Step 3: Fix Yellow/Orange Circle Detection
+### Step 3: Fix Yellow/Orange Circle Detection (CRITICAL FOR SAFETY)
 
 **Current `isRedOrange()` function:**
 - Checks: hue 20-90°, saturation > 40, value > 40
 - **OR** RGB gold check: `r > 150, g > 100, b < 100`
 
-**Problem:** White text can trigger false positives
+**Problem:** White text can trigger false positives, leading to false MAX detection
 
-**Proposed improvements:**
-1. **Exclude white pixels:** Add check `if (r > 200 && g > 200 && b > 200) return false`
-2. **Tighten hue range:** Yellow/orange should be 30-60° (more specific)
-3. **Increase saturation requirement:** Require `s > 50` (circles are vivid)
-4. **Add size validation:** After BFS, reject circles that are too large (white text blobs)
+**Proposed improvements (CONSERVATIVE):**
+1. **MANDATORY: Exclude white pixels first:** `if (r > 200 && g > 200 && b > 200) return false`
+   - This prevents white "MAX" text from being detected as a circle
+   - Most important fix to prevent false MAX positives
+   
+2. **Add post-detection validation:**
+   - After BFS finds a "circle", check white pixel percentage
+   - If >50% white pixels → REJECT as false positive (not a real circle)
+   - This is a safety net for the white exclusion
+   
+3. **Optional (test after #1 and #2):**
+   - Tighten hue range to 30-60° (more specific for yellow/orange)
+   - Increase saturation to >50 (circles are vivid)
+   
+**Priority:** Implement #1 and #2 FIRST. These prevent false MAX positives.
 
 ### Step 4: Improve Red Text Detection
 
@@ -160,10 +187,36 @@ Is box grey?
 - No false positives on white text being detected as circles
 - Grey build boxes correctly treated as buildable (like blue_build)
 
+## Safety Checklist
+
+Before declaring a box as `grey_max`, verify ALL conditions:
+- [ ] Box average RGB has low saturation (grey, not colored)
+- [ ] Box average RGB has R, G, B values within 40 of each other
+- [ ] NO yellow/orange circle detected (hasRedOrangeCircle = false)
+- [ ] OR circle detected but >50% white pixels (false positive circle)
+- [ ] White text detected in text region
+- [ ] Blue pixel density < 30% (not a blue box)
+
+**If ANY condition fails:** Classify as buildable (blue_build, grey_build, or other_grey) - NEVER as grey_max
+
 ## Rollback Plan
 
 If detection becomes less reliable:
 1. Revert to previous detection logic
 2. Keep diagnostic logging
 3. Collect more sample images for analysis
+
+## Implementation Order (Based on Diagnostic Data)
+
+**WAIT for diagnostic data before implementing fixes!**
+
+Once we see a MAX build failure in the logs:
+1. Review [BOX SUMMARY] line - what was detected?
+2. Review white pixel % in circle - was it high?
+3. Implement ONLY the fixes needed based on actual data:
+   - If circle has high white %: Add white pixel exclusion
+   - If isGrey = false but RGB is grey: Improve grey detection
+   - If both issues: Fix circle detection first (safety priority)
+
+**Do NOT implement all fixes at once** - fix one issue at a time, test, then proceed.
 
