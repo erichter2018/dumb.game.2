@@ -1226,11 +1226,11 @@ async function updatePreviousStageDetailsCompact(previousStage) {
             const levelDiv = document.createElement('div');
             
             if (position < previousStage.levels.length) {
-                // Show completed level
+                // Show completed level - use levelName from database (has originalName for position 1)
                 const level = previousStage.levels[position];
                 levelDiv.className = 'stage-level-item stage-level-completed';
                 levelDiv.innerHTML = `
-                    <span class="stage-level-name">${level.name}</span>
+                    <span class="stage-level-name">${levelName}</span>
                     <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
                 `;
             } else {
@@ -1322,15 +1322,15 @@ async function updateCurrentStageDetails(currentStage) {
             
             // Check if there's a completed level at this position (levels are stored in order)
             if (position < currentStage.levels.length) {
-                // Show completed level
+                // Show completed level - use levelName from database (has originalName for position 1)
                 const level = currentStage.levels[position];
                 levelDiv.className = 'stage-level-item stage-level-completed';
                 levelDiv.innerHTML = `
-                    <span class="stage-level-name">${level.name}</span>
+                    <span class="stage-level-name">${levelName}</span>
                     <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
                 `;
                 levelItemsAdded++;
-                console.log(`DEBUG: Added completed level #${levelItemsAdded} at position ${position}: ${level.name} (${formatDuration(level.durationMs)})`);
+                console.log(`DEBUG: Added completed level #${levelItemsAdded} at position ${position}: ${levelName} (${formatDuration(level.durationMs)})`);
             } else if (position === currentLevelPosition) {
                 // Show current level with actual name and ETA
                 levelDiv.className = 'stage-level-item stage-level-current';
