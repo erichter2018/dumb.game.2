@@ -260,7 +260,7 @@ async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
 }
 
 async function runBuildProtocol(dependencies) {
-    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance, updateCurrentFunction, originalRedBlobCoords, getCurrentLevelName } = dependencies;
+    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance, updateCurrentFunction, originalRedBlobCoords, getCurrentLevelName, confirmedBlueBuildBox } = dependencies;
 
     updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
@@ -303,13 +303,27 @@ async function runBuildProtocol(dependencies) {
             updateCurrentFunction(`runBuildProtocol (${minutes}m ${seconds}s)`);
         }, 1000); // Update every second
 
-        // Step 1: Call check blue build box until one is found, every 2 seconds
-        // This initial call needs to establish valid blueBoxCoords for the first hold.
-        let initialDetectedBox = await findBlueBoxWithRetry(dependencies, originalRedBlobCoords);
-        
-        if (!initialDetectedBox) {
-            updateStatus('Automation cannot start: No clickable build box found after retries. Exiting.', 'error');
-            return 'error'; // Return 'error' if no initial box is found
+        // Step 1: Use confirmed blue box from prepBuild if available, otherwise detect
+        let initialDetectedBox;
+        if (confirmedBlueBuildBox) {
+            // Use the confirmed box from prepBuild - skip redundant detection
+            initialDetectedBox = {
+                ...confirmedBlueBuildBox,
+                coords: {
+                    x: Math.round(confirmedBlueBuildBox.x + confirmedBlueBuildBox.width / 2),
+                    y: Math.round(confirmedBlueBuildBox.y + confirmedBlueBuildBox.height / 2),
+                }
+            };
+            console.log('DEBUG: Using confirmed blue box from prepBuild - skipping redundant detection');
+            updateStatus(`Using confirmed build box at X:${initialDetectedBox.coords.x}, Y:${initialDetectedBox.coords.y}`, 'info');
+        } else {
+            // No confirmed box provided, fall back to detection
+            initialDetectedBox = await findBlueBoxWithRetry(dependencies, originalRedBlobCoords);
+            
+            if (!initialDetectedBox) {
+                updateStatus('Automation cannot start: No clickable build box found after retries. Exiting.', 'error');
+                return 'error'; // Return 'error' if no initial box is found
+            }
         }
 
         if (initialDetectedBox.state === 'grey_max') {
@@ -324,6 +338,7 @@ async function runBuildProtocol(dependencies) {
         console.log(`DEBUG: Initial build box found: ${JSON.stringify(omitImageFromLog(initialDetectedBox))}`);
 
         // Step 2: Start a loop
+        let isFirstLoopIteration = true; // Flag to skip detection on first iteration when we have confirmed box
         while (getIsAutomationRunning()) {
             const currentTime = Date.now();
             
@@ -447,7 +462,16 @@ async function runBuildProtocol(dependencies) {
             }
             
             // Perform blue box detection once per cycle to get the latest state
-            const currentDetectedBox = await findBlueBoxWithRetry(dependencies, blueBoxCoords);
+            // Skip detection on first iteration if we have a confirmed box from prepBuild
+            let currentDetectedBox = null;
+            if (isFirstLoopIteration && confirmedBlueBuildBox) {
+                console.log('DEBUG: Skipping first cycle detection - using confirmed box from prepBuild');
+                currentDetectedBox = initialDetectedBox; // Use the confirmed box
+                isFirstLoopIteration = false;
+            } else {
+                isFirstLoopIteration = false;
+                currentDetectedBox = await findBlueBoxWithRetry(dependencies, blueBoxCoords);
+            }
 
             if (!currentDetectedBox) {
                 consecutiveNoBoxDetections++;

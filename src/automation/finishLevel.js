@@ -115,6 +115,7 @@ function startAutomation(dependencies) {
                     }
                 },
                 originalRedBlobCoords: redBlobCoords, // Pass the red blob coordinates to finishBuild
+                confirmedBlueBuildBox: blueBuildBoxConfirmed, // Pass the confirmed blue box to skip re-detection
             };
             // Launch finishBuild automation
             const buildResult = await dependencies.finishBuildAutomationRunBuildProtocol(finishBuildDependencies); // Pass custom dependencies
@@ -316,6 +317,7 @@ function startAutomation(dependencies) {
                     }
                 },
                 originalRedBlobCoords: redBlobCoords, // Pass the red blob coordinates to finishBuild
+                confirmedBlueBuildBox: blueBuildBoxAfterClicks, // Pass the confirmed blue box to skip re-detection
             };
             const buildResult = await dependencies.finishBuildAutomationRunBuildProtocol(finishBuildDependencies); // Corrected dependency call
             // Reset internal flag after finishBuildAutomation returns
