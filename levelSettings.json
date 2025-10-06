@@ -1023,20 +1023,20 @@
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
         "action": "click_off_and_scroll",
-        "triggerTimeMs": 60000,
+        "triggerTimeMs": 6000,
         "clickOffAndScrollDistance": 400,
         "clickaroundOptions": {}
       },
       "secondBuildAction": {
         "action": "clickaround",
-        "triggerTimeMs": 180000,
+        "triggerTimeMs": 60000,
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": true,
           "clickaroundChunks": 3,
-          "scrollUpDistance": 200,
+          "scrollUpDistance": 250,
           "scrollUpCount": 4,
-          "initialScrollDown": 50,
+          "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
       }
@@ -1067,14 +1067,18 @@
       "blueBoxClickHoldDuration": 6500,
       "scrollToBottomAfterFirstBuild": true,
       "scrollToBottomAfterSecondBuild": false,
-      "perfectStartingPosition": "scroll_down_3x",
+      "perfectStartingPosition": "scroll_down_2x",
       "firstBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       },
       "secondBuildAction": {
         "action": "nothing",
-        "triggerTimeMs": null
+        "triggerTimeMs": null,
+        "clickOffAndScrollDistance": 150,
+        "clickaroundOptions": {}
       }
     }
   }

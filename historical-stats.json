@@ -442,10 +442,12 @@
         34395,
         34395,
         34106,
-        34106
+        34106,
+        32975,
+        32975
       ],
-      "averageDuration": 37385,
-      "totalCompletions": 47,
+      "averageDuration": 37205,
+      "totalCompletions": 49,
       "bestTime": 32641,
       "worstTime": 44848
     },
@@ -509,10 +511,12 @@
         58953,
         58953,
         58720,
-        58720
+        58720,
+        57500,
+        57500
       ],
-      "averageDuration": 58752,
-      "totalCompletions": 59,
+      "averageDuration": 58711,
+      "totalCompletions": 61,
       "bestTime": 43737,
       "worstTime": 65351
     },
@@ -558,10 +562,12 @@
         113086,
         113086,
         111091,
-        111091
+        111091,
+        108340,
+        108340
       ],
-      "averageDuration": 116493,
-      "totalCompletions": 41,
+      "averageDuration": 116114,
+      "totalCompletions": 43,
       "bestTime": 105910,
       "worstTime": 134597
     },
@@ -621,10 +627,12 @@
         100834,
         100834,
         98871,
-        98871
+        98871,
+        94352,
+        94352
       ],
-      "averageDuration": 111967,
-      "totalCompletions": 55,
+      "averageDuration": 111349,
+      "totalCompletions": 57,
       "bestTime": 92517,
       "worstTime": 148131
     },
@@ -660,10 +668,12 @@
         91494,
         91494,
         131284,
-        131284
+        131284,
+        90007,
+        90007
       ],
-      "averageDuration": 95095,
-      "totalCompletions": 31,
+      "averageDuration": 94786,
+      "totalCompletions": 33,
       "bestTime": 85464,
       "worstTime": 131284
     },
@@ -701,10 +711,12 @@
         303079,
         303079,
         304894,
-        304894
+        304894,
+        305926,
+        305926
       ],
-      "averageDuration": 333044,
-      "totalCompletions": 33,
+      "averageDuration": 331494,
+      "totalCompletions": 35,
       "bestTime": 296776,
       "worstTime": 390345
     },
@@ -2026,10 +2038,12 @@
         26133,
         26133,
         26528,
-        26528
+        26528,
+        26741,
+        26741
       ],
-      "averageDuration": 26801,
-      "totalCompletions": 72,
+      "averageDuration": 26799,
+      "totalCompletions": 74,
       "bestTime": 25584,
       "worstTime": 28929
     }
@@ -2447,11 +2461,12 @@
     },
     "Johannesburg": {
       "completions": [
-        760221
+        760221,
+        715882
       ],
-      "averageDuration": 760221,
-      "totalCompletions": 1,
-      "bestTime": 760221,
+      "averageDuration": 738052,
+      "totalCompletions": 2,
+      "bestTime": 715882,
       "worstTime": 760221
     },
     "Mexico City": {
@@ -2582,7 +2597,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-10-06T00:37:04.699Z",
+    "lastUpdated": "2025-10-06T01:09:41.773Z",
     "totalLevelsTracked": 46,
     "totalStagesTracked": 56
   }
