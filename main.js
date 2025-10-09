@@ -50,7 +50,7 @@ let longestLevels = []; // New: Array to store top 3 longest levels with names
 let currentStage = null; // Current stage info: { name, startTime, levels: [], id: timestamp }
 let previousStage = null; // Previous completed stage
 let stageTrackingEnabled = false; // Only start tracking when a fresh stage begins
-let currentStageLevel = 0; // Current level within the stage (1-7)
+let currentStageLevel = 0; // Current level within the stage (1-6 or 1-7 depending on stage)
 let longestStages = []; // Array to store longest stages
 let shortestStages = []; // Array to store shortest stages
 let completedStagesCount = 0; // Count of completed stages
@@ -177,15 +177,19 @@ function updateCurrentLevelName(levelName) {
             // Check if this is a new level we haven't seen before
             const isNewLevel = !currentStage.levels.some(level => level.name === currentLevelName);
             
-            console.log(`DEBUG: Level "${currentLevelName}" - isNewLevel: ${isNewLevel}, currentStageLevel: ${currentStageLevel}, levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
+            // Get expected level count for current stage (6 or 7 depending on whether stage has N/A)
+            const stageInfo = levelDatabase.getStageByCity(currentStage.name);
+            const expectedLevelCount = stageInfo ? stageInfo.levels.filter(l => l.name !== 'N/A').length : 7;
             
-            if (isNewLevel && currentStageLevel < 7) {
+            console.log(`DEBUG: Level "${currentLevelName}" - isNewLevel: ${isNewLevel}, currentStageLevel: ${currentStageLevel}, expectedLevelCount: ${expectedLevelCount}, levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
+            
+            if (isNewLevel && currentStageLevel < expectedLevelCount) {
                 currentStageLevel++;
-                console.log(`DEBUG: Stage level incremented to ${currentStageLevel}/7 for new level: "${currentLevelName}"`);
+                console.log(`DEBUG: Stage level incremented to ${currentStageLevel}/${expectedLevelCount} for new level: "${currentLevelName}"`);
             } else if (!isNewLevel) {
                 console.log(`DEBUG: Level "${currentLevelName}" already exists in stage, not incrementing`);
-            } else if (currentStageLevel >= 7) {
-                console.log(`DEBUG: Stage already at max level (${currentStageLevel}), not incrementing`);
+            } else if (currentStageLevel >= expectedLevelCount) {
+                console.log(`DEBUG: Stage already at max level (${currentStageLevel}/${expectedLevelCount}), not incrementing`);
             }
         }
     }
@@ -323,13 +327,13 @@ function addLevelToCurrentStage(levelName, durationMs) {
     
     // Note: currentStageLevel is incremented when new levels start, not when they complete
     
-    console.log(`DEBUG: Added level to stage "${currentStage.name}": "${levelName}" (${durationMs}ms) - Stage progress: ${currentStage.levels.length}/7`);
-    console.log(`DEBUG: Current stage levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
-    
     // Check if stage is complete (6 or 7 levels depending on whether stage has N/A)
     // Get expected level count for this stage
     const stageInfo = levelDatabase.getStageByCity(currentStage.name);
     const expectedLevelCount = stageInfo ? stageInfo.levels.filter(l => l.name !== 'N/A').length : 7;
+    
+    console.log(`DEBUG: Added level to stage "${currentStage.name}": "${levelName}" (${durationMs}ms) - Stage progress: ${currentStage.levels.length}/${expectedLevelCount}`);
+    console.log(`DEBUG: Current stage levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
     
     if (currentStage.levels.length >= expectedLevelCount) {
         console.log(`DEBUG: Stage "${currentStage.name}" complete with ${currentStage.levels.length}/${expectedLevelCount} levels - moving to previous`);
