@@ -937,15 +937,25 @@ function formatDuration(durationMs) {
 async function calculateStageETA(currentStage, stageLevelNames) {
     if (!currentStage || !stageLevelNames) return null;
     
-    const currentLevelPosition = currentStage.level - 1; // 0-based
-    const totalLevels = 7;
+    // Map currentStage.level (counts non-N/A levels) to array position
+    let nonNALevelsSeen = 0;
+    let currentLevelArrayPosition = -1;
+    for (let p = 0; p < stageLevelNames.length; p++) {
+        if (stageLevelNames[p] !== 'N/A') {
+            nonNALevelsSeen++;
+            if (nonNALevelsSeen === currentStage.level) {
+                currentLevelArrayPosition = p;
+                break;
+            }
+        }
+    }
     
-    if (currentLevelPosition >= totalLevels) return 0; // Stage complete
+    if (currentLevelArrayPosition >= stageLevelNames.length || currentLevelArrayPosition < 0) return 0; // Stage complete or invalid
     
     let totalETA = 0;
     
     // Add ETA for current level (historical avg - elapsed time)
-    const currentLevelName = stageLevelNames[currentLevelPosition];
+    const currentLevelName = stageLevelNames[currentLevelArrayPosition];
     if (currentLevelName && currentLevelName !== 'N/A') {
         const currentLevelAvg = await ipcRenderer.invoke('get-level-average', currentLevelName);
         if (currentLevelAvg) {
@@ -958,7 +968,7 @@ async function calculateStageETA(currentStage, stageLevelNames) {
     }
     
     // Add historical averages for remaining levels (skip N/A levels)
-    for (let pos = currentLevelPosition + 1; pos < totalLevels; pos++) {
+    for (let pos = currentLevelArrayPosition + 1; pos < stageLevelNames.length; pos++) {
         const levelName = stageLevelNames[pos];
         if (levelName && levelName !== 'N/A') {
             const levelAvg = await ipcRenderer.invoke('get-level-average', levelName);
@@ -975,19 +985,37 @@ async function calculateStageETA(currentStage, stageLevelNames) {
 }
 
 // Calculate ETA for a specific level position (using historical average for that level)
-async function calculateLevelETA(currentStage, levelPosition, levelName) {
+async function calculateLevelETA(currentStage, levelPosition, levelName, stageLevelNames) {
     if (!currentStage || !levelName || levelName === 'N/A') return null;
     
-    const currentLevelPosition = currentStage.level - 1; // 0-based
+    // Map currentStage.level (counts non-N/A levels) to array position
+    let nonNALevelsSeen = 0;
+    let currentLevelArrayPosition = -1;
     
-    if (levelPosition === currentLevelPosition) {
+    // If we don't have stageLevelNames, we can't accurately map, so fall back to counting from currentStage
+    if (!stageLevelNames) {
+        // Best effort: assume no N/A before current position
+        currentLevelArrayPosition = currentStage.level - 1;
+    } else {
+        for (let p = 0; p < stageLevelNames.length; p++) {
+            if (stageLevelNames[p] !== 'N/A') {
+                nonNALevelsSeen++;
+                if (nonNALevelsSeen === currentStage.level) {
+                    currentLevelArrayPosition = p;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (levelPosition === currentLevelArrayPosition) {
         // For current level: ETA = historical avg - elapsed time
         const levelAvg = await ipcRenderer.invoke('get-level-average', levelName);
         if (!levelAvg) return null;
         
         const currentLevelElapsed = currentLevelStartTime ? Date.now() - currentLevelStartTime : 0;
         return Math.max(0, Math.round(levelAvg - currentLevelElapsed));
-    } else if (levelPosition > currentLevelPosition) {
+    } else if (levelPosition > currentLevelArrayPosition) {
         // For upcoming levels: just return the historical average for that level
         const levelAvg = await ipcRenderer.invoke('get-level-average', levelName);
         return levelAvg ? Math.round(levelAvg) : null;
@@ -1033,16 +1061,31 @@ async function updateStageETAs() {
     if (!stageLevels) return;
     
     const levelItems = stageLevels.querySelectorAll('.stage-level-item');
-    const currentLevelPosition = currentStageInfo.current.level - 1;
+    
+    // Map currentStage.level (counts non-N/A levels) to array position in stageLevelNames
+    let nonNALevelsSeen = 0;
+    let currentLevelArrayPosition = -1;
+    for (let p = 0; p < stageLevelNames.length; p++) {
+        if (stageLevelNames[p] !== 'N/A') {
+            nonNALevelsSeen++;
+            if (nonNALevelsSeen === currentStageInfo.current.level) {
+                currentLevelArrayPosition = p;
+                break;
+            }
+        }
+    }
+    
+    // levelItems only has non-N/A entries, so we need to use currentStage.level - 1 as the index
+    const currentLevelItemIndex = currentStageInfo.current.level - 1;
     
     // Only update the current level's ETA
-    if (currentLevelPosition >= 0 && currentLevelPosition < levelItems.length) {
-        const currentLevelItem = levelItems[currentLevelPosition];
+    if (currentLevelItemIndex >= 0 && currentLevelItemIndex < levelItems.length && currentLevelArrayPosition >= 0) {
+        const currentLevelItem = levelItems[currentLevelItemIndex];
         const timeSpan = currentLevelItem.querySelector('.stage-level-time');
-        const levelName = stageLevelNames[currentLevelPosition];
+        const levelName = stageLevelNames[currentLevelArrayPosition];
         
         if (timeSpan && !currentLevelItem.classList.contains('stage-level-completed') && levelName) {
-            const eta = await calculateLevelETA(currentStageInfo.current, currentLevelPosition, levelName);
+            const eta = await calculateLevelETA(currentStageInfo.current, currentLevelArrayPosition, levelName, stageLevelNames);
             if (eta !== null) {
                 timeSpan.textContent = `eta: ${formatDuration(eta)}`;
             }
@@ -1305,9 +1348,23 @@ async function updateCurrentStageDetails(currentStage) {
         }
         
         // Show all 7 level positions, inserting current level placeholder at the correct position
-        const currentLevelPosition = currentStage.level - 1; // Convert to 0-based position
-        console.log(`DEBUG: Current stage level: ${currentStage.level}, position: ${currentLevelPosition}, completed levels: ${currentStage.levels.length}`);
+        // Map currentStage.level (counts non-N/A levels) to array position (includes N/A)
+        let nonNALevelsSeen = 0;
+        let currentLevelArrayPosition = -1;
+        for (let p = 0; p < stageLevelNames.length; p++) {
+            if (stageLevelNames[p] !== 'N/A') {
+                nonNALevelsSeen++;
+                if (nonNALevelsSeen === currentStage.level) {
+                    currentLevelArrayPosition = p;
+                    break;
+                }
+            }
+        }
+        
+        console.log(`DEBUG: Current stage level: ${currentStage.level}, array position: ${currentLevelArrayPosition}, completed levels: ${currentStage.levels.length}`);
         console.log(`DEBUG: Completed levels: [${currentStage.levels.map(l => `${l.name}(${formatDuration(l.durationMs)})`).join(', ')}]`);
+        
+        let completedLevelIndex = 0; // Index into currentStage.levels array
         
         for (let position = 0; position < 7; position++) {
             const levelIndex = position;
@@ -1321,23 +1378,24 @@ async function updateCurrentStageDetails(currentStage) {
             
             const levelDiv = document.createElement('div');
             
-            // Check if there's a completed level at this position (levels are stored in order)
-            if (position < currentStage.levels.length) {
+            // Check if this position corresponds to a completed level
+            if (position < currentLevelArrayPosition) {
                 // Show completed level - use levelName from database (has originalName for position 1)
-                const level = currentStage.levels[position];
+                const level = currentStage.levels[completedLevelIndex];
                 levelDiv.className = 'stage-level-item stage-level-completed';
                 levelDiv.innerHTML = `
                     <span class="stage-level-name">${levelName}</span>
                     <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
                 `;
                 levelItemsAdded++;
+                completedLevelIndex++;
                 console.log(`DEBUG: Added completed level #${levelItemsAdded} at position ${position}: ${levelName} (${formatDuration(level.durationMs)})`);
-            } else if (position === currentLevelPosition) {
+            } else if (position === currentLevelArrayPosition) {
                 // Show current level with actual name and ETA
                 levelDiv.className = 'stage-level-item stage-level-current';
                 
                 // Calculate ETA for current level (historical avg - elapsed time)
-                const eta = await calculateLevelETA(currentStage, position, levelName);
+                const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
                 const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
                 
                 levelDiv.innerHTML = `
@@ -1351,7 +1409,7 @@ async function updateCurrentStageDetails(currentStage) {
                 levelDiv.className = 'stage-level-item';
                 
                 // Get historical average for this specific level (static, doesn't count down)
-                const eta = await calculateLevelETA(currentStage, position, levelName);
+                const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
                 const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : '—';
                 
                 levelDiv.innerHTML = `
