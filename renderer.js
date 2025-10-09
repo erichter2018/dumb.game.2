@@ -1154,7 +1154,8 @@ async function updateStageDisplay(stageInfo) {
         if (stageInfo.previous) {
             const a = stageInfo.previous.historicalAverage ? formatDuration(stageInfo.previous.historicalAverage) : '—';
             const b = stageInfo.previous.historicalBest ? formatDuration(stageInfo.previous.historicalBest) : '—';
-            prevSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Previous Stage: ${stageInfo.previous.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b}</div>`;
+            const l = stageInfo.previous.historicalLast ? formatDuration(stageInfo.previous.historicalLast) : '—';
+            prevSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Previous Stage: ${stageInfo.previous.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b} • last: ${l}</div>`;
         } else {
             prevSummary.textContent = '';
         }

@@ -408,7 +408,8 @@ function sendStageInfoToRenderer() {
         previous: previousStage ? {
             ...previousStage,
             historicalAverage: historicalStats.getStageAverage(previousStage.name),
-            historicalBest: historicalStats.getStageBest(previousStage.name)
+            historicalBest: historicalStats.getStageBest(previousStage.name),
+            historicalLast: historicalStats.getStageLast(previousStage.name)
         } : null,
         longestStages: longestStages,
         shortestStages: shortestStages,
