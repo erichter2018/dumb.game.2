@@ -67,10 +67,16 @@ Thumbs.db
 *~
 
 # Logs
-logs
+logs/
 *.log
+
+# Data files (runtime state, should not be committed)
+data/historical-stats.json
+data/historical-stats.backup.json
+data/window-state.json
 
 # Temporary files
 tmp/
 temp/
+temp_*/
 

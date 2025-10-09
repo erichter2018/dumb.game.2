@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const data = JSON.parse(fs.readFileSync('./historical-stats.json', 'utf8'));
+const data = JSON.parse(fs.readFileSync('../data/historical-stats.json', 'utf8'));
 
 console.log('\n=== CLEANING OUTLIERS FROM DATABASE ===\n');
 
@@ -71,12 +71,12 @@ console.log(`\n📊 Summary: Removed ${totalRemoved} outlier times from ${Object
 data.metadata.lastUpdated = new Date().toISOString();
 
 // Backup original file
-const backupPath = './historical-stats.backup.json';
-fs.copyFileSync('./historical-stats.json', backupPath);
+const backupPath = '../data/historical-stats.backup.json';
+fs.copyFileSync('../data/historical-stats.json', backupPath);
 console.log(`\n💾 Backup saved to: ${backupPath}`);
 
 // Save cleaned data
-fs.writeFileSync('./historical-stats.json', JSON.stringify(data, null, 2));
-console.log(`✨ Cleaned database saved to: ./historical-stats.json\n`);
+fs.writeFileSync('../data/historical-stats.json', JSON.stringify(data, null, 2));
+console.log(`✨ Cleaned database saved to: ../data/historical-stats.json\n`);
 
 

@@ -1,6 +1,6 @@
 const blueBoxDetector = require('../detection/blueBoxDetector');
 const redBlobDetector = require('../detection/redBlobDetector');
-const settingsManager = require('../../settingsManager');
+const settingsManager = require('../../lib/settingsManager');
 
 /*
 Protocol for Finish Build Automation (Simplified):

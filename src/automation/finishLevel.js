@@ -1,4 +1,4 @@
-const settingsManager = require('../../settingsManager');
+const settingsManager = require('../../lib/settingsManager');
 
 function startAutomation(dependencies) {
     const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
@@ -93,8 +93,8 @@ function startAutomation(dependencies) {
         console.log('DEBUG: Executing prepBuild function...', 'info');
         if (!getIsAutomationRunning()) return 'stopped';
 
-        // Add small delay before detection to ensure screen is stable
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Add delay before detection to ensure blue build has time to appear (matches retry delay)
+        await new Promise(resolve => setTimeout(resolve, 300));
         let blueBuildBoxConfirmed = await confirmAndClickBlueBuildBox(dependencies); // Try to confirm and click blue box first
         if (!getIsAutomationRunning()) return 'stopped';
 
@@ -137,15 +137,16 @@ function startAutomation(dependencies) {
                 
                 // Get current level name to check settings
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
-                const levelSettings = settingsManager.getLevelSettings(currentLevelName);
+                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+                const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
                 
                 let shouldScrollToBottom = false;
                 if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
                     shouldScrollToBottom = true;
-                    console.log(`DEBUG: Settings indicate scroll to bottom after first build for "${currentLevelName}"`);
+                    console.log(`DEBUG: Settings indicate scroll to bottom after first build for "${settingsLevelName}"`);
                 } else if (buildCompletionCount === 2 && levelSettings.scrollToBottomAfterSecondBuild) {
                     shouldScrollToBottom = true;
-                    console.log(`DEBUG: Settings indicate scroll to bottom after second build for "${currentLevelName}"`);
+                    console.log(`DEBUG: Settings indicate scroll to bottom after second build for "${settingsLevelName}"`);
                 }
                 
                 if (shouldScrollToBottom) {
@@ -338,15 +339,16 @@ function startAutomation(dependencies) {
                 
                 // Get current level name to check settings
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
-                const levelSettings = settingsManager.getLevelSettings(currentLevelName);
+                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+                const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
                 
                 let shouldScrollToBottom = false;
                 if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
                     shouldScrollToBottom = true;
-                    console.log(`DEBUG: Settings indicate scroll to bottom after first build for "${currentLevelName}"`);
+                    console.log(`DEBUG: Settings indicate scroll to bottom after first build for "${settingsLevelName}"`);
                 } else if (buildCompletionCount === 2 && levelSettings.scrollToBottomAfterSecondBuild) {
                     shouldScrollToBottom = true;
-                    console.log(`DEBUG: Settings indicate scroll to bottom after second build for "${currentLevelName}"`);
+                    console.log(`DEBUG: Settings indicate scroll to bottom after second build for "${settingsLevelName}"`);
                 }
                 
                 if (shouldScrollToBottom) {
@@ -471,10 +473,11 @@ function startAutomation(dependencies) {
         console.log(`DEBUG: Current level name for scrolling decision: "${currentLevelName}"`);
         
         // Get perfect starting position from settings
-        const levelSettings = settingsManager.getLevelSettings(currentLevelName);
+        const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+        const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
         const perfectStartingPosition = levelSettings.perfectStartingPosition || 'nothing';
         
-        console.log(`DEBUG: Perfect starting position for "${currentLevelName}": ${perfectStartingPosition}`);
+        console.log(`DEBUG: Perfect starting position for "${settingsLevelName}": ${perfectStartingPosition}`);
         
         // Notify that startup action is complete (always mark it, even if "nothing")
         if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
@@ -548,9 +551,10 @@ function startAutomation(dependencies) {
         
         // Get scroll direction from level settings
         const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
-        const levelSettings = settingsManager.getLevelSettings(currentLevelName);
+        const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+        const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
         const scrollDirection = levelSettings.scrollDirection || 'up';
-        console.log(`DEBUG: runFinishLevelProtocol - Level "${currentLevelName}" scroll direction: ${scrollDirection}`);
+        console.log(`DEBUG: runFinishLevelProtocol - Level "${settingsLevelName}" scroll direction: ${scrollDirection}`);
         
         while (getIsAutomationRunning()) {
             let blueBuildBox = null;

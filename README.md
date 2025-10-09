@@ -156,6 +156,39 @@ for (let i = 0; i < 10; i++) {
 
 ## 🔧 Technical Details
 
+### Project Structure
+
+```
+├── data/               # Runtime data and configuration
+│   ├── levelSettings.json
+│   ├── historical-stats.json (gitignored)
+│   └── window-state.json (gitignored)
+├── docs/               # Documentation files
+│   ├── BUILD_DETECTION_PROPOSAL.md
+│   ├── CLICKAROUND_SETTINGS.md
+│   └── QUICK_START.md
+├── lib/                # Core library modules
+│   ├── historicalStats.js
+│   ├── levelDatabase.js
+│   ├── settingsManager.js
+│   └── statistics.js
+├── logs/               # Log files (gitignored)
+│   ├── console.log
+│   └── electron_debug.log
+├── scripts/            # Utility scripts
+│   ├── clean-outliers.js
+│   ├── setup.sh
+│   └── start_and_log.sh
+├── src/                # Source code
+│   ├── automation/     # Automation routines
+│   ├── detection/      # Detection algorithms
+│   └── ...
+├── utils/              # Utility functions
+├── main.js             # Electron main process
+├── renderer.js         # Electron renderer
+└── index.html          # UI markup
+```
+
 ### Architecture
 
 - **Electron**: Cross-platform desktop application framework

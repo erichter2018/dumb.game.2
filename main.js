@@ -18,9 +18,9 @@ const imageComparison = require('./utils/image-comparison');
 const scrollingFunctions = require('./src/automation/scrolling');
 const clickAroundFunctions = require('./src/automation/clickAround');
 const ocrUtils = require('./utils/ocr');
-const statistics = require('./statistics');
-const historicalStats = require('./historicalStats');
-const levelDatabase = require('./levelDatabase');
+const statistics = require('./lib/statistics');
+const historicalStats = require('./lib/historicalStats');
+const levelDatabase = require('./lib/levelDatabase');
 
 let mainWindow;
 let isCapturing = false;
@@ -58,7 +58,7 @@ let totalStagesDurationMs = 0; // Total duration of all completed stages
 let levelToStageId = new Map(); // Map level names to stage IDs to prevent cross-contamination
 
 // Window state management
-const windowStateFile = path.join(__dirname, 'window-state.json');
+const windowStateFile = path.join(__dirname, 'data', 'window-state.json');
 
 function saveWindowState() {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -883,7 +883,7 @@ ipcMain.handle('get-level-average', async (event, levelName) => {
 });
 
 // Settings IPC handlers
-const settingsManager = require('./settingsManager');
+const settingsManager = require('./lib/settingsManager');
 
 ipcMain.handle('get-all-level-names', async () => {
   return settingsManager.getAllLevelNames();
