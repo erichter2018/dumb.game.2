@@ -80,20 +80,7 @@
         <!-- Stage/Progress Pane -->
         <div class="stage-details">
             <div class="level-progress-wrapper">
-                <div class="stage-info-wrapper">
-                    <!-- Current Stage Levels Detail -->
-                    <div class="stage-details-compact" id="stageDetails" style="display: none;">
-                        <div class="stage-section-header" id="currentStageSummary"></div>
-                        <div class="stage-levels-compact" id="stageLevels"></div>
-                    </div>
-                    
-                    <!-- Previous Stage Levels Detail -->
-                    <div class="stage-details-compact" id="prevStageDetails" style="display: none;">
-                        <div class="stage-section-header" id="previousStageSummary"></div>
-                        <div class="stage-levels-compact" id="prevStageLevels"></div>
-                    </div>
-                </div>
-                <!-- Level Progress moved here into second pane -->
+                <!-- Level Progress displayed first -->
                 <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
                     <h4>Level Progress:</h4>
                     <div class="action-item" id="actionStartup">
@@ -133,6 +120,19 @@
                     <div class="action-item">
                         <span class="action-label">Scroll Dir:</span>
                         <span class="action-value" id="scrollDirValue">—</span>
+                    </div>
+                </div>
+                <div class="stage-info-wrapper">
+                    <!-- Current Stage Levels Detail -->
+                    <div class="stage-details-compact" id="stageDetails" style="display: none;">
+                        <div class="stage-section-header" id="currentStageSummary"></div>
+                        <div class="stage-levels-compact" id="stageLevels"></div>
+                    </div>
+                    
+                    <!-- Previous Stage Levels Detail -->
+                    <div class="stage-details-compact" id="prevStageDetails" style="display: none;">
+                        <div class="stage-section-header" id="previousStageSummary"></div>
+                        <div class="stage-levels-compact" id="prevStageLevels"></div>
                     </div>
                 </div>
             </div>

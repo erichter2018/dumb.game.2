@@ -265,12 +265,13 @@ async function runBuildProtocol(dependencies) {
     updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
     
-    // Get level-specific settings
+    // Get level-specific settings (use the settings-compatible name)
     const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : '';
-    const levelSettings = settingsManager.getLevelSettings(currentLevelName);
-    const isFirstRunOnLevel = dependencies.isFirstFinishBuildRunOnLevel ? dependencies.isFirstFinishBuildRunOnLevel() : false;
+    const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+    const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+    const buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
     
-    // Mark that finishBuild is being run for this level (after checking if it's the first run)
+    // Mark that finishBuild is being run for this level (after getting the build number)
     if (dependencies.markFinishBuildRunForCurrentLevel) {
         dependencies.markFinishBuildRunForCurrentLevel();
     }
@@ -279,19 +280,24 @@ async function runBuildProtocol(dependencies) {
     const firstBuildAction = levelSettings.firstBuildAction || { action: 'nothing', triggerTimeMs: null };
     const secondBuildAction = levelSettings.secondBuildAction || { action: 'nothing', triggerTimeMs: null };
     
-    console.log(`DEBUG: Build actions from settings for "${currentLevelName}":`, {
+    console.log(`DEBUG: Build actions from settings for "${settingsLevelName}"${currentLevelName !== settingsLevelName ? ` (internal name: "${currentLevelName}")` : ''}:`, {
         first: firstBuildAction,
         second: secondBuildAction,
-        isFirstRun: isFirstRunOnLevel
+        buildNumber: buildNumber
     });
     
-    // Determine which action to use based on run count
-    const currentBuildAction = isFirstRunOnLevel ? firstBuildAction : secondBuildAction;
+    // Determine which action to use based on build number
+    // Only first and second builds have actions; third+ builds have no actions
+    let currentBuildAction = { action: 'nothing', triggerTimeMs: null };
+    if (buildNumber === 1) {
+        currentBuildAction = firstBuildAction;
+    } else if (buildNumber === 2) {
+        currentBuildAction = secondBuildAction;
+    }
     const actionTriggerTime = currentBuildAction.triggerTimeMs;
     
-    console.log(`DEBUG: Using ${isFirstRunOnLevel ? 'first' : 'second'} build action: ${currentBuildAction.action} at ${actionTriggerTime}ms`);
+    console.log(`DEBUG: Build #${buildNumber} - Using action: ${currentBuildAction.action} at ${actionTriggerTime}ms`);
     
-    let lastActionCheckTime = startTime;
     let timerInterval = null; // To hold the interval ID for clearing
 
     try {
@@ -339,14 +345,16 @@ async function runBuildProtocol(dependencies) {
 
         // Step 2: Start a loop
         let isFirstLoopIteration = true; // Flag to skip detection on first iteration when we have confirmed box
+        let actionExecuted = false; // Flag to ensure action is executed only once
         while (getIsAutomationRunning()) {
             const currentTime = Date.now();
             
             // Check if it's time to execute build action from settings
-            const elapsedTime = currentTime - lastActionCheckTime;
+            const elapsedTime = currentTime - startTime;
             
-            // Only check for action if one is configured with a trigger time
-            if (currentBuildAction.action !== 'nothing' && actionTriggerTime && elapsedTime >= actionTriggerTime) {
+            // Only check for action if one is configured with a trigger time and hasn't been executed yet
+            if (!actionExecuted && currentBuildAction.action !== 'nothing' && actionTriggerTime && elapsedTime >= actionTriggerTime) {
+                actionExecuted = true; // Mark as executed
                 const intervalMinutes = actionTriggerTime / (60 * 1000);
                 updateStatus(`Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`, 'warn');
                 console.log(`DEBUG: Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`);
@@ -506,10 +514,10 @@ async function runBuildProtocol(dependencies) {
             }
 
             // Step 3: Call a function to hold down in the middle of the current blue box for duration from settings
-            await holdBlueBox(blueBoxCoords, 5000, dependencies, currentLevelName);
+            await holdBlueBox(blueBoxCoords, 5000, dependencies, settingsLevelName);
 
             // Step 4: Call another function to check research blob (respects level settings)
-            const researchBlobFound = await checkResearchBlob(dependencies, currentLevelName);
+            const researchBlobFound = await checkResearchBlob(dependencies, settingsLevelName);
 
             // Step 4a: if found, call function to do research (click research button, etc...)
             if (researchBlobFound) {

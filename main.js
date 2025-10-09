@@ -38,7 +38,7 @@ let clickAroundCallCounter = 0; // Global counter for clickAround calls since le
 let currentLevelStartTime = null; // New: To track the start time of the current level
 let currentLevelName = 'Unknown Level'; // New: To track the current level name
 let finishedLevelName = ''; // New: Track the name of the level that just finished
-let lastFinishBuildLevelName = ''; // Track the last level name when finishBuild was called
+let levelBuildCounts = new Map(); // Track build count per level (levelName -> buildCount)
 let previousLevelDurationMs = null; // New: To store the duration of the previous level
 let longestLevelDurationMs = null; // New: To store the longest level duration
 let shortestLevelDurationMs = null; // New: To store the shortest level duration
@@ -198,6 +198,10 @@ function updateCurrentLevelName(levelName) {
     }
     
     console.log(`DEBUG: Current level name updated to: "${currentLevelName}"`);
+    
+    // Reset build count for this level when it starts
+    levelBuildCounts.set(currentLevelName, 0);
+    console.log(`DEBUG: Reset build count to 0 for level: "${currentLevelName}"`);
     
     // Send to renderer for UI update
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -428,15 +432,33 @@ function sendStageInfoToRenderer() {
     mainWindow.webContents.send('update-stage-info', stageInfo);
 }
 
-function isFirstFinishBuildRunOnLevel() {
-    const isFirstRun = currentLevelName !== lastFinishBuildLevelName;
-    console.log(`DEBUG: First finishBuild run check - Current: "${currentLevelName}", Last: "${lastFinishBuildLevelName}", IsFirst: ${isFirstRun}`);
-    return isFirstRun;
+function getBuildNumberForCurrentLevel() {
+    // Get the current build count for this level (0 if not started yet)
+    const currentCount = levelBuildCounts.get(currentLevelName) || 0;
+    // The next build will be currentCount + 1
+    const buildNumber = currentCount + 1;
+    console.log(`DEBUG: Build number check - Level: "${currentLevelName}", Current count: ${currentCount}, Next build: ${buildNumber}`);
+    return buildNumber;
 }
 
 function markFinishBuildRunForCurrentLevel() {
-    lastFinishBuildLevelName = currentLevelName;
-    console.log(`DEBUG: Marked finishBuild run for level: "${currentLevelName}"`);
+    const currentCount = levelBuildCounts.get(currentLevelName) || 0;
+    levelBuildCounts.set(currentLevelName, currentCount + 1);
+    console.log(`DEBUG: Marked finishBuild run for level: "${currentLevelName}", new count: ${currentCount + 1}`);
+}
+
+function getLevelNameForSettings() {
+    // If currentLevelName is "Level 1", look up the originalName from the database
+    if (currentLevelName === 'Level 1' && currentStage) {
+        const stageInfo = levelDatabase.getStageByCity(currentStage.name);
+        if (stageInfo && stageInfo.levels[0] && stageInfo.levels[0].originalName) {
+            const originalName = stageInfo.levels[0].originalName;
+            console.log(`DEBUG: Settings lookup - Mapping "Level 1" to original name "${originalName}" for stage "${currentStage.name}"`);
+            return originalName;
+        }
+    }
+    // For all other levels, use currentLevelName as-is
+    return currentLevelName;
 }
 
 function updateLongestLevels(duration, levelName) {
@@ -723,6 +745,9 @@ let iphoneMirroringRegion = {
   height: 900
 };
 
+// Track whether we're using window capture (true) or screen capture (false)
+let isUsingWindowCapture = false;
+
 // Screen capture using desktopCapturer
 async function captureScreenRegion() {
   try {
@@ -983,7 +1008,7 @@ async function startFinishBuildAutomationLoop() {
     performRapidClicks,
     CLICK_AREAS,
     redBlobDetectorDetect: async (imageData, region) => {
-      const results = await redBlobDetector.detect(imageData, region);
+      const results = await redBlobDetector.detect(imageData, region, isUsingWindowCapture);
       // Broadcast detection results for overlay
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('detection-results', { 
@@ -994,7 +1019,7 @@ async function startFinishBuildAutomationLoop() {
       return results;
     },
     detectBlueBoxes: async (imageData, region) => {
-      const results = await blueBoxDetector.detect(imageData, region);
+      const results = await blueBoxDetector.detect(imageData, region, isUsingWindowCapture);
       // Broadcast detection results for overlay
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('detection-results', { 
@@ -1018,6 +1043,7 @@ async function startFinishBuildAutomationLoop() {
     },
     updateCurrentFunction: updateCurrentFunction, // Pass the new function
     iphoneMirroringRegion: iphoneMirroringRegion, // Pass the current region
+    getIphoneMirroringRegion: () => iphoneMirroringRegion, // Getter for dynamic region updates
     getlastBlueBoxClickCoords: () => lastBlueBoxClickCoords,
     setlastBlueBoxClickCoords: (coords) => { lastBlueBoxClickCoords = coords; },
     getIsHoldingBlueBox: () => isHoldingBlueBox, // Pass getter for the state
@@ -1040,7 +1066,8 @@ async function startFinishBuildAutomationLoop() {
     resetClickAroundCallCounter: resetClickAroundCallCounter,
     // New: Level name management functions
     getCurrentLevelName: getCurrentLevelName,
-    isFirstFinishBuildRunOnLevel: isFirstFinishBuildRunOnLevel,
+    getLevelNameForSettings: getLevelNameForSettings,
+    getBuildNumberForCurrentLevel: getBuildNumberForCurrentLevel,
     markFinishBuildRunForCurrentLevel: markFinishBuildRunForCurrentLevel,
   };
 
@@ -1151,7 +1178,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     performRapidClicks,
     CLICK_AREAS,
     redBlobDetectorDetect: async (imageData, region) => {
-      const results = await redBlobDetector.detect(imageData, region);
+      const results = await redBlobDetector.detect(imageData, region, isUsingWindowCapture);
       // Broadcast detection results for overlay
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('detection-results', { 
@@ -1162,7 +1189,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
       return results;
     },
     detectBlueBoxes: async (imageData, region) => {
-      const results = await blueBoxDetector.detect(imageData, region);
+      const results = await blueBoxDetector.detect(imageData, region, isUsingWindowCapture);
       // Broadcast detection results for overlay
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('detection-results', { 
@@ -1281,10 +1308,11 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     resetClickAroundCallCounter: resetClickAroundCallCounter,
     // New: Level name management and OCR functions
     getCurrentLevelName: getCurrentLevelName,
+    getLevelNameForSettings: getLevelNameForSettings,
     updateCurrentLevelName: updateCurrentLevelName,
     setFinishedLevelName: setFinishedLevelName,
     captureLevelName: ocrUtils.captureLevelName,
-    isFirstFinishBuildRunOnLevel: isFirstFinishBuildRunOnLevel,
+    getBuildNumberForCurrentLevel: getBuildNumberForCurrentLevel,
     markFinishBuildRunForCurrentLevel: markFinishBuildRunForCurrentLevel,
     // New: Image comparison functions for scroll top detection
     compareTopRegions: imageComparison.compareTopRegions,
