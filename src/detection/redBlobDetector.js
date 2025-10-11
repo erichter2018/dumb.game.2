@@ -1,8 +1,8 @@
 const sharp = require('sharp');
 const redBlobDetectorCutoff = require('./redBlobDetectorCutoff');
 
-async function detect(imageDataUrl, captureRegion) {
-    console.log('Detecting red blobs with Sharp...', { captureRegion });
+async function detect(imageDataUrl, captureRegion, isWindowCapture = false) {
+    console.log('Detecting red blobs with Sharp...', { captureRegion, isWindowCapture });
     const detections = [];
 
     try {
@@ -11,17 +11,30 @@ async function detect(imageDataUrl, captureRegion) {
 
         const metadata = await fullScreenImage.metadata();
 
-        const effectiveRegion = {
-            left: captureRegion.x,
-            top: captureRegion.y,
-            width: captureRegion.width,
-            height: captureRegion.height,
-        };
-
-        // Extract the effective region once and work with this smaller image
-        const croppedEffectiveImageBuffer = await fullScreenImage.extract(effectiveRegion).raw().toBuffer({ resolveWithObject: true });
-        const { data, info } = croppedEffectiveImageBuffer;
-        const croppedEffectiveImage = sharp(data, { raw: info }); // Create a new sharp instance from the cropped buffer
+        let data, info, croppedEffectiveImage, effectiveRegion;
+        
+        if (isWindowCapture) {
+            // Window capture mode: use entire image, no cropping needed
+            console.log('DEBUG: Red blob detection using window capture mode - no cropping');
+            const rawBuffer = await fullScreenImage.raw().toBuffer({ resolveWithObject: true });
+            data = rawBuffer.data;
+            info = rawBuffer.info;
+            croppedEffectiveImage = sharp(data, { raw: info });
+            effectiveRegion = { left: 0, top: 0, width: info.width, height: info.height };
+        } else {
+            // Screen capture mode: crop to specified region
+            effectiveRegion = {
+                left: captureRegion.x,
+                top: captureRegion.y,
+                width: captureRegion.width,
+                height: captureRegion.height,
+            };
+            // Extract the effective region once and work with this smaller image
+            const croppedEffectiveImageBuffer = await fullScreenImage.extract(effectiveRegion).raw().toBuffer({ resolveWithObject: true });
+            data = croppedEffectiveImageBuffer.data;
+            info = croppedEffectiveImageBuffer.info;
+            croppedEffectiveImage = sharp(data, { raw: info }); // Create a new sharp instance from the cropped buffer
+        }
 
         const blobSizeMin = 24; // Relaxed from 25
         const blobSizeMax = 34; // Relaxed from 30

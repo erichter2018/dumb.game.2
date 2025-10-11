@@ -559,7 +559,7 @@ function updateAverageLevelDuration(durationMs) {
 const CLICK_AREAS = {
   OPEN_CLOSE_RESEARCH_WINDOW: { x: 403, y: 942 },
   INDIVIDUAL_RESEARCH: { x: 352, y: 456 },
-  CLICK_OFF: { x: 161, y: 191 }, // Updated coordinates - old: { x: 33, y: 904 }
+  CLICK_OFF: { x: 425, y: 192 }, // Updated coordinates - old: { x: 420, y: 185 }
   "START_EXITING": { x: 49, y: 940 },
   "CONFIRM_EXIT": { x: 238, y: 745 },
   "START_LEVEL": { x: 232, y: 631 },

@@ -33,11 +33,11 @@ function rgbToHsv(r, g, b) {
     return { h: h * 360, s: s * 100, v: v * 100 };
 }
 
-async function detect(imageDataUrl, captureRegion) {
+async function detect(imageDataUrl, captureRegion, isWindowCapture = false) {
     const detections = [];
 
     try {
-        console.log('Detecting blue boxes with Sharp...', { captureRegion });
+        console.log('Detecting blue boxes with Sharp...', { captureRegion, isWindowCapture });
 
         const base64Data = imageDataUrl.replace(/^data:image\/png;base64,/, '');
         const fullScreenImage = sharp(Buffer.from(base64Data, 'base64'));
@@ -48,16 +48,28 @@ async function detect(imageDataUrl, captureRegion) {
             return [];
         }
 
-        const effectiveRegion = {
-            left: captureRegion.x,
-            top: captureRegion.y,
-            width: captureRegion.width,
-            height: captureRegion.height,
-        };
-
-        // Extract the effective region once and work with this smaller image
-        const croppedEffectiveImageBuffer = await fullScreenImage.extract(effectiveRegion).raw().toBuffer({ resolveWithObject: true });
-        const { data, info } = croppedEffectiveImageBuffer;
+        let data, info, effectiveRegion;
+        
+        if (isWindowCapture) {
+            // Window capture mode: use entire image, no cropping needed
+            console.log('DEBUG: Using window capture mode - no cropping');
+            const rawBuffer = await fullScreenImage.raw().toBuffer({ resolveWithObject: true });
+            data = rawBuffer.data;
+            info = rawBuffer.info;
+            effectiveRegion = { left: 0, top: 0, width: info.width, height: info.height };
+        } else {
+            // Screen capture mode: crop to specified region
+            effectiveRegion = {
+                left: captureRegion.x,
+                top: captureRegion.y,
+                width: captureRegion.width,
+                height: captureRegion.height,
+            };
+            // Extract the effective region once and work with this smaller image
+            const croppedEffectiveImageBuffer = await fullScreenImage.extract(effectiveRegion).raw().toBuffer({ resolveWithObject: true });
+            data = croppedEffectiveImageBuffer.data;
+            info = croppedEffectiveImageBuffer.info;
+        }
 
         // Define blue box size expectations
         const boxWidthMin = 140; // Allow some tolerance for 160
