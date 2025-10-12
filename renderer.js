@@ -886,6 +886,9 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
 
 // New: IPC listener for stage information updates
 ipcRenderer.on('update-stage-info', async (event, stageInfo) => {
+    // Load statistics data for comparison calculations
+    await loadStatisticsData();
+    
     // Store current stage info for ETA calculations
     currentStageInfo = stageInfo;
     
@@ -1257,6 +1260,7 @@ async function updatePreviousStageDetailsCompact(previousStage) {
         }
         
         // Show all 7 level positions for previous stage (skip N/A)
+        let completedLevelIndex = 0; // Track index into previousStage.levels array
         for (let position = 0; position < 7; position++) {
             const levelIndex = position;
             const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
@@ -1269,14 +1273,25 @@ async function updatePreviousStageDetailsCompact(previousStage) {
             
             const levelDiv = document.createElement('div');
             
-            if (position < previousStage.levels.length) {
+            if (completedLevelIndex < previousStage.levels.length) {
                 // Show completed level - use levelName from database (has originalName for position 1)
-                const level = previousStage.levels[position];
+                const level = previousStage.levels[completedLevelIndex];
                 levelDiv.className = 'stage-level-item stage-level-completed';
+                
+                // Build time display with saved comparison info (if available)
+                let timeDisplay = formatDuration(level.durationMs);
+                if (level.comparison && level.comparison.arrow) {
+                    timeDisplay += ` <span style="opacity: 0.7;">${level.comparison.arrow}</span>`;
+                    if (level.comparison.percent) {
+                        timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${level.comparison.percent}</span>`;
+                    }
+                }
+                
                 levelDiv.innerHTML = `
                     <span class="stage-level-name">${levelName}</span>
-                    <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
+                    <span class="stage-level-time">${timeDisplay}</span>
                 `;
+                completedLevelIndex++; // Increment only for displayed levels
             } else {
                 // Show level name without time (if available)
                 levelDiv.className = 'stage-level-item stage-level-incomplete';
@@ -1289,6 +1304,41 @@ async function updatePreviousStageDetailsCompact(previousStage) {
             prevStageLevels.appendChild(levelDiv);
         }
     }
+}
+
+/**
+ * Calculate comparison indicator for a level time vs its historical average
+ * Returns object with arrow and time difference text
+ */
+function calculateLevelComparison(actualTime, levelName) {
+    // Get historical average for this level
+    const levelStats = statisticsData.levels[levelName];
+    if (!levelStats || !levelStats.completions || levelStats.completions.length === 0) {
+        return { arrow: '', percent: '' };
+    }
+    
+    // Calculate average from completions
+    const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
+    
+    // Calculate time difference in milliseconds
+    const timeDiff = actualTime - avg;
+    
+    // Determine arrow and time difference text
+    let arrow = '';
+    let percent = ''; // Keep this name for compatibility with existing code
+    
+    if (Math.abs(timeDiff) < 5000) {
+        arrow = '↔'; // Within 5 seconds, considered unchanged
+        percent = ''; // No time difference shown
+    } else if (timeDiff > 0) {
+        arrow = '↑'; // Slower than average
+        percent = `+${formatDuration(Math.abs(timeDiff))}`;
+    } else {
+        arrow = '↓'; // Faster than average
+        percent = `-${formatDuration(Math.abs(timeDiff))}`;
+    }
+    
+    return { arrow, percent };
 }
 
 async function updateCurrentStageDetails(currentStage) {
@@ -1382,10 +1432,22 @@ async function updateCurrentStageDetails(currentStage) {
             if (position < currentLevelArrayPosition) {
                 // Show completed level - use levelName from database (has originalName for position 1)
                 const level = currentStage.levels[completedLevelIndex];
+                const comparison = calculateLevelComparison(level.durationMs, levelName);
+                
                 levelDiv.className = 'stage-level-item stage-level-completed';
+                
+                // Build time display with arrow and percentage
+                let timeDisplay = formatDuration(level.durationMs);
+                if (comparison.arrow) {
+                    timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
+                    if (comparison.percent) {
+                        timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.percent}</span>`;
+                    }
+                }
+                
                 levelDiv.innerHTML = `
                     <span class="stage-level-name">${levelName}</span>
-                    <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
+                    <span class="stage-level-time">${timeDisplay}</span>
                 `;
                 levelItemsAdded++;
                 completedLevelIndex++;
@@ -2223,16 +2285,28 @@ async function resetLevelToDefaults() {
 // Level Actions Display
 async function updateLevelActionsDisplay() {
     const currentLevel = await ipcRenderer.invoke('get-current-level-name');
-    
-    if (!currentLevel || currentLevel === 'Unknown Level' || currentLevel === '') {
-        document.getElementById('levelActionsDisplay').style.display = 'none';
-        return;
-    }
-    
-    const settings = await ipcRenderer.invoke('get-level-settings', currentLevel.toLowerCase());
     const actionsDisplay = document.getElementById('levelActionsDisplay');
     
+    // Always show the display
     actionsDisplay.style.display = 'block';
+    
+    // If no level, show default settings
+    let settings;
+    if (!currentLevel || currentLevel === 'Unknown Level' || currentLevel === '') {
+        // Default settings when no level is known (matching settingsManager defaults)
+        settings = {
+            perfectStartingPosition: 'nothing',
+            firstBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {} },
+            secondBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {} },
+            scrollToBottomAfterFirstBuild: true,  // Default is true for unnamed levels
+            scrollToBottomAfterSecondBuild: false,
+            doResearch: true,  // Default is true
+            blueBoxClickHoldDuration: 4500,  // Default is 4.5s
+            scrollDirection: 'up'
+        };
+    } else {
+        settings = await ipcRenderer.invoke('get-level-settings', currentLevel.toLowerCase());
+    }
     
     // Reset all checkboxes
     ['actionStartup', 'actionFirstBuild', 'actionAfterFirstBuild', 'actionSecondBuild', 'actionAfterSecondBuild'].forEach(id => {

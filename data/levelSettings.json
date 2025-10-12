@@ -4,6 +4,7 @@
     "doResearch": true,
     "scrollDirection": "up",
     "blueBoxClickHoldDuration": 4500,
+    "maxBuildTimeMs": 180000,
     "scrollToBottomAfterFirstBuild": false,
     "scrollToBottomAfterSecondBuild": false,
     "perfectStartingPosition": "nothing",
@@ -145,14 +146,15 @@
       "scrollToBottomAfterSecondBuild": false,
       "perfectStartingPosition": "scroll_down_1x",
       "firstBuildAction": {
-        "action": "nothing",
-        "triggerTimeMs": null,
+        "action": "clickaround",
+        "triggerTimeMs": 40000,
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": true,
+          "clickaroundChunks": 1,
           "scrollUpDistance": 200,
-          "scrollUpCount": 5,
-          "initialScrollDown": 150,
+          "scrollUpCount": 1,
+          "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
       },
@@ -160,13 +162,7 @@
         "action": "nothing",
         "triggerTimeMs": null,
         "clickOffAndScrollDistance": 150,
-        "clickaroundOptions": {
-          "excludeRedBlobs": true,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 5,
-          "initialScrollDown": 150,
-          "scrollToBottomAtEnd": false
-        }
+        "clickaroundOptions": {}
       }
     },
     "restaurant": {
@@ -184,13 +180,13 @@
       },
       "secondBuildAction": {
         "action": "clickaround",
-        "triggerTimeMs": 30000,
+        "triggerTimeMs": 15000,
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": true,
-          "clickaroundChunks": 2,
-          "scrollUpDistance": 300,
-          "scrollUpCount": 2,
+          "clickaroundChunks": 1,
+          "scrollUpDistance": 250,
+          "scrollUpCount": 1,
           "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
@@ -341,10 +337,10 @@
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": false,
-          "clickaroundChunks": 2,
-          "scrollUpDistance": 300,
-          "scrollUpCount": 1,
-          "initialScrollDown": 50,
+          "clickaroundChunks": 1,
+          "scrollUpDistance": 0,
+          "scrollUpCount": 0,
+          "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
       },
@@ -501,7 +497,7 @@
       "blueBoxClickHoldDuration": 6500,
       "scrollToBottomAfterFirstBuild": true,
       "scrollToBottomAfterSecondBuild": true,
-      "perfectStartingPosition": "scroll_down_4x",
+      "perfectStartingPosition": "scroll_down_3x",
       "firstBuildAction": {
         "action": "nothing",
         "triggerTimeMs": null,
@@ -561,7 +557,7 @@
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
       "scrollToBottomAfterFirstBuild": true,
-      "scrollToBottomAfterSecondBuild": true,
+      "scrollToBottomAfterSecondBuild": false,
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
         "action": "clickaround",
@@ -569,25 +565,18 @@
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": true,
-          "clickaroundChunks": 4,
+          "clickaroundChunks": 2,
           "scrollUpDistance": 200,
           "scrollUpCount": 2,
-          "initialScrollDown": 150,
+          "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
-        "action": "clickaround",
+        "action": "nothing",
         "triggerTimeMs": 180000,
         "clickOffAndScrollDistance": 150,
-        "clickaroundOptions": {
-          "excludeRedBlobs": true,
-          "clickaroundChunks": 4,
-          "scrollUpDistance": 200,
-          "scrollUpCount": 5,
-          "initialScrollDown": 150,
-          "scrollToBottomAtEnd": false
-        }
+        "clickaroundOptions": {}
       }
     },
     "street nuts": {
@@ -740,7 +729,7 @@
         "clickaroundOptions": {
           "excludeRedBlobs": false,
           "clickaroundChunks": 1,
-          "scrollUpDistance": 5,
+          "scrollUpDistance": 0,
           "scrollUpCount": 1,
           "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
@@ -893,7 +882,7 @@
       "doResearch": true,
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
-      "scrollToBottomAfterFirstBuild": true,
+      "scrollToBottomAfterFirstBuild": false,
       "scrollToBottomAfterSecondBuild": true,
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
@@ -960,7 +949,7 @@
           "excludeRedBlobs": true,
           "clickaroundChunks": 3,
           "scrollUpDistance": 350,
-          "scrollUpCount": 3,
+          "scrollUpCount": 2,
           "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
@@ -971,26 +960,33 @@
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
       "scrollToBottomAfterFirstBuild": true,
-      "scrollToBottomAfterSecondBuild": false,
+      "scrollToBottomAfterSecondBuild": true,
       "perfectStartingPosition": "scroll_down_3x",
       "firstBuildAction": {
         "action": "clickaround",
         "triggerTimeMs": 6000,
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
-          "excludeRedBlobs": true,
+          "excludeRedBlobs": false,
           "clickaroundChunks": 3,
           "scrollUpDistance": 200,
-          "scrollUpCount": 2,
+          "scrollUpCount": 1,
           "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
       },
       "secondBuildAction": {
-        "action": "nothing",
+        "action": "clickaround",
         "triggerTimeMs": 6000,
         "clickOffAndScrollDistance": 150,
-        "clickaroundOptions": {}
+        "clickaroundOptions": {
+          "excludeRedBlobs": false,
+          "clickaroundChunks": 1,
+          "scrollUpDistance": 0,
+          "scrollUpCount": 0,
+          "initialScrollDown": 0,
+          "scrollToBottomAtEnd": false
+        }
       }
     },
     "dumpling hut": {
@@ -1018,7 +1014,7 @@
       "perfectStartingPosition": "nothing",
       "firstBuildAction": {
         "action": "click_off_and_scroll",
-        "triggerTimeMs": 6000,
+        "triggerTimeMs": 12000,
         "clickOffAndScrollDistance": 400,
         "clickaroundOptions": {}
       },

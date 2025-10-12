@@ -302,6 +302,44 @@ function updateStageRecords(completedStage) {
     }
 }
 
+function formatDuration(durationMs) {
+    const minutes = Math.floor(durationMs / 60000);
+    const seconds = Math.floor((durationMs % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+}
+
+function calculateLevelComparison(actualTime, levelName) {
+    // Get historical average for this level
+    const stats = historicalStats.loadStats();
+    const levelStats = stats.levels[levelName];
+    if (!levelStats || !levelStats.completions || levelStats.completions.length === 0) {
+        return { arrow: '', percent: '' };
+    }
+    
+    // Calculate average from completions
+    const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
+    
+    // Calculate time difference in milliseconds
+    const timeDiff = actualTime - avg;
+    
+    // Determine arrow and time difference text
+    let arrow = '';
+    let percent = ''; // Keep this name for compatibility with existing code
+    
+    if (Math.abs(timeDiff) < 5000) {
+        arrow = '↔'; // Within 5 seconds, considered unchanged
+        percent = ''; // No time difference shown
+    } else if (timeDiff > 0) {
+        arrow = '↑'; // Slower than average
+        percent = `+${formatDuration(Math.abs(timeDiff))}`;
+    } else {
+        arrow = '↓'; // Faster than average
+        percent = `-${formatDuration(Math.abs(timeDiff))}`;
+    }
+    
+    return { arrow, percent };
+}
+
 function addLevelToCurrentStage(levelName, durationMs) {
     if (!currentStage || !stageTrackingEnabled) return;
     
@@ -312,15 +350,22 @@ function addLevelToCurrentStage(levelName, durationMs) {
         return;
     }
     
-    // Record level completion in historical stats
-    if (levelName && levelName !== 'Unknown Level' && levelName !== 'Unnamed Level') {
-        historicalStats.recordLevelCompletion(levelName, durationMs);
+    // Record level completion in historical stats (use original name for "Level 1")
+    const nameForStats = getOriginalLevelName(levelName);
+    if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
+        historicalStats.recordLevelCompletion(nameForStats, durationMs);
+        console.log(`DEBUG: Recorded level completion in historical stats: "${nameForStats}" (${durationMs}ms)`);
     }
+    
+    // Calculate comparison with historical average (before recording so we use pre-update stats)
+    const comparison = calculateLevelComparison(durationMs, nameForStats);
+    console.log(`DEBUG: Level comparison for "${nameForStats}": ${comparison.arrow} ${comparison.percent}`);
     
     const levelInfo = {
         name: levelName,
         durationMs: durationMs,
-        completedAt: Date.now()
+        completedAt: Date.now(),
+        comparison: comparison // Save comparison info for display in previous stage
     };
     
     currentStage.levels.push(levelInfo);
@@ -363,16 +408,23 @@ function addLevelToCurrentStageIfValid(levelName, durationMs) {
         else if (previousStage && mappedStageId === previousStage.id) {
             console.log(`DEBUG: Adding level "${levelName}" to previous stage "${previousStage.name}" (late completion)`);
             
-            // Record level completion in historical stats
-            if (levelName && levelName !== 'Unknown Level' && levelName !== 'Unnamed Level') {
-                historicalStats.recordLevelCompletion(levelName, durationMs);
+            // Record level completion in historical stats (use original name for "Level 1")
+            const nameForStats = getOriginalLevelName(levelName);
+            if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
+                historicalStats.recordLevelCompletion(nameForStats, durationMs);
+                console.log(`DEBUG: Recorded level completion in historical stats: "${nameForStats}" (${durationMs}ms)`);
             }
+            
+            // Calculate comparison with historical average
+            const comparison = calculateLevelComparison(durationMs, nameForStats);
+            console.log(`DEBUG: Level comparison for "${nameForStats}": ${comparison.arrow} ${comparison.percent}`);
             
             // Add to previous stage's levels array
             previousStage.levels.push({
                 name: levelName,
                 durationMs: durationMs,
-                completedAt: Date.now()
+                completedAt: Date.now(),
+                comparison: comparison // Save comparison info
             });
             console.log(`DEBUG: Previous stage "${previousStage.name}" now has ${previousStage.levels.length} levels`);
             // Clean up the mapping
@@ -464,6 +516,21 @@ function getLevelNameForSettings() {
     }
     // For all other levels, use currentLevelName as-is
     return currentLevelName;
+}
+
+// Helper function to convert "Level 1" to original name for any level name
+function getOriginalLevelName(levelName) {
+    // If levelName is "Level 1", look up the originalName from the database
+    if (levelName === 'Level 1' && currentStage) {
+        const stageInfo = levelDatabase.getStageByCity(currentStage.name);
+        if (stageInfo && stageInfo.levels[0] && stageInfo.levels[0].originalName) {
+            const originalName = stageInfo.levels[0].originalName;
+            console.log(`DEBUG: Historical stats - Mapping "Level 1" to original name "${originalName}" for stage "${currentStage.name}"`);
+            return originalName;
+        }
+    }
+    // For all other levels, use levelName as-is
+    return levelName;
 }
 
 function updateLongestLevels(duration, levelName) {
@@ -1275,9 +1342,8 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
             levelsFinishedCount++; // Increment count of finished levels
             totalLevelsDurationMs += duration; // Add to total duration
 
-            // Record level completion in historical stats (fallback if not recorded through stage tracking)
-            historicalStats.recordLevelCompletion(finishedLevelName, duration);
-            console.log(`DEBUG: Recorded level completion: "${finishedLevelName}" (${duration}ms)`);
+            // Note: Level completion is already recorded through stage tracking system
+            // No need for fallback recording here (would cause duplicates)
 
             // Update longest levels tracking with finished level name
             updateLongestLevels(duration, finishedLevelName);

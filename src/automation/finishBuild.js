@@ -280,6 +280,9 @@ async function runBuildProtocol(dependencies) {
     const firstBuildAction = levelSettings.firstBuildAction || { action: 'nothing', triggerTimeMs: null };
     const secondBuildAction = levelSettings.secondBuildAction || { action: 'nothing', triggerTimeMs: null };
     
+    // Get max build time from settings (default 3 minutes if not specified)
+    const maxBuildTimeMs = levelSettings.maxBuildTimeMs || 180000;
+    
     console.log(`DEBUG: Build actions from settings for "${settingsLevelName}"${currentLevelName !== settingsLevelName ? ` (internal name: "${currentLevelName}")` : ''}:`, {
         first: firstBuildAction,
         second: secondBuildAction,
@@ -351,6 +354,28 @@ async function runBuildProtocol(dependencies) {
             
             // Check if it's time to execute build action from settings
             const elapsedTime = currentTime - startTime;
+            
+            // FAILSAFE: Check if max build time has been exceeded
+            if (elapsedTime >= maxBuildTimeMs) {
+                const minutes = Math.floor(maxBuildTimeMs / 60000);
+                updateStatus(`Build timeout: Max build time of ${minutes} minutes exceeded. Scrolling to bottom and stopping build.`, 'error');
+                console.log(`ERROR: Build timeout: Max build time of ${maxBuildTimeMs}ms (${minutes} minutes) exceeded. Scrolling to bottom and stopping build.`);
+                
+                // Scroll to bottom before exiting
+                if (scrollToBottom) {
+                    const scrollX = dependencies.iphoneMirroringRegion.x + dependencies.iphoneMirroringRegion.width / 2;
+                    const scrollY = dependencies.iphoneMirroringRegion.y + dependencies.iphoneMirroringRegion.height / 2;
+                    await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, dependencies.scrollToBottomIterations || 10, { 
+                        updateCurrentFunction, 
+                        performClick: dependencies.performClick, 
+                        CLICK_AREAS: dependencies.CLICK_AREAS 
+                    });
+                    updateStatus('Timeout failsafe: Scroll to bottom completed.', 'info');
+                    console.log('DEBUG: Timeout failsafe: Scroll to bottom completed.');
+                }
+                
+                return 'timeout';
+            }
             
             // Only check for action if one is configured with a trigger time and hasn't been executed yet
             if (!actionExecuted && currentBuildAction.action !== 'nothing' && actionTriggerTime && elapsedTime >= actionTriggerTime) {
