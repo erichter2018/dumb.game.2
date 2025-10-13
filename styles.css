@@ -994,6 +994,22 @@ kbd {
     background: rgba(40, 167, 69, 0.1);
 }
 
+/* Performance-based coloring for completed levels */
+.level-faster {
+    border-color: #28a745 !important;
+    background: rgba(40, 167, 69, 0.15) !important;
+}
+
+.level-slower {
+    border-color: #dc3545 !important;
+    background: rgba(220, 53, 69, 0.15) !important;
+}
+
+.level-unchanged {
+    border-color: #0d6efd !important;
+    background: rgba(13, 110, 253, 0.2) !important;
+}
+
 .stage-level-incomplete {
     border-color: rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.02);

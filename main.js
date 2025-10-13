@@ -172,6 +172,12 @@ function updateCurrentLevelName(levelName) {
         currentLevelName = originalLevelName;
         console.log(`DEBUG: Regular level name set: "${currentLevelName}"`);
         
+        // Check if we should start a partial stage (named level starting with no active stage)
+        if (!stageTrackingEnabled || !currentStage) {
+            console.log(`DEBUG: Named level "${currentLevelName}" starting without active stage - starting partial stage`);
+            startPartialStage();
+        }
+        
         // Increment stage level counter for new levels (but not for stage start levels)
         if (currentStage && stageTrackingEnabled) {
             // Check if this is a new level we haven't seen before
@@ -240,13 +246,159 @@ function startNewStage(stageCityName) {
         name: stageCityName,
         startTime: now,
         levels: [],
-        id: now // Unique ID for this stage
+        id: now, // Unique ID for this stage
+        isPartial: false // Not a partial stage
     };
     
     currentStageLevel = 1; // First level of the stage
     stageTrackingEnabled = true; // Enable tracking for this fresh stage
     
     console.log(`DEBUG: Started new stage: "${stageCityName}"`);
+}
+
+// Start a partial stage when we encounter a named level but don't know the stage yet
+function startPartialStage() {
+    const now = Date.now();
+    
+    // Force complete the previous stage if it exists
+    if (currentStage && stageTrackingEnabled) {
+        console.log(`DEBUG: Force completing previous stage "${currentStage.name}" before starting partial stage"`);
+        completeCurrentStage();
+    }
+    
+    currentStage = {
+        name: "Unknown Stage",
+        startTime: now,
+        levels: [],
+        id: now,
+        isPartial: true, // Mark as partial
+        deducedName: null // Will be set if we deduce the stage
+    };
+    
+    currentStageLevel = 0; // We don't know the level position yet
+    stageTrackingEnabled = true; // Enable tracking for partial stage
+    
+    console.log(`DEBUG: Started partial stage tracking`);
+}
+
+// Attempt to deduce the stage from completed level sequence
+function attemptStageDeduction() {
+    if (!currentStage || !currentStage.isPartial || currentStage.levels.length === 0) {
+        return false;
+    }
+    
+    const completedLevelNames = currentStage.levels.map(l => l.name);
+    console.log(`DEBUG: Attempting stage deduction with levels: [${completedLevelNames.join(', ')}]`);
+    
+    // Get all stages from database
+    const allStages = levelDatabase.getAllStages();
+    const potentialMatches = [];
+    
+    // For each stage, check if our completed levels match a contiguous sequence
+    for (const [stageName, stageData] of Object.entries(allStages)) {
+        const stageLevels = stageData.levels.filter(l => l.name !== 'N/A');
+        
+        // Try to find where our sequence matches in this stage
+        for (let startPos = 0; startPos <= stageLevels.length - completedLevelNames.length; startPos++) {
+            let matches = true;
+            
+            for (let i = 0; i < completedLevelNames.length; i++) {
+                const ourLevel = completedLevelNames[i];
+                const stageLevel = stageLevels[startPos + i].name;
+                
+                // For position 1, check both 'Level 1' and originalName
+                if (startPos + i === 0) {
+                    const originalName = stageLevels[0].originalName;
+                    if (ourLevel !== 'Level 1' && ourLevel !== stageLevel && ourLevel !== originalName) {
+                        matches = false;
+                        break;
+                    }
+                } else {
+                    if (ourLevel !== stageLevel) {
+                        matches = false;
+                        break;
+                    }
+                }
+            }
+            
+            if (matches) {
+                potentialMatches.push({
+                    stageName,
+                    startPosition: startPos + 1, // 1-based position
+                    confidence: completedLevelNames.length
+                });
+                break; // Found a match for this stage, no need to check other positions
+            }
+        }
+    }
+    
+    console.log(`DEBUG: Found ${potentialMatches.length} potential stage matches`);
+    
+    // If we have exactly one match, we've deduced the stage
+    if (potentialMatches.length === 1) {
+        const match = potentialMatches[0];
+        currentStage.deducedName = match.stageName;
+        currentStage.name = match.stageName; // Update display name
+        currentStageLevel = match.startPosition + completedLevelNames.length - 1; // Set current level position
+        
+        console.log(`DEBUG: Stage deduced as "${match.stageName}" starting at position ${match.startPosition}, currently at level ${currentStageLevel}`);
+        return true;
+    } else if (potentialMatches.length === 2) {
+        // Check if these are duplicate stages (1-30 vs 31-60)
+        // Get stage numbers for both matches
+        const stageNumbers = potentialMatches.map(match => {
+            const stageInfo = levelDatabase.getStageByCity(match.stageName);
+            return stageInfo ? stageInfo.stageNumber : null;
+        }).filter(num => num !== null);
+        
+        // Check if they differ by exactly 30 (indicating duplicates)
+        if (stageNumbers.length === 2 && Math.abs(stageNumbers[0] - stageNumbers[1]) === 30) {
+            console.log(`DEBUG: Found duplicate stages (${potentialMatches[0].stageName} #${stageNumbers[0]} and ${potentialMatches[1].stageName} #${stageNumbers[1]})`);
+            
+            // Use last completed stage to disambiguate
+            const lastCompleted = historicalStats.getLastCompletedStage();
+            if (lastCompleted && lastCompleted.stageNumber) {
+                console.log(`DEBUG: Last completed stage: ${lastCompleted.name} (Stage #${lastCompleted.stageNumber})`);
+                
+                // Determine which loop we're in (1-30 or 31-60)
+                let targetMatch;
+                if (lastCompleted.stageNumber <= 30) {
+                    // In first loop, pick the stage with number <= 30
+                    targetMatch = potentialMatches.find(m => {
+                        const info = levelDatabase.getStageByCity(m.stageName);
+                        return info && info.stageNumber <= 30;
+                    });
+                } else {
+                    // In second loop, pick the stage with number > 30
+                    targetMatch = potentialMatches.find(m => {
+                        const info = levelDatabase.getStageByCity(m.stageName);
+                        return info && info.stageNumber > 30;
+                    });
+                }
+                
+                if (targetMatch) {
+                    currentStage.deducedName = targetMatch.stageName;
+                    currentStage.name = targetMatch.stageName;
+                    currentStageLevel = targetMatch.startPosition + completedLevelNames.length - 1;
+                    
+                    const stageInfo = levelDatabase.getStageByCity(targetMatch.stageName);
+                    console.log(`DEBUG: Disambiguated stage as "${targetMatch.stageName}" (Stage #${stageInfo.stageNumber}) based on last completed stage`);
+                    return true;
+                }
+            } else {
+                console.log(`DEBUG: No last completed stage info available to disambiguate - keeping as Unknown Stage`);
+            }
+        }
+        
+        console.log(`DEBUG: Stage ambiguous - multiple matches: [${potentialMatches.map(m => m.stageName).join(', ')}]`);
+        return false;
+    } else if (potentialMatches.length > 2) {
+        console.log(`DEBUG: Stage ambiguous - multiple matches: [${potentialMatches.map(m => m.stageName).join(', ')}]`);
+        return false;
+    } else {
+        console.log(`DEBUG: No stage matches found for current sequence`);
+        return false;
+    }
 }
 
 function completeCurrentStage() {
@@ -272,18 +424,29 @@ function completeCurrentStage() {
         levelCount: currentStage.levels.length
     };
     
-    // Record stage completion in historical stats
-    historicalStats.recordStageCompletion(completedStage.name, stageDurationMs);
+    // Only record to historical stats if this is NOT a partial stage
+    if (!currentStage.isPartial) {
+        // Get stage number from levelDatabase for recording
+        const stageInfo = levelDatabase.getStageByCity(completedStage.name);
+        const stageNumber = stageInfo ? stageInfo.stageNumber : null;
+        
+        // Record stage completion in historical stats
+        historicalStats.recordStageCompletion(completedStage.name, stageDurationMs, stageNumber);
+        
+        // Update statistics
+        completedStagesCount++;
+        totalStagesDurationMs += stageDurationMs;
+        
+        // Update longest/shortest stages
+        updateStageRecords(completedStage);
+        
+        console.log(`DEBUG: Completed full stage: "${completedStage.name}" (Stage #${stageNumber}) (${stageDurationMs}ms, ${completedStage.levelCount} levels)`);
+    } else {
+        console.log(`DEBUG: Completed partial stage: "${completedStage.name}" (${stageDurationMs}ms, ${completedStage.levelCount} levels) - NOT recording to historical stats`);
+    }
     
-    // Update statistics
+    // Always update previousStage for display purposes
     previousStage = completedStage;
-    completedStagesCount++;
-    totalStagesDurationMs += stageDurationMs;
-    
-    // Update longest/shortest stages
-    updateStageRecords(completedStage);
-    
-    console.log(`DEBUG: Completed stage: "${completedStage.name}" (${stageDurationMs}ms, ${completedStage.levelCount} levels)`);
 }
 
 function updateStageRecords(completedStage) {
@@ -389,7 +552,11 @@ function addLevelToCurrentStage(levelName, durationMs) {
 }
 
 function addLevelToCurrentStageIfValid(levelName, durationMs) {
-    if (!stageTrackingEnabled) return;
+    // Check if we need a stage (partial stage should have been started when level began)
+    if (!stageTrackingEnabled || !currentStage) {
+        console.log(`DEBUG: No active stage when level "${levelName}" completed - level ignored`);
+        return;
+    }
     
     // Check if this level was mapped to a specific stage ID
     const mappedStageId = levelToStageId.get(levelName);
@@ -399,6 +566,15 @@ function addLevelToCurrentStageIfValid(levelName, durationMs) {
         if (currentStage && mappedStageId === currentStage.id) {
             console.log(`DEBUG: Adding level "${levelName}" to current stage "${currentStage.name}"`);
             addLevelToCurrentStage(levelName, durationMs);
+            
+            // If this is a partial stage, attempt deduction
+            if (currentStage.isPartial) {
+                const deduced = attemptStageDeduction();
+                if (deduced) {
+                    console.log(`DEBUG: Stage successfully deduced as "${currentStage.name}"`);
+                }
+            }
+            
             // Clean up the mapping
             levelToStageId.delete(levelName);
             // Send updated info to renderer
@@ -454,8 +630,11 @@ function sendStageInfoToRenderer() {
             level: currentStageLevel,
             levels: currentStage.levels,
             startTime: currentStage.startTime,
-            historicalAverage: historicalStats.getStageAverage(currentStage.name),
-            historicalBest: historicalStats.getStageBest(currentStage.name)
+            isPartial: currentStage.isPartial || false,
+            currentLevelName: currentLevelName || 'Unknown Level', // Pass current level name for partial stages
+            // Keep stats blank for partial stages
+            historicalAverage: currentStage.isPartial ? null : historicalStats.getStageAverage(currentStage.name),
+            historicalBest: currentStage.isPartial ? null : historicalStats.getStageBest(currentStage.name)
         } : null,
         previous: previousStage ? {
             ...previousStage,

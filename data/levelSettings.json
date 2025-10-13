@@ -824,7 +824,7 @@
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
       "scrollToBottomAfterFirstBuild": true,
-      "scrollToBottomAfterSecondBuild": true,
+      "scrollToBottomAfterSecondBuild": false,
       "perfectStartingPosition": "scroll_down_3x",
       "firstBuildAction": {
         "action": "clickaround",
@@ -832,9 +832,9 @@
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": true,
-          "clickaroundChunks": 3,
+          "clickaroundChunks": 2,
           "scrollUpDistance": 200,
-          "scrollUpCount": 3,
+          "scrollUpCount": 2,
           "initialScrollDown": 0,
           "scrollToBottomAtEnd": false
         }
@@ -968,7 +968,7 @@
         "clickOffAndScrollDistance": 150,
         "clickaroundOptions": {
           "excludeRedBlobs": false,
-          "clickaroundChunks": 3,
+          "clickaroundChunks": 2,
           "scrollUpDistance": 200,
           "scrollUpCount": 1,
           "initialScrollDown": 0,

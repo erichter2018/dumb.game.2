@@ -13,7 +13,8 @@
   "author": "erichter@gmail.com",
   "license": "ISC",
   "devDependencies": {
-    "electron": "^29.1.0",
+    "@electron/rebuild": "^4.0.1",
+    "electron": "^38.2.2",
     "electron-builder": "^26.0.12",
     "electron-rebuild": "^3.2.9"
   },
