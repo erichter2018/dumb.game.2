@@ -1,7 +1,7 @@
 const settingsManager = require('../../lib/settingsManager');
 
 function startAutomation(dependencies) {
-    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
+    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollUpWithDistance, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
 
     updateCurrentFunction('startAutomation'); // Update current function display
     updateStatus('Finish Level Automation Started', 'info');
@@ -139,21 +139,30 @@ function startAutomation(dependencies) {
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
                 const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
                 const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+                const scrollDirection = levelSettings.scrollDirection || 'up';
                 
-                let shouldScrollToBottom = false;
+                let shouldScrollAfterBuild = false;
                 if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
-                    shouldScrollToBottom = true;
-                    console.log(`DEBUG: Settings indicate scroll to bottom after first build for "${settingsLevelName}"`);
+                    shouldScrollAfterBuild = true;
+                    console.log(`DEBUG: Settings indicate scroll after first build for "${settingsLevelName}" (direction: ${scrollDirection})`);
                 } else if (buildCompletionCount === 2 && levelSettings.scrollToBottomAfterSecondBuild) {
-                    shouldScrollToBottom = true;
-                    console.log(`DEBUG: Settings indicate scroll to bottom after second build for "${settingsLevelName}"`);
+                    shouldScrollAfterBuild = true;
+                    console.log(`DEBUG: Settings indicate scroll after second build for "${settingsLevelName}" (direction: ${scrollDirection})`);
                 }
                 
-                if (shouldScrollToBottom) {
-                    console.log(`DEBUG: Scrolling to bottom after build ${buildCompletionCount}`);
+                if (shouldScrollAfterBuild) {
                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                    await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    
+                    if (scrollDirection === 'down') {
+                        // For scroll down mode: scroll to top (opposite of setting name)
+                        console.log(`DEBUG: Scroll direction is DOWN, scrolling to TOP after build ${buildCompletionCount}`);
+                        await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+                    } else {
+                        // For scroll up mode (default): scroll to bottom
+                        console.log(`DEBUG: Scroll direction is UP, scrolling to BOTTOM after build ${buildCompletionCount}`);
+                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    }
                     if (!getIsAutomationRunning()) return 'stopped';
                 }
                 
@@ -341,21 +350,30 @@ function startAutomation(dependencies) {
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
                 const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
                 const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+                const scrollDirection = levelSettings.scrollDirection || 'up';
                 
-                let shouldScrollToBottom = false;
+                let shouldScrollAfterBuild = false;
                 if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
-                    shouldScrollToBottom = true;
-                    console.log(`DEBUG: Settings indicate scroll to bottom after first build for "${settingsLevelName}"`);
+                    shouldScrollAfterBuild = true;
+                    console.log(`DEBUG: Settings indicate scroll after first build for "${settingsLevelName}" (direction: ${scrollDirection})`);
                 } else if (buildCompletionCount === 2 && levelSettings.scrollToBottomAfterSecondBuild) {
-                    shouldScrollToBottom = true;
-                    console.log(`DEBUG: Settings indicate scroll to bottom after second build for "${settingsLevelName}"`);
+                    shouldScrollAfterBuild = true;
+                    console.log(`DEBUG: Settings indicate scroll after second build for "${settingsLevelName}" (direction: ${scrollDirection})`);
                 }
                 
-                if (shouldScrollToBottom) {
-                    console.log(`DEBUG: Scrolling to bottom after build ${buildCompletionCount}`);
+                if (shouldScrollAfterBuild) {
                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                    await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    
+                    if (scrollDirection === 'down') {
+                        // For scroll down mode: scroll to top (opposite of setting name)
+                        console.log(`DEBUG: Scroll direction is DOWN, scrolling to TOP after build ${buildCompletionCount}`);
+                        await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+                    } else {
+                        // For scroll up mode (default): scroll to bottom
+                        console.log(`DEBUG: Scroll direction is UP, scrolling to BOTTOM after build ${buildCompletionCount}`);
+                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    }
                     if (!getIsAutomationRunning()) return 'stopped';
                 }
                 
@@ -476,8 +494,9 @@ function startAutomation(dependencies) {
         const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
         const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
         const perfectStartingPosition = levelSettings.perfectStartingPosition || 'nothing';
+        const scrollDirection = levelSettings.scrollDirection || 'up';
         
-        console.log(`DEBUG: Perfect starting position for "${settingsLevelName}": ${perfectStartingPosition}`);
+        console.log(`DEBUG: Perfect starting position for "${settingsLevelName}": ${perfectStartingPosition} (scroll direction: ${scrollDirection})`);
         
         // Notify that startup action is complete (always mark it, even if "nothing")
         if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
@@ -488,38 +507,52 @@ function startAutomation(dependencies) {
         }
         
         if (perfectStartingPosition === 'scroll_down_1x') {
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down once.`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down once.`, 'info');
-            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+            const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
+            const directionText = scrollDirection === 'down' ? 'up' : 'down';
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} once (direction mode: ${scrollDirection}).`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} once.`, 'info');
+            await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
             await new Promise(resolve => setTimeout(resolve, 100));
         } else if (perfectStartingPosition === 'scroll_down_2x') {
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down twice.`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down twice.`, 'info');
+            const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
+            const directionText = scrollDirection === 'down' ? 'up' : 'down';
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} twice (direction mode: ${scrollDirection}).`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} twice.`, 'info');
             for (let i = 0; i < 2; i++) {
                 if (!getIsAutomationRunning()) { return; }
-                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
         } else if (perfectStartingPosition === 'scroll_down_3x') {
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down three times.`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down three times.`, 'info');
+            const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
+            const directionText = scrollDirection === 'down' ? 'up' : 'down';
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} three times (direction mode: ${scrollDirection}).`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} three times.`, 'info');
             for (let i = 0; i < 3; i++) {
                 if (!getIsAutomationRunning()) { return; }
-                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
         } else if (perfectStartingPosition === 'scroll_down_4x') {
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll down four times.`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling down four times.`, 'info');
+            const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
+            const directionText = scrollDirection === 'down' ? 'up' : 'down';
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} four times (direction mode: ${scrollDirection}).`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} four times.`, 'info');
             for (let i = 0; i < 4; i++) {
                 if (!getIsAutomationRunning()) { return; }
-                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
         } else if (perfectStartingPosition === 'scroll_to_bottom') {
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll to bottom.`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');
-            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+            if (scrollDirection === 'down') {
+                console.log(`DEBUG: Level "${currentLevelName}" requires scroll to TOP (scroll direction: down).`);
+                updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to top.`, 'info');
+                await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+            } else {
+                console.log(`DEBUG: Level "${currentLevelName}" requires scroll to BOTTOM (scroll direction: up).`);
+                updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');
+                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+            }
         } else {
             // No specific action needed for this level
             console.log(`DEBUG: No specific scrolling action needed for level "${currentLevelName}".`);
@@ -549,14 +582,14 @@ function startAutomation(dependencies) {
     async function runFinishLevelProtocol() {
         updateCurrentFunction('runFinishLevelProtocol'); // Update current function display
         
-        // Get scroll direction from level settings
-        const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
-        const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
-        const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
-        const scrollDirection = levelSettings.scrollDirection || 'up';
-        console.log(`DEBUG: runFinishLevelProtocol - Level "${settingsLevelName}" scroll direction: ${scrollDirection}`);
-        
         while (getIsAutomationRunning()) {
+            // Get scroll direction from level settings (check each loop iteration in case level changes)
+            const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+            const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+            const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+            const scrollDirection = levelSettings.scrollDirection || 'up';
+            console.log(`DEBUG: runFinishLevelProtocol - Level "${settingsLevelName}" scroll direction: ${scrollDirection}`);
+            
             let blueBuildBox = null;
             
             // Only detect blue builds if we haven't completed a build yet
@@ -708,16 +741,16 @@ function startAutomation(dependencies) {
                             console.log(`DEBUG: Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Scrolling to ${scrollDirection === 'down' ? 'top then bottom' : 'top then bottom'} and restarting search.`);
                             updateStatus(`Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting position and restarting search...`, 'warn');
                             if (scrollDirection === 'down') {
-                                // For scroll down mode: scroll to top, then to bottom
+                                // For scroll down mode: scroll to bottom, then to top (end at top ready to scroll down)
+                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                                 await scrollToTop({ 
                                     updateCurrentFunction, 
                                     performClick, 
                                     CLICK_AREAS: dependencies.CLICK_AREAS,
                                     iphoneMirroringRegion: iphoneMirroringRegion 
                                 });
-                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                             } else {
-                                // For scroll up mode: scroll to top, then to bottom
+                                // For scroll up mode: scroll to top, then to bottom (end at bottom ready to scroll up)
                                 await scrollToTop({ 
                                     updateCurrentFunction, 
                                     performClick, 
@@ -1008,16 +1041,16 @@ function startAutomation(dependencies) {
                             updateStatus(`Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting position and restarting search...`, 'warn');
                             
                             if (scrollDirection === 'down') {
-                                // For scroll down mode: scroll to top, then to bottom
+                                // For scroll down mode: scroll to bottom, then to top (end at top ready to scroll down)
+                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                                 await scrollToTop({ 
                                     updateCurrentFunction, 
                                     performClick, 
                                     CLICK_AREAS: dependencies.CLICK_AREAS,
                                     iphoneMirroringRegion: iphoneMirroringRegion 
                                 });
-                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                             } else {
-                                // For scroll up mode: scroll to top, then to bottom
+                                // For scroll up mode: scroll to top, then to bottom (end at bottom ready to scroll up)
                                 await scrollToTop({ 
                                     updateCurrentFunction, 
                                     performClick, 

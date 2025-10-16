@@ -1493,6 +1493,13 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
       }
       return scrollingFunctions.scrollUp(x, y, dependencies);
     },
+    scrollUpWithDistance: async (x, y, distance) => {
+      // Broadcast scroll event for overlay clearing
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scroll-occurred');
+      }
+      return scrollingFunctions.scrollUpWithDistance(x, y, distance);
+    },
     scrollToBottom: async (x, y, distance, count, dependencies) => {
       // Broadcast scroll event for overlay clearing
       if (mainWindow && !mainWindow.isDestroyed()) {
