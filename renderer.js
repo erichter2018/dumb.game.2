@@ -1031,6 +1031,41 @@ async function calculateLevelETA(currentStage, levelPosition, levelName, stageLe
 async function updateStageETAs() {
     if (!currentStageInfo || !currentStageInfo.current) return;
     
+    const stageLevels = document.getElementById('stageLevels');
+    if (!stageLevels) return;
+    
+    const isPartialStage = currentStageInfo.current.isPartial || false;
+    
+    // Handle partial stages differently
+    if (isPartialStage) {
+        // For partial stages, find and update the current level item (last item in the list)
+        const levelItems = stageLevels.querySelectorAll('.stage-level-item');
+        if (levelItems.length > 0) {
+            const lastItem = levelItems[levelItems.length - 1];
+            // Only update if it's the current level (not a completed level)
+            if (lastItem.classList.contains('stage-level-current')) {
+                const timeSpan = lastItem.querySelector('.stage-level-time');
+                const currentLevelName = currentStageInfo.current.currentLevelName;
+                
+                if (timeSpan && currentLevelName && currentLevelName !== 'Unknown Level' && currentLevelName !== 'Unnamed Level') {
+                    // Calculate ETA for current level using historical average
+                    const levelStats = statisticsData.levels[currentLevelName];
+                    let eta = null;
+                    if (levelStats && levelStats.completions && levelStats.completions.length > 0) {
+                        const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
+                        const elapsed = Date.now() - currentStageInfo.current.startTime - currentStageInfo.current.levels.reduce((sum, l) => sum + l.durationMs, 0);
+                        eta = Math.max(0, avg - elapsed);
+                    }
+                    if (eta !== null) {
+                        timeSpan.textContent = `eta: ${formatDuration(eta)}`;
+                    }
+                }
+            }
+        }
+        return;
+    }
+    
+    // Normal stage handling
     // Get level names for the current stage
     let stageLevelNames = [];
     try {
@@ -1060,9 +1095,6 @@ async function updateStageETAs() {
     }
     
     // Update ONLY current level ETA (upcoming levels stay at their historical average)
-    const stageLevels = document.getElementById('stageLevels');
-    if (!stageLevels) return;
-    
     const levelItems = stageLevels.querySelectorAll('.stage-level-item');
     
     // Map currentStage.level (counts non-N/A levels) to array position in stageLevelNames
@@ -1276,14 +1308,19 @@ async function updatePreviousStageDetailsCompact(previousStage) {
             if (completedLevelIndex < previousStage.levels.length) {
                 // Show completed level - use levelName from database (has originalName for position 1)
                 const level = previousStage.levels[completedLevelIndex];
-                levelDiv.className = 'stage-level-item stage-level-completed';
+                
+                // Recalculate comparison to get color class and timeDelta format
+                const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName);
+                
+                // Apply color class based on performance
+                levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass || ''}`;
                 
                 // Build time display with saved comparison info (if available)
                 let timeDisplay = formatDuration(level.durationMs);
-                if (level.comparison && level.comparison.arrow) {
-                    timeDisplay += ` <span style="opacity: 0.7;">${level.comparison.arrow}</span>`;
-                    if (level.comparison.percent) {
-                        timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${level.comparison.percent}</span>`;
+                if (comparison.arrow) {
+                    timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
+                    if (comparison.timeDelta) {
+                        timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
                     }
                 }
                 
@@ -1314,30 +1351,38 @@ function calculateLevelComparison(actualTime, levelName) {
     // Get historical average for this level
     const levelStats = statisticsData.levels[levelName];
     if (!levelStats || !levelStats.completions || levelStats.completions.length === 0) {
-        return { arrow: '', percent: '' };
+        return { arrow: '', timeDelta: '', cssClass: '' };
     }
     
     // Calculate average from completions
     const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
     
-    // Calculate percentage difference
-    const percentDiff = ((actualTime - avg) / avg) * 100;
+    // Calculate time difference in milliseconds
+    const timeDiffMs = actualTime - avg;
     
-    // Determine arrow and percentage text
+    // Determine arrow, time delta text, and CSS class
     let arrow = '';
-    let percent = '';
+    let timeDelta = '';
+    let cssClass = '';
     
-    if (Math.abs(percentDiff) < 1) {
-        arrow = '↔'; // Within 1%, roughly equal
-    } else if (percentDiff > 0) {
-        arrow = '↑'; // Slower than average
-        percent = `${percentDiff.toFixed(1)}%`;
+    // Within 5 seconds (5000ms) is considered "unchanged" - blue
+    if (Math.abs(timeDiffMs) < 5000) {
+        arrow = '↔';
+        timeDelta = `${(timeDiffMs / 1000).toFixed(1)}s`;
+        cssClass = 'level-unchanged';
+    } else if (timeDiffMs > 0) {
+        // Slower than average - red
+        arrow = '↑';
+        timeDelta = `+${(timeDiffMs / 1000).toFixed(1)}s`;
+        cssClass = 'level-slower';
     } else {
-        arrow = '↓'; // Faster than average
-        percent = `${Math.abs(percentDiff).toFixed(1)}%`;
+        // Faster than average - green
+        arrow = '↓';
+        timeDelta = `${(timeDiffMs / 1000).toFixed(1)}s`;
+        cssClass = 'level-faster';
     }
     
-    return { arrow, percent };
+    return { arrow, timeDelta, cssClass };
 }
 
 async function updateCurrentStageDetails(currentStage) {
@@ -1345,15 +1390,10 @@ async function updateCurrentStageDetails(currentStage) {
     console.log(`DEBUG: updateCurrentStageDetails called #${updateStageCallCounter}`);
     
     const stageDetails = document.getElementById('stageDetails');
-    const stageDetailsTitle = document.getElementById('stageDetailsTitle');
-    const stageDuration = document.getElementById('stageDuration');
     const stageLevels = document.getElementById('stageLevels');
     
     if (!currentStage) {
         if (stageDetails) stageDetails.style.display = 'none';
-        // Also hide previous stage details when no current stage
-        const prevStageDetails = document.getElementById('prevStageDetails');
-        if (prevStageDetails) prevStageDetails.style.display = 'none';
         return;
     }
     
@@ -1363,15 +1403,6 @@ async function updateCurrentStageDetails(currentStage) {
     
     if (stageDetails) stageDetails.style.display = 'block';
     
-    if (stageDetailsTitle) {
-        stageDetailsTitle.textContent = `Current Stage: ${currentStage.name}`;
-    }
-    
-    if (stageDuration) {
-        const elapsed = Date.now() - currentStage.startTime;
-        stageDuration.textContent = formatDuration(elapsed);
-    }
-    
     if (stageLevels) {
         console.log(`DEBUG: Clearing stage levels container (was: ${stageLevels.children.length} children)`);
         stageLevels.innerHTML = '';
@@ -1379,6 +1410,8 @@ async function updateCurrentStageDetails(currentStage) {
         
         // Get the level database to show actual level names
         let stageLevelNames = [];
+        let isPartialStage = currentStage.isPartial || false;
+        
         try {
             const levelDatabase = await ipcRenderer.invoke('get-level-database');
             console.log(`DEBUG: Looking up stage "${currentStage.name}" in level database`);
@@ -1396,92 +1429,156 @@ async function updateCurrentStageDetails(currentStage) {
             console.error('Failed to load level database:', error);
         }
         
-        // Show all 7 level positions, inserting current level placeholder at the correct position
-        // Map currentStage.level (counts non-N/A levels) to array position (includes N/A)
-        let nonNALevelsSeen = 0;
-        let currentLevelArrayPosition = -1;
-        for (let p = 0; p < stageLevelNames.length; p++) {
-            if (stageLevelNames[p] !== 'N/A') {
-                nonNALevelsSeen++;
-                if (nonNALevelsSeen === currentStage.level) {
-                    currentLevelArrayPosition = p;
-                    break;
-                }
-            }
-        }
-        
-        console.log(`DEBUG: Current stage level: ${currentStage.level}, array position: ${currentLevelArrayPosition}, completed levels: ${currentStage.levels.length}`);
-        console.log(`DEBUG: Completed levels: [${currentStage.levels.map(l => `${l.name}(${formatDuration(l.durationMs)})`).join(', ')}]`);
-        
-        let completedLevelIndex = 0; // Index into currentStage.levels array
-        
-        for (let position = 0; position < 7; position++) {
-            const levelIndex = position;
-            const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+        // For partial stages, we display levels differently
+        if (isPartialStage) {
+            console.log(`DEBUG: Rendering partial stage - showing only completed and current level`);
             
-            // Skip N/A levels - they don't exist in the game
-            if (levelName === 'N/A') {
-                console.log(`DEBUG: Skipping N/A level at position ${position}`);
-                continue;
-            }
-            
-            const levelDiv = document.createElement('div');
-            
-            // Check if this position corresponds to a completed level
-            if (position < currentLevelArrayPosition) {
-                // Show completed level - use levelName from database (has originalName for position 1)
-                const level = currentStage.levels[completedLevelIndex];
-                const comparison = calculateLevelComparison(level.durationMs, levelName);
+            // Show completed levels
+            currentStage.levels.forEach((level, index) => {
+                const levelDiv = document.createElement('div');
                 
-                levelDiv.className = 'stage-level-item stage-level-completed';
+                // Use saved comparison data if available, otherwise recalculate
+                // This ensures colors persist and match the full stage methodology
+                const comparison = level.comparison || calculateLevelComparison(level.durationMs, level.name);
                 
-                // Build time display with arrow and percentage
+                levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass}`;
+                
                 let timeDisplay = formatDuration(level.durationMs);
                 if (comparison.arrow) {
                     timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
-                    if (comparison.percent) {
-                        timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.percent}</span>`;
+                    if (comparison.timeDelta) {
+                        timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
                     }
                 }
                 
                 levelDiv.innerHTML = `
-                    <span class="stage-level-name">${levelName}</span>
+                    <span class="stage-level-name">${level.name}</span>
                     <span class="stage-level-time">${timeDisplay}</span>
                 `;
-                levelItemsAdded++;
-                completedLevelIndex++;
-                console.log(`DEBUG: Added completed level #${levelItemsAdded} at position ${position}: ${levelName} (${formatDuration(level.durationMs)})`);
-            } else if (position === currentLevelArrayPosition) {
-                // Show current level with actual name and ETA
+                stageLevels.appendChild(levelDiv);
+                console.log(`DEBUG: Added completed level in partial stage: ${level.name} (${formatDuration(level.durationMs)}) with cssClass: ${comparison.cssClass}`);
+            });
+            
+            // Show current level (if we have a name for it)
+            if (currentStage.currentLevelName && currentStage.currentLevelName !== 'Unknown Level' && currentStage.currentLevelName !== 'Unnamed Level') {
+                const levelDiv = document.createElement('div');
                 levelDiv.className = 'stage-level-item stage-level-current';
                 
-                // Calculate ETA for current level (historical avg - elapsed time)
-                const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
+                // Calculate ETA for current level using historical average
+                const levelStats = statisticsData.levels[currentStage.currentLevelName];
+                let eta = null;
+                if (levelStats && levelStats.completions && levelStats.completions.length > 0) {
+                    const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
+                    const elapsed = Date.now() - currentStage.startTime - currentStage.levels.reduce((sum, l) => sum + l.durationMs, 0);
+                    eta = Math.max(0, avg - elapsed);
+                }
                 const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
                 
                 levelDiv.innerHTML = `
-                    <span class="stage-level-name">${levelName}</span>
+                    <span class="stage-level-name">${currentStage.currentLevelName}</span>
                     <span class="stage-level-time">${etaText}</span>
                 `;
-                levelItemsAdded++;
-                console.log(`DEBUG: Added current level #${levelItemsAdded} at position ${position}: ${levelName} (${etaText})`);
-            } else {
-                // Show upcoming level with historical average as static ETA
-                levelDiv.className = 'stage-level-item';
-                
-                // Get historical average for this specific level (static, doesn't count down)
-                const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
-                const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : '—';
-                
-                levelDiv.innerHTML = `
-                    <span class="stage-level-name">${levelName}</span>
-                    <span class="stage-level-time">${etaText}</span>
-                `;
-                levelItemsAdded++;
-                console.log(`DEBUG: Added upcoming level #${levelItemsAdded} at position ${position}: ${levelName} (${etaText})`);
+                stageLevels.appendChild(levelDiv);
+                console.log(`DEBUG: Added current level in partial stage: ${currentStage.currentLevelName} (${etaText})`);
+            }
+        } else {
+            // Normal stage rendering with all 7 positions
+            // Map currentStage.level (counts non-N/A levels) to array position (includes N/A)
+            let nonNALevelsSeen = 0;
+            let currentLevelArrayPosition = -1;
+            for (let p = 0; p < stageLevelNames.length; p++) {
+                if (stageLevelNames[p] !== 'N/A') {
+                    nonNALevelsSeen++;
+                    if (nonNALevelsSeen === currentStage.level) {
+                        currentLevelArrayPosition = p;
+                        break;
+                    }
+                }
             }
             
-            stageLevels.appendChild(levelDiv);
+            console.log(`DEBUG: Current stage level: ${currentStage.level}, array position: ${currentLevelArrayPosition}, completed levels: ${currentStage.levels.length}`);
+            console.log(`DEBUG: Completed levels: [${currentStage.levels.map(l => `${l.name}(${formatDuration(l.durationMs)})`).join(', ')}]`);
+            
+            let completedLevelIndex = 0; // Index into currentStage.levels array
+            
+            for (let position = 0; position < 7; position++) {
+                try {
+                    const levelIndex = position;
+                    const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+                    
+                    console.log(`DEBUG: Processing position ${position}, levelName: "${levelName}", currentLevelArrayPosition: ${currentLevelArrayPosition}`);
+                    
+                    // Skip N/A levels - they don't exist in the game
+                    if (levelName === 'N/A') {
+                        console.log(`DEBUG: Skipping N/A level at position ${position}`);
+                        continue;
+                    }
+                    
+                    const levelDiv = document.createElement('div');
+                    
+                    // Check if this position corresponds to a completed level
+                    if (position < currentLevelArrayPosition) {
+                    // Show completed level - use levelName from database (has originalName for position 1)
+                    const level = currentStage.levels[completedLevelIndex];
+                    
+                    // Use saved comparison data if available, otherwise recalculate
+                    // This ensures colors persist from current to previous stage
+                    const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName);
+                    
+                    // Apply color class based on performance
+                    levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass}`;
+                    
+                    // Build time display with arrow and time delta
+                    let timeDisplay = formatDuration(level.durationMs);
+                    if (comparison.arrow) {
+                        timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
+                        if (comparison.timeDelta) {
+                            timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
+                        }
+                    }
+                    
+                    levelDiv.innerHTML = `
+                        <span class="stage-level-name">${levelName}</span>
+                        <span class="stage-level-time">${timeDisplay}</span>
+                    `;
+                    levelItemsAdded++;
+                    completedLevelIndex++;
+                    console.log(`DEBUG: Added completed level #${levelItemsAdded} at position ${position}: ${levelName} (${formatDuration(level.durationMs)})`);
+                } else if (position === currentLevelArrayPosition) {
+                    // Show current level with actual name and ETA
+                    levelDiv.className = 'stage-level-item stage-level-current';
+                    
+                    // Calculate ETA for current level (historical avg - elapsed time)
+                    const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
+                    const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
+                    
+                    levelDiv.innerHTML = `
+                        <span class="stage-level-name">${levelName}</span>
+                        <span class="stage-level-time">${etaText}</span>
+                    `;
+                    levelItemsAdded++;
+                    console.log(`DEBUG: Added current level #${levelItemsAdded} at position ${position}: ${levelName} (${etaText})`);
+                } else {
+                    // Show upcoming level with historical average as static ETA
+                    levelDiv.className = 'stage-level-item';
+                    
+                    // Get historical average for this specific level (static, doesn't count down)
+                    const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
+                    const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : '—';
+                    
+                    levelDiv.innerHTML = `
+                        <span class="stage-level-name">${levelName}</span>
+                        <span class="stage-level-time">${etaText}</span>
+                    `;
+                    levelItemsAdded++;
+                    console.log(`DEBUG: Added upcoming level #${levelItemsAdded} at position ${position}: ${levelName} (${etaText})`);
+                }
+                
+                stageLevels.appendChild(levelDiv);
+                } catch (error) {
+                    console.error(`ERROR: Failed to process level at position ${position}:`, error);
+                }
+            }
         }
         
         console.log(`DEBUG: Total level items added: ${levelItemsAdded}, Final DOM children count: ${stageLevels.children.length}`);

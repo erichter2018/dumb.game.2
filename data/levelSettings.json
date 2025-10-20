@@ -5,7 +5,7 @@
     "scrollDirection": "up",
     "blueBoxClickHoldDuration": 4500,
     "maxBuildTimeMs": 180000,
-    "scrollToBottomAfterFirstBuild": false,
+    "scrollToBottomAfterFirstBuild": true,
     "scrollToBottomAfterSecondBuild": false,
     "perfectStartingPosition": "nothing",
     "firstBuildAction": {

@@ -35,6 +35,9 @@ let isFinishLevelRunning = false; // For Finish Level automation
 let isClickAroundRunning = false; // For Click Around automation
 let isClickAroundPaused = false; // For pausing Click Around on mouse movement
 let clickAroundCallCounter = 0; // Global counter for clickAround calls since level start
+let lastRedBlobDetectionTime = Date.now(); // Track last time a red blob was detected
+let lastBlueBuildDetectionTime = Date.now(); // Track last time a blue build was detected
+let isReconnecting = false; // Flag to prevent multiple reconnection attempts
 let currentLevelStartTime = null; // New: To track the start time of the current level
 let currentLevelName = 'Unknown Level'; // New: To track the current level name
 let finishedLevelName = ''; // New: Track the name of the level that just finished
@@ -476,31 +479,38 @@ function calculateLevelComparison(actualTime, levelName) {
     const stats = historicalStats.loadStats();
     const levelStats = stats.levels[levelName];
     if (!levelStats || !levelStats.completions || levelStats.completions.length === 0) {
-        return { arrow: '', percent: '' };
+        return { arrow: '', timeDelta: '', cssClass: '' };
     }
     
     // Calculate average from completions
     const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
     
     // Calculate time difference in milliseconds
-    const timeDiff = actualTime - avg;
+    const timeDiffMs = actualTime - avg;
     
-    // Determine arrow and time difference text
+    // Determine arrow, time delta text, and CSS class
     let arrow = '';
-    let percent = ''; // Keep this name for compatibility with existing code
+    let timeDelta = '';
+    let cssClass = '';
     
-    if (Math.abs(timeDiff) < 5000) {
-        arrow = '↔'; // Within 5 seconds, considered unchanged
-        percent = ''; // No time difference shown
-    } else if (timeDiff > 0) {
-        arrow = '↑'; // Slower than average
-        percent = `+${formatDuration(Math.abs(timeDiff))}`;
+    // Within 5 seconds (5000ms) is considered "unchanged" - blue
+    if (Math.abs(timeDiffMs) < 5000) {
+        arrow = '↔';
+        timeDelta = `${(timeDiffMs / 1000).toFixed(1)}s`;
+        cssClass = 'level-unchanged';
+    } else if (timeDiffMs > 0) {
+        // Slower than average - red
+        arrow = '↑';
+        timeDelta = `+${(timeDiffMs / 1000).toFixed(1)}s`;
+        cssClass = 'level-slower';
     } else {
-        arrow = '↓'; // Faster than average
-        percent = `-${formatDuration(Math.abs(timeDiff))}`;
+        // Faster than average - green
+        arrow = '↓';
+        timeDelta = `${(timeDiffMs / 1000).toFixed(1)}s`;
+        cssClass = 'level-faster';
     }
     
-    return { arrow, percent };
+    return { arrow, timeDelta, cssClass };
 }
 
 function addLevelToCurrentStage(levelName, durationMs) {
@@ -522,7 +532,7 @@ function addLevelToCurrentStage(levelName, durationMs) {
     
     // Calculate comparison with historical average (before recording so we use pre-update stats)
     const comparison = calculateLevelComparison(durationMs, nameForStats);
-    console.log(`DEBUG: Level comparison for "${nameForStats}": ${comparison.arrow} ${comparison.percent}`);
+    console.log(`DEBUG: Level comparison for "${nameForStats}": ${comparison.arrow} ${comparison.timeDelta} (${comparison.cssClass})`);
     
     const levelInfo = {
         name: levelName,
@@ -593,7 +603,7 @@ function addLevelToCurrentStageIfValid(levelName, durationMs) {
             
             // Calculate comparison with historical average
             const comparison = calculateLevelComparison(durationMs, nameForStats);
-            console.log(`DEBUG: Level comparison for "${nameForStats}": ${comparison.arrow} ${comparison.percent}`);
+            console.log(`DEBUG: Level comparison for "${nameForStats}": ${comparison.arrow} ${comparison.timeDelta} (${comparison.cssClass})`);
             
             // Add to previous stage's levels array
             previousStage.levels.push({
@@ -684,6 +694,12 @@ function markFinishBuildRunForCurrentLevel() {
 }
 
 function getLevelNameForSettings() {
+    // For unknown/unnamed levels, return empty string to ensure defaults are used
+    if (!currentLevelName || currentLevelName === 'Unknown Level' || currentLevelName === 'Unnamed Level' || currentLevelName === '') {
+        console.log(`DEBUG: Settings lookup - Level name is "${currentLevelName}", using empty string for defaults`);
+        return '';
+    }
+    
     // If currentLevelName is "Level 1", look up the originalName from the database
     if (currentLevelName === 'Level 1' && currentStage) {
         const stageInfo = levelDatabase.getStageByCity(currentStage.name);
@@ -928,6 +944,95 @@ async function performBatchedClicks(clickArray) {
   } catch (error) {
     console.error(`Error performing batched clicks with robotjs:`, error);
     return { success: false, error: error.message };
+  }
+}
+
+// Connection health tracking and reconnection functions
+function updateDetectionTime(detectionType) {
+  const now = Date.now();
+  if (detectionType === 'red_blob') {
+    lastRedBlobDetectionTime = now;
+  } else if (detectionType === 'blue_build') {
+    lastBlueBuildDetectionTime = now;
+  }
+  console.log(`DEBUG: Updated ${detectionType} detection time to ${new Date(now).toISOString()}`);
+}
+
+function checkConnectionHealth() {
+  const now = Date.now();
+  const lastDetectionTime = Math.max(lastRedBlobDetectionTime, lastBlueBuildDetectionTime);
+  const timeSinceLastDetection = now - lastDetectionTime;
+  const oneMinuteMs = 60000;
+  
+  if (timeSinceLastDetection > oneMinuteMs && !isReconnecting) {
+    const secondsSinceDetection = Math.floor(timeSinceLastDetection / 1000);
+    console.warn(`WARNING: No red blob or blue build detected for ${secondsSinceDetection} seconds. Connection may be lost.`);
+    return false;
+  }
+  
+  return true;
+}
+
+async function attemptReconnection(iphoneMirroringRegion) {
+  if (isReconnecting) {
+    console.log('DEBUG: Reconnection already in progress, skipping duplicate attempt');
+    return false;
+  }
+  
+  isReconnecting = true;
+  console.log('========================================');
+  console.log('RECONNECTION: Starting reconnection attempt...');
+  console.log('========================================');
+  
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-status', {
+      message: 'Connection lost. Attempting reconnection...',
+      type: 'warn'
+    });
+  }
+  
+  try {
+    // Calculate click points along middle of screen (x=225)
+    const clickX = 225;
+    const topThirdY = Math.floor(iphoneMirroringRegion.y + iphoneMirroringRegion.height / 3);
+    const bottomThirdY = Math.floor(iphoneMirroringRegion.y + (iphoneMirroringRegion.height * 2) / 3);
+    
+    console.log(`RECONNECTION: Clicking from Y=${topThirdY} to Y=${bottomThirdY} at X=${clickX}, spaced by 5 pixels`);
+    
+    // Click every 5 pixels from top third to bottom third
+    let clickCount = 0;
+    for (let y = topThirdY; y <= bottomThirdY; y += 5) {
+      robot.moveMouse(clickX, y);
+      robot.mouseClick('left', false);
+      clickCount++;
+      await new Promise(resolve => setTimeout(resolve, 10)); // Small delay between clicks
+    }
+    
+    console.log(`RECONNECTION: Completed ${clickCount} reconnection clicks`);
+    
+    // Wait a bit for the connection to re-establish
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Reset detection times to current time to give system a fresh start
+    lastRedBlobDetectionTime = Date.now();
+    lastBlueBuildDetectionTime = Date.now();
+    
+    console.log('RECONNECTION: Reconnection attempt complete. Restarting automation...');
+    
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', {
+        message: 'Reconnection complete. Restarting level...',
+        type: 'success'
+      });
+    }
+    
+    isReconnecting = false;
+    return true;
+    
+  } catch (error) {
+    console.error('RECONNECTION ERROR:', error);
+    isReconnecting = false;
+    return false;
   }
 }
 
@@ -1260,6 +1365,10 @@ async function startFinishBuildAutomationLoop() {
     CLICK_AREAS,
     redBlobDetectorDetect: async (imageData, region) => {
       const results = await redBlobDetector.detect(imageData, region, isUsingWindowCapture);
+      // Update detection time if red blobs found
+      if (results && results.length > 0) {
+        updateDetectionTime('red_blob');
+      }
       // Broadcast detection results for overlay
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('detection-results', { 
@@ -1271,6 +1380,10 @@ async function startFinishBuildAutomationLoop() {
     },
     detectBlueBoxes: async (imageData, region) => {
       const results = await blueBoxDetector.detect(imageData, region, isUsingWindowCapture);
+      // Update detection time if blue builds found
+      if (results && results.length > 0) {
+        updateDetectionTime('blue_build');
+      }
       // Broadcast detection results for overlay
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('detection-results', { 
@@ -1320,6 +1433,10 @@ async function startFinishBuildAutomationLoop() {
     getLevelNameForSettings: getLevelNameForSettings,
     getBuildNumberForCurrentLevel: getBuildNumberForCurrentLevel,
     markFinishBuildRunForCurrentLevel: markFinishBuildRunForCurrentLevel,
+    // Connection health and reconnection
+    updateDetectionTime: updateDetectionTime,
+    checkConnectionHealth: checkConnectionHealth,
+    attemptReconnection: attemptReconnection,
   };
 
   // Start the automation loop in finishBuild.js
@@ -1430,6 +1547,10 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     CLICK_AREAS,
     redBlobDetectorDetect: async (imageData, region) => {
       const results = await redBlobDetector.detect(imageData, region, isUsingWindowCapture);
+      // Update detection time if red blobs found
+      if (results && results.length > 0) {
+        updateDetectionTime('red_blob');
+      }
       // Broadcast detection results for overlay
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('detection-results', { 
@@ -1441,6 +1562,10 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     },
     detectBlueBoxes: async (imageData, region) => {
       const results = await blueBoxDetector.detect(imageData, region, isUsingWindowCapture);
+      // Update detection time if blue builds found
+      if (results && results.length > 0) {
+        updateDetectionTime('blue_build');
+      }
       // Broadcast detection results for overlay
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('detection-results', { 
@@ -1577,6 +1702,10 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     // New: Image comparison functions for scroll bottom detection
     compareBottomRegions: imageComparison.compareBottomRegions,
     captureBottomRegion: imageComparison.captureBottomRegion,
+    // Connection health and reconnection
+    updateDetectionTime: updateDetectionTime,
+    checkConnectionHealth: checkConnectionHealth,
+    attemptReconnection: attemptReconnection,
   };
 
   if (isRunning) {

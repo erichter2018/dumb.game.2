@@ -1,4 +1,7 @@
 #!/bin/bash
+# Change to the project root directory
+cd "$(dirname "$0")/.."
+
 LOG_FILE="logs/console.log"
 echo "Deleting previous log file and starting application..."
 rm -f $LOG_FILE

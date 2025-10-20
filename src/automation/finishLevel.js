@@ -583,6 +583,37 @@ function startAutomation(dependencies) {
         updateCurrentFunction('runFinishLevelProtocol'); // Update current function display
         
         while (getIsAutomationRunning()) {
+            // Check connection health before each iteration
+            if (dependencies.checkConnectionHealth && !dependencies.checkConnectionHealth()) {
+                console.warn('CONNECTION HEALTH CHECK FAILED: Triggering reconnection');
+                updateStatus('Connection may be lost. Attempting reconnection...', 'error');
+                
+                // Attempt reconnection
+                if (dependencies.attemptReconnection) {
+                    const reconnected = await dependencies.attemptReconnection(iphoneMirroringRegion);
+                    
+                    if (reconnected) {
+                        console.log('RECONNECTION: Successful! Restarting finish level protocol');
+                        updateStatus('Reconnection successful. Restarting level...', 'success');
+                        
+                        // Reset state and restart the level
+                        redBlobsTried.clear();
+                        lastRedBlobCoords = null;
+                        buildCompletionCount = 0;
+                        scrollUpCount = 0;
+                        detectionAttemptCount = 0;
+                        redBlobRetryCount.clear();
+                        
+                        // Continue the loop - this effectively restarts finishLevel
+                        continue;
+                    } else {
+                        console.error('RECONNECTION FAILED: Could not re-establish connection');
+                        updateStatus('Reconnection failed. Stopping automation.', 'error');
+                        break;
+                    }
+                }
+            }
+            
             // Get scroll direction from level settings (check each loop iteration in case level changes)
             const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
             const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
