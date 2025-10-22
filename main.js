@@ -20,7 +20,9 @@ const clickAroundFunctions = require('./src/automation/clickAround');
 const ocrUtils = require('./utils/ocr');
 const statistics = require('./lib/statistics');
 const historicalStats = require('./lib/historicalStats');
+const dailyStats = require('./lib/dailyStats');
 const levelDatabase = require('./lib/levelDatabase');
+const settingsManager = require('./lib/settingsManager');
 
 let mainWindow;
 let isCapturing = false;
@@ -38,6 +40,8 @@ let clickAroundCallCounter = 0; // Global counter for clickAround calls since le
 let lastRedBlobDetectionTime = Date.now(); // Track last time a red blob was detected
 let lastBlueBuildDetectionTime = Date.now(); // Track last time a blue build was detected
 let isReconnecting = false; // Flag to prevent multiple reconnection attempts
+let reconnectionDowntimeMs = 0; // Track accumulated downtime from reconnections for current level
+let reconnectionStartTime = null; // Track when reconnection started
 let currentLevelStartTime = null; // New: To track the start time of the current level
 let currentLevelName = 'Unknown Level'; // New: To track the current level name
 let finishedLevelName = ''; // New: Track the name of the level that just finished
@@ -137,10 +141,15 @@ function updateCurrentLevelName(levelName) {
                 ? finishedLevelName 
                 : currentLevelName;
             const levelAverage = historicalStats.getLevelAverage(levelForAverage);
-            const levelBest = historicalStats.getLevelBest(levelForAverage);
-            const levelLast = historicalStats.getLevelLast(levelForAverage);
-            console.log(`DEBUG: Sending level average for "${levelForAverage}" (current: "${currentLevelName}", finished: "${finishedLevelName}")`);
-            mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBest, levelLast);
+            const levelBestObj = historicalStats.getLevelBest(levelForAverage);
+            const levelLastObj = historicalStats.getLevelLast(levelForAverage);
+            // Extract best times for up and down (new format returns {up, down})
+            const levelBestUp = levelBestObj ? levelBestObj.up : null;
+            const levelBestDown = levelBestObj ? levelBestObj.down : null;
+            const levelLast = levelLastObj ? levelLastObj.time : null;
+            const levelLastDirection = levelLastObj ? levelLastObj.direction : null;
+            console.log(`DEBUG: Sending level data for "${levelForAverage}": bestUp=${levelBestUp}, bestDown=${levelBestDown}, last=${levelLast} (${levelLastDirection})`);
+            mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBestUp, levelBestDown, levelLast, levelLastDirection);
         }
         return;
     }
@@ -219,9 +228,15 @@ function updateCurrentLevelName(levelName) {
     // Send to renderer for UI update
     if (mainWindow && !mainWindow.isDestroyed()) {
         const levelAverage = historicalStats.getLevelAverage(currentLevelName);
-        const levelBest = historicalStats.getLevelBest(currentLevelName);
-        const levelLast = historicalStats.getLevelLast(currentLevelName);
-        mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBest, levelLast);
+        const levelBestObj = historicalStats.getLevelBest(currentLevelName);
+        const levelLastObj = historicalStats.getLevelLast(currentLevelName);
+        // Extract best times for up and down (new format returns {up, down})
+        const levelBestUp = levelBestObj ? levelBestObj.up : null;
+        const levelBestDown = levelBestObj ? levelBestObj.down : null;
+        const levelLast = levelLastObj ? levelLastObj.time : null;
+        const levelLastDirection = levelLastObj ? levelLastObj.direction : null;
+        console.log(`DEBUG: Sending level data for "${currentLevelName}": bestUp=${levelBestUp}, bestDown=${levelBestDown}, last=${levelLast} (${levelLastDirection})`);
+        mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelBestUp, levelBestDown, levelLast, levelLastDirection);
         // Also send stage info for enhanced UI
         sendStageInfoToRenderer();
     }
@@ -254,6 +269,24 @@ function startNewStage(stageCityName) {
     };
     
     currentStageLevel = 1; // First level of the stage
+    
+    // Check for offline play when starting a new stage
+    const stageInfo = levelDatabase.getStageByCity(stageCityName);
+    if (stageInfo) {
+        const offlineLevels = dailyStats.checkAndHandleOfflinePlay(
+            stageCityName,
+            stageInfo.stageNumber,
+            'Stage Start',
+            0 // Start of stage
+        );
+        if (offlineLevels > 0) {
+            console.log(`OFFLINE PLAY DETECTED: ${offlineLevels} levels played offline and distributed`);
+            // Update daily stats display after offline distribution
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('update-daily-stats', dailyStats.getTodayStats());
+            }
+        }
+    }
     stageTrackingEnabled = true; // Enable tracking for this fresh stage
     
     console.log(`DEBUG: Started new stage: "${stageCityName}"`);
@@ -435,6 +468,12 @@ function completeCurrentStage() {
         
         // Record stage completion in historical stats
         historicalStats.recordStageCompletion(completedStage.name, stageDurationMs, stageNumber);
+        dailyStats.recordStageCompletion(stageDurationMs);
+        
+        // Update daily stats display
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-daily-stats', dailyStats.getTodayStats());
+        }
         
         // Update statistics
         completedStagesCount++;
@@ -482,8 +521,9 @@ function calculateLevelComparison(actualTime, levelName) {
         return { arrow: '', timeDelta: '', cssClass: '' };
     }
     
-    // Calculate average from completions
-    const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
+    // Calculate average from completions (support both old format [number] and new format [{duration, direction}])
+    const durations = levelStats.completions.map(c => typeof c === 'number' ? c : c.duration);
+    const avg = durations.reduce((sum, time) => sum + time, 0) / durations.length;
     
     // Calculate time difference in milliseconds
     const timeDiffMs = actualTime - avg;
@@ -514,25 +554,85 @@ function calculateLevelComparison(actualTime, levelName) {
 }
 
 function addLevelToCurrentStage(levelName, durationMs) {
-    if (!currentStage || !stageTrackingEnabled) return;
+    if (!currentStage || !stageTrackingEnabled) {
+        console.log(`LEVEL ADD: Rejected - no stage (stageTrackingEnabled: ${stageTrackingEnabled}, currentStage: ${!!currentStage})`);
+        return;
+    }
+    
+    console.log(`LEVEL ADD: Attempting to add "${levelName}" (${durationMs}ms) to stage "${currentStage.name}"`);
+    console.log(`LEVEL ADD: Current stage has ${currentStage.levels.length} levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
     
     // Check for duplicates - don't add the same level twice
     const isDuplicate = currentStage.levels.some(level => level.name === levelName);
     if (isDuplicate) {
-        console.log(`DEBUG: Skipping duplicate level "${levelName}" in stage "${currentStage.name}"`);
+        console.log(`LEVEL ADD: SKIPPED - Duplicate level "${levelName}" already in stage`);
         return;
+    }
+    
+    // Check for offline play BEFORE recording this level
+    // This catches manual play within the same stage
+    // Skip check for Level 1 since startNewStage already checked the stage boundary
+    if (currentStage && currentStage.name !== 'Unknown Stage' && currentStage.levels.length > 0) {
+        const stageInfo = levelDatabase.getStageByCity(currentStage.name);
+        if (stageInfo) {
+            // Position this level will have after being added (1-based, counting from 1)
+            const currentLevelPosition = currentStage.levels.length + 1;
+            const offlineLevels = dailyStats.checkAndHandleOfflinePlay(
+                currentStage.name,
+                stageInfo.stageNumber,
+                levelName,
+                currentLevelPosition
+            );
+            if (offlineLevels > 0) {
+                console.log(`OFFLINE PLAY DETECTED (within stage): ${offlineLevels} levels played offline`);
+                // Update daily stats display after offline distribution
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('update-daily-stats', dailyStats.getTodayStats());
+                }
+            }
+        }
     }
     
     // Record level completion in historical stats (use original name for "Level 1")
     const nameForStats = getOriginalLevelName(levelName);
+    console.log(`LEVEL ADD: Resolved name for stats: "${levelName}" -> "${nameForStats}"`);
+    
     if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
-        historicalStats.recordLevelCompletion(nameForStats, durationMs);
-        console.log(`DEBUG: Recorded level completion in historical stats: "${nameForStats}" (${durationMs}ms)`);
+        // Get current direction from settings
+        const levelSettings = settingsManager.getLevelSettings(nameForStats);
+        const direction = levelSettings.scrollDirection || 'up';
+        
+        historicalStats.recordLevelCompletion(nameForStats, durationMs, direction);
+        console.log(`[MAIN] About to record level in daily stats: "${nameForStats}" (${durationMs}ms)`);
+        dailyStats.recordLevelCompletion(durationMs);
+        console.log(`LEVEL ADD: Recorded in historical stats: "${nameForStats}" (${durationMs}ms, direction: ${direction})`);
+        
+        // Update last known level position for offline detection (AFTER recording)
+        if (currentStage && currentStage.name !== 'Unknown Stage') {
+            const stageInfo = levelDatabase.getStageByCity(currentStage.name);
+            if (stageInfo) {
+                // Calculate level position within the stage (1-based)
+                const levelPosition = currentStage.levels.length + 1; // Position after adding this level
+                dailyStats.updateLastKnownLevel(
+                    currentStage.name,
+                    stageInfo.stageNumber,
+                    nameForStats,
+                    levelPosition
+                );
+                console.log(`OFFLINE TRACKING: Updated position - Stage ${stageInfo.stageNumber} (${currentStage.name}), Level ${levelPosition} (${nameForStats})`);
+            }
+        }
+        
+        // Update daily stats display
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-daily-stats', dailyStats.getTodayStats());
+        }
+    } else {
+        console.log(`LEVEL ADD: NOT recorded in stats (nameForStats: "${nameForStats}")`);
     }
     
     // Calculate comparison with historical average (before recording so we use pre-update stats)
     const comparison = calculateLevelComparison(durationMs, nameForStats);
-    console.log(`DEBUG: Level comparison for "${nameForStats}": ${comparison.arrow} ${comparison.timeDelta} (${comparison.cssClass})`);
     
     const levelInfo = {
         name: levelName,
@@ -542,6 +642,7 @@ function addLevelToCurrentStage(levelName, durationMs) {
     };
     
     currentStage.levels.push(levelInfo);
+    console.log(`LEVEL ADD: SUCCESS - Added level #${currentStage.levels.length}`);
     
     // Note: currentStageLevel is incremented when new levels start, not when they complete
     
@@ -550,8 +651,8 @@ function addLevelToCurrentStage(levelName, durationMs) {
     const stageInfo = levelDatabase.getStageByCity(currentStage.name);
     const expectedLevelCount = stageInfo ? stageInfo.levels.filter(l => l.name !== 'N/A').length : 7;
     
-    console.log(`DEBUG: Added level to stage "${currentStage.name}": "${levelName}" (${durationMs}ms) - Stage progress: ${currentStage.levels.length}/${expectedLevelCount}`);
-    console.log(`DEBUG: Current stage levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
+    console.log(`LEVEL ADD: Stage progress: ${currentStage.levels.length}/${expectedLevelCount} levels`);
+    console.log(`LEVEL ADD: All stage levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
     
     if (currentStage.levels.length >= expectedLevelCount) {
         console.log(`DEBUG: Stage "${currentStage.name}" complete with ${currentStage.levels.length}/${expectedLevelCount} levels - moving to previous`);
@@ -597,8 +698,14 @@ function addLevelToCurrentStageIfValid(levelName, durationMs) {
             // Record level completion in historical stats (use original name for "Level 1")
             const nameForStats = getOriginalLevelName(levelName);
             if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
-                historicalStats.recordLevelCompletion(nameForStats, durationMs);
-                console.log(`DEBUG: Recorded level completion in historical stats: "${nameForStats}" (${durationMs}ms)`);
+                // Get current direction from settings
+                const levelSettings = settingsManager.getLevelSettings(nameForStats);
+                const direction = levelSettings.scrollDirection || 'up';
+                
+                historicalStats.recordLevelCompletion(nameForStats, durationMs, direction);
+                // NOTE: Do NOT record in dailyStats here - this is a late completion for previous stage
+                // The level was already counted in daily stats when it actually finished
+                console.log(`[MAIN-PREV] Late completion for previous stage (NOT recording in daily stats): "${nameForStats}" (${durationMs}ms)`);
             }
             
             // Calculate comparison with historical average
@@ -658,6 +765,12 @@ function sendStageInfoToRenderer() {
         averageStageDuration: completedStagesCount > 0 ? totalStagesDurationMs / completedStagesCount : null,
         trackingEnabled: stageTrackingEnabled
     };
+    
+    // Log what we're sending to renderer
+    if (stageInfo.current) {
+        console.log(`SEND TO RENDERER: Current stage "${stageInfo.current.name}" with ${stageInfo.current.levels.length} levels: [${stageInfo.current.levels.map(l => l.name).join(', ')}]`);
+        console.log(`SEND TO RENDERER: Current level position: ${stageInfo.current.level}, isPartial: ${stageInfo.current.isPartial}`);
+    }
     
     // Check if this is a duplicate of the last sent stage info
     const stageInfoString = JSON.stringify(stageInfo);
@@ -980,6 +1093,9 @@ async function attemptReconnection(iphoneMirroringRegion) {
   }
   
   isReconnecting = true;
+  // Track downtime from last successful detection (not just reconnection process time)
+  const lastDetectionTime = Math.max(lastRedBlobDetectionTime, lastBlueBuildDetectionTime);
+  reconnectionStartTime = lastDetectionTime; // Start tracking from last successful detection
   console.log('========================================');
   console.log('RECONNECTION: Starting reconnection attempt...');
   console.log('========================================');
@@ -1017,6 +1133,14 @@ async function attemptReconnection(iphoneMirroringRegion) {
     lastRedBlobDetectionTime = Date.now();
     lastBlueBuildDetectionTime = Date.now();
     
+    // Calculate and accumulate the downtime for this reconnection
+    // This includes both the detection timeout period AND the reconnection process
+    const downtimeMs = Date.now() - reconnectionStartTime;
+    reconnectionDowntimeMs += downtimeMs;
+    const downtimeSeconds = (downtimeMs / 1000).toFixed(1);
+    const totalDowntimeSeconds = (reconnectionDowntimeMs / 1000).toFixed(1);
+    console.log(`RECONNECTION: Downtime for this reconnection: ${downtimeSeconds}s (includes detection timeout + reconnection). Total level downtime: ${totalDowntimeSeconds}s`);
+    
     console.log('RECONNECTION: Reconnection attempt complete. Restarting automation...');
     
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1027,11 +1151,13 @@ async function attemptReconnection(iphoneMirroringRegion) {
     }
     
     isReconnecting = false;
+    reconnectionStartTime = null; // Reset
     return true;
     
   } catch (error) {
     console.error('RECONNECTION ERROR:', error);
     isReconnecting = false;
+    reconnectionStartTime = null; // Reset
     return false;
   }
 }
@@ -1226,6 +1352,11 @@ ipcMain.handle('get-capture-region', async () => {
 });
 
 // Statistics data handlers
+// IPC handler for renderer logging (so logs go to console.log file, not Chrome DevTools)
+ipcMain.handle('renderer-log', async (event, message) => {
+  console.log(`RENDERER: ${message}`);
+});
+
 ipcMain.handle('get-historical-stats', async () => {
   return historicalStats.loadStats();
 });
@@ -1238,9 +1369,15 @@ ipcMain.handle('get-level-average', async (event, levelName) => {
   return historicalStats.getLevelAverage(levelName);
 });
 
-// Settings IPC handlers
-const settingsManager = require('./lib/settingsManager');
+ipcMain.handle('get-level-best', async (event, levelName) => {
+  return historicalStats.getLevelBest(levelName);
+});
 
+ipcMain.handle('get-level-last', async (event, levelName) => {
+  return historicalStats.getLevelLast(levelName);
+});
+
+// Settings IPC handlers
 ipcMain.handle('get-all-level-names', async () => {
   return settingsManager.getAllLevelNames();
 });
@@ -1260,6 +1397,32 @@ ipcMain.handle('save-level-settings', async (event, levelName, settings) => {
   }
 });
 
+ipcMain.handle('switch-direction', async (event, levelName, newDirection) => {
+  try {
+    settingsManager.switchDirection(levelName, newDirection);
+    const saved = settingsManager.saveSettings();
+    return { success: saved };
+  } catch (error) {
+    console.error('Error switching direction:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-direction-settings', async (event, levelName, direction) => {
+  return settingsManager.getDirectionSettings(levelName, direction);
+});
+
+ipcMain.handle('save-direction-settings', async (event, levelName, direction, settings) => {
+  try {
+    settingsManager.updateDirectionSettings(levelName, direction, settings);
+    const saved = settingsManager.saveSettings();
+    return { success: saved };
+  } catch (error) {
+    console.error('Error saving direction settings:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('reset-level-to-defaults', async (event, levelName) => {
   try {
     // Remove level-specific settings to use defaults
@@ -1269,6 +1432,34 @@ ipcMain.handle('reset-level-to-defaults', async (event, levelName) => {
   } catch (error) {
     console.error('Error resetting level settings:', error);
     return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('recalculate-all-time-bests', async (event) => {
+  try {
+    const result = historicalStats.recalculateAllTimeBests();
+    return result;
+  } catch (error) {
+    console.error('Error recalculating all-time bests:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-daily-stats-today', async (event) => {
+  try {
+    return dailyStats.getTodayStats();
+  } catch (error) {
+    console.error('Error getting today stats:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('get-daily-stats-recent', async (event, days) => {
+  try {
+    return dailyStats.getRecentDays(days || 7);
+  } catch (error) {
+    console.error('Error getting recent daily stats:', error);
+    return [];
   }
 });
 
@@ -1516,6 +1707,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     
     updateCurrentFunction('toggle-finish-level'); // Update current function
     currentLevelStartTime = Date.now(); // Start timer for current level
+    reconnectionDowntimeMs = 0; // Reset reconnection downtime for new level
     updatePreviousLevelDuration(previousLevelDurationMs); // Display previous level duration
     updateLongestLevelDuration(longestLevelDurationMs); // New: Display longest level duration
     updateShortestLevelDuration(shortestLevelDurationMs); // New: Display shortest level duration
@@ -1679,11 +1871,14 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
         // Always update the previous level duration display (for unnamed levels too)
         updatePreviousLevelDuration(duration);
         currentLevelStartTime = Date.now(); // Reset current level timer
+        reconnectionDowntimeMs = 0; // Reset reconnection downtime for new level
         
         // Note: sendStageInfoToRenderer() is already called by updateCurrentLevelName() above
     },
     // New: Pass a getter function for the current level start time
     getCurrentLevelStartTime: () => currentLevelStartTime,
+    // New: Pass a getter function for the reconnection downtime
+    getReconnectionDowntimeMs: () => reconnectionDowntimeMs,
     // New: Pass counter functions for clickAround calls
     getClickAroundCallCounter: getClickAroundCallCounter,
     incrementClickAroundCallCounter: incrementClickAroundCallCounter,
@@ -1969,6 +2164,14 @@ app.whenReady().then(() => {
     updateAverageLevelDuration(null); // New: Initialize average level duration
     updateCurrentLevelName(''); // Initialize current level name as empty (unnamed)
     resetClickAroundCallCounter(); // Reset clickAround counter on app start
+    
+    // Send initial daily stats to renderer
+    try {
+      const todayStats = dailyStats.getTodayStats();
+      mainWindow.webContents.send('update-daily-stats', todayStats);
+    } catch (error) {
+      console.error('Error loading daily stats on startup:', error);
+    }
   });
   
   // Register global shortcuts

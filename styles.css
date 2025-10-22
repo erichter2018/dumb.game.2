@@ -27,16 +27,16 @@ body {
 /* Enhanced Status Bar with Stage Tracking */
 .status-bar {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 20px;
+    grid-template-columns: 2fr 1fr 1fr 2fr;
+    gap: 24px;
     background: rgba(30, 35, 50, 0.95);
-    padding: 20px 30px;
+    padding: 24px 30px;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
     align-items: start;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    min-height: 120px;
+    min-height: 140px;
 }
 
 .level-info {
@@ -215,16 +215,17 @@ body {
 
 /* Records Grid */
 .records-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    width: 100%;
 }
 
-.longest-levels, .longest-stages {
+.longest-levels, .longest-stages, .daily-stats {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
 }
 
 .longest-levels-title {
@@ -1581,4 +1582,91 @@ button:disabled {
 
 button:not(:disabled) {
     cursor: pointer;
+}
+
+/* Collapsible Panels */
+.collapsible-panel {
+    position: relative;
+}
+
+.collapsible-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 12px;
+}
+
+.collapsible-panel .panel-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+.collapsible-panel .collapse-toggle {
+    background: rgba(79, 195, 247, 0.2);
+    border: 1px solid rgba(79, 195, 247, 0.3);
+    border-radius: 6px;
+    color: #4fc3f7;
+    padding: 4px 10px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 32px;
+    text-align: center;
+}
+
+.collapsible-panel .collapse-toggle:hover {
+    background: rgba(79, 195, 247, 0.3);
+    border-color: rgba(79, 195, 247, 0.5);
+}
+
+.collapsible-panel.collapsed .collapse-toggle {
+    transform: rotate(-90deg);
+}
+
+.collapsible-panel .panel-content {
+    max-height: 2000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+    opacity: 1;
+}
+
+.collapsible-panel.collapsed .panel-content {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+}
+
+/* Adjust panel header for control panels */
+.control-panel.collapsible-panel {
+    padding: 15px 20px;
+}
+
+.control-panel.collapsible-panel.collapsed {
+    padding: 10px 20px;
+}
+
+/* Adjust for live-view-section */
+.live-view-section.collapsible-panel {
+    background: rgba(30, 35, 50, 0.95);
+    padding: 15px 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.live-view-section.collapsible-panel.collapsed {
+    padding: 10px 20px;
+}
+
+.live-view-section.collapsible-panel .panel-header h3 {
+    font-size: 1em;
+    color: #e0e6ed;
+    font-weight: 600;
+}
+
+.live-view-section.collapsible-panel .panel-content {
+    margin-top: 12px;
 }

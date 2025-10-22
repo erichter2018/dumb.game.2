@@ -777,7 +777,7 @@ ipcRenderer.on('shortcut-stop', async () => {
 // IPC listener for current function updates
 ipcRenderer.on('update-current-function', (event, functionName) => {
     if (currentFunctionDisplay) {
-        currentFunctionDisplay.textContent = functionName ? `Current Function: ${functionName}` : 'Idle';
+        currentFunctionDisplay.textContent = functionName ? `Function: ${functionName}` : 'Idle';
     }
 });
 
@@ -840,7 +840,7 @@ ipcRenderer.on('update-average-level-duration', (event, durationText) => {
 });
 
 // New: IPC listener for current level name updates
-ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, levelBestMs, levelLastMs) => {
+ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, levelBestUpMs, levelBestDownMs, levelLastMs, levelLastDirection) => {
     // Toggle compact header depending on name
     try {
         const levelInfo = document.querySelector('.level-info');
@@ -855,20 +855,32 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
     if (currentLevelNameDisplay) {
         const name = levelName || 'Unnamed Level';
         
-        if (levelAverageMs || levelBestMs) {
+        if (levelAverageMs || levelBestUpMs || levelBestDownMs) {
             // Format the durations
             const avgText = levelAverageMs ? formatDuration(levelAverageMs) : '—';
-            const bestText = levelBestMs ? formatDuration(levelBestMs) : '—';
-            const lastText = levelLastMs ? formatDuration(levelLastMs) : '—';
+            
+            // Format best times for both directions
+            const bestUpText = levelBestUpMs ? formatDuration(levelBestUpMs) + `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 2px;">u</sup>` : '—';
+            const bestDownText = levelBestDownMs ? formatDuration(levelBestDownMs) + `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 2px;">d</sup>` : '—';
+            
+            // Format last time with direction indicator
+            let lastText = levelLastMs ? formatDuration(levelLastMs) : '—';
+            if (levelLastMs && levelLastDirection) {
+                const directionIndicator = levelLastDirection === 'up' ? 'u' : 'd';
+                lastText += `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 3px;">${directionIndicator}</sup>`;
+            }
             
             currentLevelNameDisplay.innerHTML = `
                 <div style="font-size: 1.6em; font-weight: 700; margin-bottom: 6px; color: #e0e6ed;">${name}</div>
-                <div style="font-size: 1em; margin-bottom: 3px;">
-                    <span style="color: #ffc107; font-weight: 600;">average:</span> 
-                    <span style="color: #e0e6ed; font-weight: 500;">${avgText}</span>
-                    <span style="color: #666; margin: 0 8px;">|</span>
-                    <span style="color: #4caf50; font-weight: 600;">best:</span> 
-                    <span style="color: #e0e6ed; font-weight: 500;">${bestText}</span>
+                <div style="font-size: 0.95em; margin-bottom: 3px; display: flex; gap: 12px; flex-wrap: wrap;">
+                    <div>
+                        <span style="color: #ffc107; font-weight: 600;">average:</span> 
+                        <span style="color: #e0e6ed; font-weight: 500;">${avgText}</span>
+                    </div>
+                    <div>
+                        <span style="color: #4caf50; font-weight: 600;">best:</span> 
+                        <span style="color: #e0e6ed; font-weight: 500;">${bestUpText} / ${bestDownText}</span>
+                    </div>
                 </div>
                 <div style="font-size: 1em;">
                     <span style="color: #9c27b0; font-weight: 600;">last:</span> 
@@ -885,6 +897,53 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
 });
 
 // New: IPC listener for stage information updates
+// IPC listener for daily stats updates
+ipcRenderer.on('update-daily-stats', async (event, dailyStats) => {
+    try {
+        // Get 7-day data for averages
+        const recentDays = await ipcRenderer.invoke('get-daily-stats-recent', 7);
+        
+        // Calculate 7-day averages
+        let totalLevels = 0;
+        let totalStages = 0;
+        let daysWithData = 0;
+        
+        if (recentDays && recentDays.length > 0) {
+            recentDays.forEach(day => {
+                if (day.levelsCompleted > 0 || day.stagesCompleted > 0) {
+                    totalLevels += day.levelsCompleted;
+                    totalStages += day.stagesCompleted;
+                    daysWithData++;
+                }
+            });
+        }
+        
+        const avgLevelsPerDay = daysWithData > 0 ? (totalLevels / daysWithData).toFixed(1) : '—';
+        const avgStagesPerDay = daysWithData > 0 ? (totalStages / daysWithData).toFixed(1) : '—';
+        
+        // Update display
+        const dailyTodayLevels = document.getElementById('dailyTodayLevels');
+        const dailyTodayStages = document.getElementById('dailyTodayStages');
+        const dailyAvgLevels = document.getElementById('dailyAvgLevels');
+        const dailyAvgStages = document.getElementById('dailyAvgStages');
+        
+        if (dailyTodayLevels) {
+            dailyTodayLevels.textContent = dailyStats.levelsCompleted || 0;
+        }
+        if (dailyTodayStages) {
+            dailyTodayStages.textContent = dailyStats.stagesCompleted || 0;
+        }
+        if (dailyAvgLevels) {
+            dailyAvgLevels.textContent = avgLevelsPerDay;
+        }
+        if (dailyAvgStages) {
+            dailyAvgStages.textContent = avgStagesPerDay;
+        }
+    } catch (error) {
+        console.error('Error updating daily stats display:', error);
+    }
+});
+
 ipcRenderer.on('update-stage-info', async (event, stageInfo) => {
     // Load statistics data for comparison calculations
     await loadStatisticsData();
@@ -902,12 +961,10 @@ ipcRenderer.on('update-stage-info', async (event, stageInfo) => {
                 stageInfoBox.classList.add('pill');
             }
         }
-        // Show/hide records section based on data availability
+        // Always show records section now (includes daily stats)
         const systemStatus = document.querySelector('.system-status');
         if (systemStatus) {
-            // Show if we have any meaningful data
-            const hasAnyData = !!(stageInfo && (stageInfo.completedCount > 0 || (stageInfo.longestStages && stageInfo.longestStages.length > 0)));
-            systemStatus.style.display = hasAnyData ? 'block' : 'none';
+            systemStatus.style.display = 'block';
         }
     } catch {}
     await updateStageDisplay(stageInfo);
@@ -923,9 +980,9 @@ ipcRenderer.on('update-longest-levels', (event, longestLevels) => {
     if (longestLevel2) longestLevel2.textContent = longestLevels[1] ? `${longestLevels[1].name} (${formatDuration(longestLevels[1].duration)})` : '—';
     if (longestLevel3) longestLevel3.textContent = longestLevels[2] ? `${longestLevels[2].name} (${formatDuration(longestLevels[2].duration)})` : '—';
 
-    // Show records section if we have longest levels data
+    // Always keep records section visible (includes daily stats)
     const systemStatus = document.querySelector('.system-status');
-    if (systemStatus && longestLevels && longestLevels.length > 0) {
+    if (systemStatus) {
         systemStatus.style.display = 'block';
     }
 });
@@ -1052,7 +1109,9 @@ async function updateStageETAs() {
                     const levelStats = statisticsData.levels[currentLevelName];
                     let eta = null;
                     if (levelStats && levelStats.completions && levelStats.completions.length > 0) {
-                        const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
+                        // Extract durations (support both old format [number] and new format [{duration, direction}])
+                        const durations = levelStats.completions.map(c => typeof c === 'number' ? c : c.duration);
+                        const avg = durations.reduce((sum, time) => sum + time, 0) / durations.length;
                         const elapsed = Date.now() - currentStageInfo.current.startTime - currentStageInfo.current.levels.reduce((sum, l) => sum + l.durationMs, 0);
                         eta = Math.max(0, avg - elapsed);
                     }
@@ -1276,46 +1335,22 @@ async function updatePreviousStageDetailsCompact(previousStage) {
     if (prevStageLevels) {
         prevStageLevels.innerHTML = '';
         
-        // Get the level database to show actual level names
-        let stageLevelNames = [];
-        try {
-            const levelDatabase = await ipcRenderer.invoke('get-level-database');
-            const stageInfo = levelDatabase[previousStage.name];
-            if (stageInfo && stageInfo.levels) {
-                // For stage display, use originalName for first level (if exists), else use name
-                stageLevelNames = stageInfo.levels.map(level => 
-                    (level.position === 1 && level.originalName) ? level.originalName : level.name
-                );
-            }
-        } catch (error) {
-            console.error('Failed to load level database for previous stage:', error);
-        }
+        const isPartialStage = previousStage.isPartial || false;
         
-        // Show all 7 level positions for previous stage (skip N/A)
-        let completedLevelIndex = 0; // Track index into previousStage.levels array
-        for (let position = 0; position < 7; position++) {
-            const levelIndex = position;
-            const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+        // For partial stages, use actual level names from completed levels
+        // For full stages, get level names from database
+        if (isPartialStage) {
+            console.log(`DEBUG: Rendering partial stage as previous stage - showing actual level names`);
             
-            // Skip N/A levels - they don't exist in the game
-            if (levelName === 'N/A') {
-                console.log(`DEBUG: Skipping N/A level at position ${position} in previous stage`);
-                continue;
-            }
-            
-            const levelDiv = document.createElement('div');
-            
-            if (completedLevelIndex < previousStage.levels.length) {
-                // Show completed level - use levelName from database (has originalName for position 1)
-                const level = previousStage.levels[completedLevelIndex];
+            // Show only the levels that were actually completed in the partial stage
+            previousStage.levels.forEach((level, index) => {
+                const levelDiv = document.createElement('div');
                 
-                // Recalculate comparison to get color class and timeDelta format
-                const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName);
+                // Use saved comparison data
+                const comparison = level.comparison || calculateLevelComparison(level.durationMs, level.name);
                 
-                // Apply color class based on performance
                 levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass || ''}`;
                 
-                // Build time display with saved comparison info (if available)
                 let timeDisplay = formatDuration(level.durationMs);
                 if (comparison.arrow) {
                     timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
@@ -1325,20 +1360,77 @@ async function updatePreviousStageDetailsCompact(previousStage) {
                 }
                 
                 levelDiv.innerHTML = `
-                    <span class="stage-level-name">${levelName}</span>
+                    <span class="stage-level-name">${level.name}</span>
                     <span class="stage-level-time">${timeDisplay}</span>
                 `;
-                completedLevelIndex++; // Increment only for displayed levels
-            } else {
-                // Show level name without time (if available)
-                levelDiv.className = 'stage-level-item stage-level-incomplete';
-                levelDiv.innerHTML = `
-                    <span class="stage-level-name">${levelName}</span>
-                    <span class="stage-level-time">—</span>
-                `;
+                prevStageLevels.appendChild(levelDiv);
+                console.log(`DEBUG: Added completed level from partial stage: ${level.name} (${formatDuration(level.durationMs)})`);
+            });
+        } else {
+            // Full stage - use database to show all 7 positions
+            let stageLevelNames = [];
+            try {
+                const levelDatabase = await ipcRenderer.invoke('get-level-database');
+                const stageInfo = levelDatabase[previousStage.name];
+                if (stageInfo && stageInfo.levels) {
+                    // For stage display, use originalName for first level (if exists), else use name
+                    stageLevelNames = stageInfo.levels.map(level => 
+                        (level.position === 1 && level.originalName) ? level.originalName : level.name
+                    );
+                }
+            } catch (error) {
+                console.error('Failed to load level database for previous stage:', error);
             }
             
-            prevStageLevels.appendChild(levelDiv);
+            // Show all 7 level positions for previous stage (skip N/A)
+            let completedLevelIndex = 0; // Track index into previousStage.levels array
+            for (let position = 0; position < 7; position++) {
+                const levelIndex = position;
+                const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+                
+                // Skip N/A levels - they don't exist in the game
+                if (levelName === 'N/A') {
+                    console.log(`DEBUG: Skipping N/A level at position ${position} in previous stage`);
+                    continue;
+                }
+                
+                const levelDiv = document.createElement('div');
+                
+                if (completedLevelIndex < previousStage.levels.length) {
+                    // Show completed level - use levelName from database (has originalName for position 1)
+                    const level = previousStage.levels[completedLevelIndex];
+                    
+                    // Recalculate comparison to get color class and timeDelta format
+                    const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName);
+                    
+                    // Apply color class based on performance
+                    levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass || ''}`;
+                    
+                    // Build time display with saved comparison info (if available)
+                    let timeDisplay = formatDuration(level.durationMs);
+                    if (comparison.arrow) {
+                        timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
+                        if (comparison.timeDelta) {
+                            timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
+                        }
+                    }
+                    
+                    levelDiv.innerHTML = `
+                        <span class="stage-level-name">${levelName}</span>
+                        <span class="stage-level-time">${timeDisplay}</span>
+                    `;
+                    completedLevelIndex++; // Increment only for displayed levels
+                } else {
+                    // Show level name without time (if available)
+                    levelDiv.className = 'stage-level-item stage-level-incomplete';
+                    levelDiv.innerHTML = `
+                        <span class="stage-level-name">${levelName}</span>
+                        <span class="stage-level-time">—</span>
+                    `;
+                }
+                
+                prevStageLevels.appendChild(levelDiv);
+            }
         }
     }
 }
@@ -1354,8 +1446,9 @@ function calculateLevelComparison(actualTime, levelName) {
         return { arrow: '', timeDelta: '', cssClass: '' };
     }
     
-    // Calculate average from completions
-    const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
+    // Calculate average from completions (support both old format [number] and new format [{duration, direction}])
+    const durations = levelStats.completions.map(c => typeof c === 'number' ? c : c.duration);
+    const avg = durations.reduce((sum, time) => sum + time, 0) / durations.length;
     
     // Calculate time difference in milliseconds
     const timeDiffMs = actualTime - avg;
@@ -1387,7 +1480,7 @@ function calculateLevelComparison(actualTime, levelName) {
 
 async function updateCurrentStageDetails(currentStage) {
     updateStageCallCounter++;
-    console.log(`DEBUG: updateCurrentStageDetails called #${updateStageCallCounter}`);
+    await ipcRenderer.invoke('renderer-log', `updateCurrentStageDetails called #${updateStageCallCounter}`);
     
     const stageDetails = document.getElementById('stageDetails');
     const stageLevels = document.getElementById('stageLevels');
@@ -1397,9 +1490,9 @@ async function updateCurrentStageDetails(currentStage) {
         return;
     }
     
-    // Debug logging for renderer
-    console.log(`DEBUG: Renderer updating stage "${currentStage.name}" with ${currentStage.levels.length} levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
-    console.log(`DEBUG: Will show ${currentStage.levels.length} completed + ${currentStage.levels.length < 7 ? 1 : 0} current + ${7 - currentStage.levels.length - (currentStage.levels.length < 7 ? 1 : 0)} upcoming = ${7} total levels`);
+    // Log what we received
+    await ipcRenderer.invoke('renderer-log', `Received stage "${currentStage.name}" level:${currentStage.level} with ${currentStage.levels.length} levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
+    await ipcRenderer.invoke('renderer-log', `Stage isPartial: ${currentStage.isPartial}, currentLevelName: ${currentStage.currentLevelName}`);
     
     if (stageDetails) stageDetails.style.display = 'block';
     
@@ -1468,7 +1561,9 @@ async function updateCurrentStageDetails(currentStage) {
                 const levelStats = statisticsData.levels[currentStage.currentLevelName];
                 let eta = null;
                 if (levelStats && levelStats.completions && levelStats.completions.length > 0) {
-                    const avg = levelStats.completions.reduce((sum, time) => sum + time, 0) / levelStats.completions.length;
+                    // Extract durations (support both old format [number] and new format [{duration, direction}])
+                    const durations = levelStats.completions.map(c => typeof c === 'number' ? c : c.duration);
+                    const avg = durations.reduce((sum, time) => sum + time, 0) / durations.length;
                     const elapsed = Date.now() - currentStage.startTime - currentStage.levels.reduce((sum, l) => sum + l.durationMs, 0);
                     eta = Math.max(0, avg - elapsed);
                 }
@@ -1496,8 +1591,8 @@ async function updateCurrentStageDetails(currentStage) {
                 }
             }
             
-            console.log(`DEBUG: Current stage level: ${currentStage.level}, array position: ${currentLevelArrayPosition}, completed levels: ${currentStage.levels.length}`);
-            console.log(`DEBUG: Completed levels: [${currentStage.levels.map(l => `${l.name}(${formatDuration(l.durationMs)})`).join(', ')}]`);
+            await ipcRenderer.invoke('renderer-log', `Normal stage render: level=${currentStage.level}, arrayPos=${currentLevelArrayPosition}, completed=${currentStage.levels.length}`);
+            await ipcRenderer.invoke('renderer-log', `Stage database names: [${stageLevelNames.join(', ')}]`);
             
             let completedLevelIndex = 0; // Index into currentStage.levels array
             
@@ -1506,11 +1601,8 @@ async function updateCurrentStageDetails(currentStage) {
                     const levelIndex = position;
                     const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
                     
-                    console.log(`DEBUG: Processing position ${position}, levelName: "${levelName}", currentLevelArrayPosition: ${currentLevelArrayPosition}`);
-                    
                     // Skip N/A levels - they don't exist in the game
                     if (levelName === 'N/A') {
-                        console.log(`DEBUG: Skipping N/A level at position ${position}`);
                         continue;
                     }
                     
@@ -1518,32 +1610,42 @@ async function updateCurrentStageDetails(currentStage) {
                     
                     // Check if this position corresponds to a completed level
                     if (position < currentLevelArrayPosition) {
-                    // Show completed level - use levelName from database (has originalName for position 1)
-                    const level = currentStage.levels[completedLevelIndex];
-                    
-                    // Use saved comparison data if available, otherwise recalculate
-                    // This ensures colors persist from current to previous stage
-                    const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName);
-                    
-                    // Apply color class based on performance
-                    levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass}`;
-                    
-                    // Build time display with arrow and time delta
-                    let timeDisplay = formatDuration(level.durationMs);
-                    if (comparison.arrow) {
-                        timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
-                        if (comparison.timeDelta) {
-                            timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
+                        // Show completed level - use levelName from database (has originalName for position 1)
+                        const level = currentStage.levels[completedLevelIndex];
+                        
+                        // Safety check: if level data is missing, skip this position
+                        if (!level) {
+                            await ipcRenderer.invoke('renderer-log', `ERROR: Missing level at position ${position}, completedLevelIndex=${completedLevelIndex}, expected="${levelName}"`);
+                            await ipcRenderer.invoke('renderer-log', `ERROR: currentStage.levels has ${currentStage.levels.length} entries, currentLevelArrayPosition=${currentLevelArrayPosition}`);
+                            // Don't increment completedLevelIndex, and skip adding this div
+                            continue;
                         }
-                    }
-                    
-                    levelDiv.innerHTML = `
-                        <span class="stage-level-name">${levelName}</span>
-                        <span class="stage-level-time">${timeDisplay}</span>
-                    `;
-                    levelItemsAdded++;
-                    completedLevelIndex++;
-                    console.log(`DEBUG: Added completed level #${levelItemsAdded} at position ${position}: ${levelName} (${formatDuration(level.durationMs)})`);
+                        
+                        await ipcRenderer.invoke('renderer-log', `Rendering completed level #${completedLevelIndex}: position=${position}, dbName="${levelName}", actualName="${level.name}"`);
+
+                        
+                        // Use saved comparison data if available, otherwise recalculate
+                        // This ensures colors persist from current to previous stage
+                        const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName);
+                        
+                        // Apply color class based on performance
+                        levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass}`;
+                        
+                        // Build time display with arrow and time delta
+                        let timeDisplay = formatDuration(level.durationMs);
+                        if (comparison.arrow) {
+                            timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
+                            if (comparison.timeDelta) {
+                                timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
+                            }
+                        }
+                        
+                        levelDiv.innerHTML = `
+                            <span class="stage-level-name">${levelName}</span>
+                            <span class="stage-level-time">${timeDisplay}</span>
+                        `;
+                        levelItemsAdded++;
+                        completedLevelIndex++;
                 } else if (position === currentLevelArrayPosition) {
                     // Show current level with actual name and ETA
                     levelDiv.className = 'stage-level-item stage-level-current';
@@ -1557,7 +1659,7 @@ async function updateCurrentStageDetails(currentStage) {
                         <span class="stage-level-time">${etaText}</span>
                     `;
                     levelItemsAdded++;
-                    console.log(`DEBUG: Added current level #${levelItemsAdded} at position ${position}: ${levelName} (${etaText})`);
+                    await ipcRenderer.invoke('renderer-log', `Rendering current level at position ${position}: "${levelName}"`);
                 } else {
                     // Show upcoming level with historical average as static ETA
                     levelDiv.className = 'stage-level-item';
@@ -1571,7 +1673,6 @@ async function updateCurrentStageDetails(currentStage) {
                         <span class="stage-level-time">${etaText}</span>
                     `;
                     levelItemsAdded++;
-                    console.log(`DEBUG: Added upcoming level #${levelItemsAdded} at position ${position}: ${levelName} (${etaText})`);
                 }
                 
                 stageLevels.appendChild(levelDiv);
@@ -1928,7 +2029,24 @@ function populateLevelsView() {
     const allLevels = [];
     Object.entries(statisticsData.levels).forEach(([levelName, levelStats]) => {
         const completions = levelStats.completions || [];
-        const filteredCompletions = ignoreExtremes ? filterExtremes(completions) : completions;
+        
+        // Extract durations (support both old format [number] and new format [{duration, direction}])
+        const durations = completions.map(c => typeof c === 'number' ? c : c.duration);
+        const filteredDurations = ignoreExtremes ? filterExtremes(durations) : durations;
+        
+        // Get last completion with direction
+        const lastCompletion = completions.length > 0 ? completions[completions.length - 1] : null;
+        const lastDuration = lastCompletion ? (typeof lastCompletion === 'number' ? lastCompletion : lastCompletion.duration) : 0;
+        const lastDirection = lastCompletion && typeof lastCompletion === 'object' ? lastCompletion.direction : null;
+        
+        // Get best (min) completion with direction
+        const minDuration = filteredDurations.length > 0 ? Math.min(...filteredDurations) : 0;
+        let minDirection = null;
+        if (minDuration > 0) {
+            const minIndex = durations.indexOf(minDuration);
+            const minCompletion = completions[minIndex];
+            minDirection = typeof minCompletion === 'object' ? minCompletion.direction : null;
+        }
         
         // Find positions where this level appears
         const positions = [];
@@ -1952,11 +2070,13 @@ function populateLevelsView() {
             positions: uniquePositions,
             positionsText: positionsText,
             completions: completions.length,
-            last: completions.length > 0 ? completions[completions.length - 1] : 0,
-            average: filteredCompletions.length > 0 ? Math.round(filteredCompletions.reduce((a, b) => a + b, 0) / filteredCompletions.length) : 0,
-            min: filteredCompletions.length > 0 ? Math.min(...filteredCompletions) : 0,
-            max: filteredCompletions.length > 0 ? Math.max(...filteredCompletions) : 0,
-            trend: calculateTrend(completions)
+            last: lastDuration,
+            lastDirection: lastDirection,
+            average: filteredDurations.length > 0 ? Math.round(filteredDurations.reduce((a, b) => a + b, 0) / filteredDurations.length) : 0,
+            min: minDuration,
+            minDirection: minDirection,
+            max: filteredDurations.length > 0 ? Math.max(...filteredDurations) : 0,
+            trend: calculateTrend(durations)
         });
     });
     
@@ -2005,18 +2125,34 @@ function populateLevelsView() {
     });
     
     // Populate table
-    tbody.innerHTML = allLevels.map(level => `
-        <tr>
-            <td>${level.name}</td>
-            <td>${level.positionsText}</td>
-            <td>${level.completions || '<span class="no-data">0</span>'}</td>
-            <td>${level.last ? formatDuration(level.last) : '<span class="no-data">—</span>'}</td>
-            <td>${level.average ? formatDuration(level.average) : '<span class="no-data">—</span>'}</td>
-            <td>${level.min ? formatDuration(level.min) : '<span class="no-data">—</span>'}</td>
-            <td>${level.max ? formatDuration(level.max) : '<span class="no-data">—</span>'}</td>
-            <td class="trend-${level.trend.direction}">${level.trend.text}</td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = allLevels.map(level => {
+        // Format last time with direction indicator
+        let lastTimeDisplay = level.last ? formatDuration(level.last) : '<span class="no-data">—</span>';
+        if (level.last && level.lastDirection) {
+            const directionIndicator = level.lastDirection === 'up' ? 'u' : 'd';
+            lastTimeDisplay += `<sup style="font-size: 0.7em; opacity: 0.6; margin-left: 2px;">${directionIndicator}</sup>`;
+        }
+        
+        // Format min (best) time with direction indicator
+        let minTimeDisplay = level.min ? formatDuration(level.min) : '<span class="no-data">—</span>';
+        if (level.min && level.minDirection) {
+            const directionIndicator = level.minDirection === 'up' ? 'u' : 'd';
+            minTimeDisplay += `<sup style="font-size: 0.7em; opacity: 0.6; margin-left: 2px;">${directionIndicator}</sup>`;
+        }
+        
+        return `
+            <tr>
+                <td>${level.name}</td>
+                <td>${level.positionsText}</td>
+                <td>${level.completions || '<span class="no-data">0</span>'}</td>
+                <td>${lastTimeDisplay}</td>
+                <td>${level.average ? formatDuration(level.average) : '<span class="no-data">—</span>'}</td>
+                <td>${minTimeDisplay}</td>
+                <td>${level.max ? formatDuration(level.max) : '<span class="no-data">—</span>'}</td>
+                <td class="trend-${level.trend.direction}">${level.trend.text}</td>
+            </tr>
+        `;
+    }).join('');
     
     // Re-setup table sorting after populating
     setupTableSorting();
@@ -2052,11 +2188,74 @@ function calculateTrend(data) {
     return { direction: 'down', text: '↘' };
 }
 
+// Collapsible Panels Functionality
+function initializeCollapsiblePanels() {
+    const PANEL_STATE_KEY = 'panelStates';
+    
+    // Default state: all panels collapsed
+    const defaultStates = {
+        liveView: false,
+        activityLog: false,
+        detection: false,
+        settings: false
+    };
+    
+    // Load saved panel states from localStorage
+    let panelStates = defaultStates;
+    try {
+        const saved = localStorage.getItem(PANEL_STATE_KEY);
+        if (saved) {
+            panelStates = { ...defaultStates, ...JSON.parse(saved) };
+        }
+    } catch (error) {
+        console.error('Error loading panel states:', error);
+    }
+    
+    // Apply saved states and set up toggle handlers
+    const panels = document.querySelectorAll('.collapsible-panel');
+    panels.forEach(panel => {
+        const header = panel.querySelector('.panel-header');
+        const panelId = header.getAttribute('data-panel');
+        const isExpanded = panelStates[panelId];
+        
+        // Apply initial state
+        if (!isExpanded) {
+            panel.classList.add('collapsed');
+        }
+        
+        // Add click handler
+        header.addEventListener('click', (e) => {
+            // Don't toggle if clicking on a button or input inside header
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+                return;
+            }
+            
+            // Toggle collapsed class
+            const isCollapsed = panel.classList.toggle('collapsed');
+            
+            // Update state
+            panelStates[panelId] = !isCollapsed;
+            
+            // Save to localStorage
+            try {
+                localStorage.setItem(PANEL_STATE_KEY, JSON.stringify(panelStates));
+            } catch (error) {
+                console.error('Error saving panel state:', error);
+            }
+        });
+    });
+    
+    console.log('Collapsible panels initialized with states:', panelStates);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DEBUG: DOMContentLoaded event fired in renderer.js.');
     
     // Initialize activity log first
     initializeActivityLog();
+    
+    // Initialize collapsible panels
+    initializeCollapsiblePanels();
     
     // Initialize overlay system
     initializeOverlay();
@@ -2092,8 +2291,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (levelInfo) levelInfo.classList.add('compact');
         const stageInfo = document.getElementById('currentStageInfo');
         if (stageInfo) stageInfo.classList.add('pill');
+        // Keep system-status visible since it now includes daily stats
         const systemStatus = document.querySelector('.system-status');
-        if (systemStatus) systemStatus.style.display = 'none';
+        if (systemStatus) systemStatus.style.display = 'block';
     } catch (e) { console.warn('Header compact styling failed to init', e); }
 
     console.log('DEBUG: DOMContentLoaded handler finished.');
@@ -2168,7 +2368,32 @@ async function initializeSettingsModal() {
         }
     });
     
+    // Recalculate all-time bests
+    const recalculateAllTimeBestsBtn = document.getElementById('recalculateAllTimeBestsBtn');
+    if (recalculateAllTimeBestsBtn) {
+        recalculateAllTimeBestsBtn.addEventListener('click', async () => {
+            if (confirm('This will recalculate all-time best times from the current 5 completions saved for each level.\n\nThis is useful if statistics data becomes corrupted.\n\nContinue?')) {
+                try {
+                    const result = await ipcRenderer.invoke('recalculate-all-time-bests');
+                    if (result.success) {
+                        alert(`✅ Recalculation complete!\n\nUpdated: ${result.updatedCount} levels\nUnchanged: ${result.unchangedCount} levels`);
+                    } else {
+                        alert(`❌ Error: ${result.error}`);
+                    }
+                } catch (error) {
+                    alert(`❌ Error recalculating: ${error.message}`);
+                }
+            }
+        });
+    }
+    
     // Show/hide options based on action selection
+    document.getElementById('perfectStartingPosition').addEventListener('change', (e) => {
+        document.getElementById('perfectStartingPositionWaitOptions').style.display = 
+            e.target.value === 'wait' ? 'block' : 'none';
+        checkForChanges();
+    });
+    
     document.getElementById('firstBuildAction').addEventListener('change', (e) => {
         document.getElementById('firstBuildClickaroundOptions').style.display = 
             e.target.value === 'clickaround' ? 'block' : 'none';
@@ -2185,10 +2410,58 @@ async function initializeSettingsModal() {
         checkForChanges();
     });
     
+    // Special handler for scroll direction changes - save old direction, load new direction
+    document.getElementById('scrollDirection').addEventListener('change', async (e) => {
+        const newDirection = e.target.value;
+        const oldDirection = originalSettings.scrollDirection;
+        
+        if (newDirection === oldDirection) {
+            return; // No change
+        }
+        
+        console.log(`Direction changed from ${oldDirection} to ${newDirection} for level: ${currentEditingLevel}`);
+        
+        // Get current form settings (may have unsaved changes for old direction)
+        const currentSettings = getCurrentFormSettings();
+        
+        // Extract only direction-specific settings (exclude global settings)
+        const directionSpecificSettings = {
+            optimized: currentSettings.optimized,
+            perfectStartingPosition: currentSettings.perfectStartingPosition,
+            scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
+            scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
+            firstBuildAction: currentSettings.firstBuildAction,
+            secondBuildAction: currentSettings.secondBuildAction
+        };
+        
+        // Save any changes from old direction before switching
+        await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
+        console.log(`Auto-saved ${oldDirection} direction settings before switching`);
+        
+        // Load settings for the new direction
+        const newDirectionSettings = await ipcRenderer.invoke('get-direction-settings', currentEditingLevel, newDirection);
+        
+        // Set default optimized value based on direction if not already set
+        if (newDirectionSettings.optimized === undefined) {
+            newDirectionSettings.optimized = (newDirection === 'up');
+        }
+        
+        // Reload settings which will populate the form with the new direction
+        await loadSettingsForLevel(currentEditingLevel);
+        
+        // Update originalSettings to reflect the change (but scrollDirection is different now)
+        originalSettings = getCurrentFormSettings();
+        // Restore the old direction in originalSettings so checkForChanges detects the change
+        originalSettings.scrollDirection = oldDirection;
+        
+        // Trigger change detection to enable save button (scrollDirection differs)
+        checkForChanges();
+    });
+    
     // Add change listeners to all form inputs to track modifications
     const formInputs = [
-        'doResearch', 'scrollDirection', 'blueBoxClickHoldDuration',
-        'scrollToBottomAfterFirstBuild', 'scrollToBottomAfterSecondBuild', 'perfectStartingPosition',
+        'doResearch', 'scrollDirection', 'optimized', 'blueBoxClickHoldDuration',
+        'scrollToBottomAfterFirstBuild', 'scrollToBottomAfterSecondBuild', 'perfectStartingPosition', 'perfectStartingPositionWaitTime',
         'firstBuildAction', 'firstBuildTriggerTime', 'firstBuildClickOffScrollDistance',
         'firstBuildExcludeRedBlobs', 'firstBuildClickaroundChunks', 'firstBuildScrollUpDistance', 'firstBuildScrollUpCount',
         'firstBuildInitialScrollDown', 'firstBuildScrollToBottomAtEnd',
@@ -2232,14 +2505,19 @@ function checkForChanges() {
 function getCurrentFormSettings() {
     const firstBuildAction = document.getElementById('firstBuildAction').value;
     const secondBuildAction = document.getElementById('secondBuildAction').value;
+    const perfectStartingPositionAction = document.getElementById('perfectStartingPosition').value;
     
     return {
         doResearch: document.getElementById('doResearch').checked,
         scrollDirection: document.getElementById('scrollDirection').value,
+        optimized: document.getElementById('optimized').checked,
         blueBoxClickHoldDuration: parseInt(document.getElementById('blueBoxClickHoldDuration').value),
         scrollToBottomAfterFirstBuild: document.getElementById('scrollToBottomAfterFirstBuild').checked,
         scrollToBottomAfterSecondBuild: document.getElementById('scrollToBottomAfterSecondBuild').checked,
-        perfectStartingPosition: document.getElementById('perfectStartingPosition').value,
+        perfectStartingPosition: {
+            action: perfectStartingPositionAction,
+            waitTimeMs: perfectStartingPositionAction === 'wait' ? parseInt(document.getElementById('perfectStartingPositionWaitTime').value) || 1000 : null
+        },
         firstBuildAction: {
             action: firstBuildAction,
             triggerTimeMs: parseInt(document.getElementById('firstBuildTriggerTime').value) || null,
@@ -2287,10 +2565,26 @@ async function loadSettingsForLevel(levelName) {
     // Populate form
     document.getElementById('doResearch').checked = settings.doResearch;
     document.getElementById('scrollDirection').value = settings.scrollDirection;
+    // Set optimized checkbox with defaults: true for 'up', false for 'down'
+    document.getElementById('optimized').checked = settings.optimized !== undefined 
+        ? settings.optimized 
+        : (settings.scrollDirection === 'up' ? true : false);
     document.getElementById('blueBoxClickHoldDuration').value = settings.blueBoxClickHoldDuration;
     document.getElementById('scrollToBottomAfterFirstBuild').checked = settings.scrollToBottomAfterFirstBuild;
     document.getElementById('scrollToBottomAfterSecondBuild').checked = settings.scrollToBottomAfterSecondBuild;
-    document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition;
+    
+    // Handle perfectStartingPosition (can be string or object for backward compatibility)
+    if (typeof settings.perfectStartingPosition === 'object') {
+        document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition.action;
+        document.getElementById('perfectStartingPositionWaitTime').value = settings.perfectStartingPosition.waitTimeMs || 1000;
+        document.getElementById('perfectStartingPositionWaitOptions').style.display = 
+            settings.perfectStartingPosition.action === 'wait' ? 'block' : 'none';
+    } else {
+        // Backward compatibility: old settings stored as string
+        document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition;
+        document.getElementById('perfectStartingPositionWaitTime').value = 1000;
+        document.getElementById('perfectStartingPositionWaitOptions').style.display = 'none';
+    }
     
     // First build action
     document.getElementById('firstBuildAction').value = settings.firstBuildAction.action;
@@ -2344,10 +2638,30 @@ async function loadSettingsForLevel(levelName) {
 
 async function saveCurrentSettings() {
     const settings = getCurrentFormSettings();
+    const currentDirection = settings.scrollDirection;
     
-    const result = await ipcRenderer.invoke('save-level-settings', currentEditingLevel, settings);
+    // Separate global settings from direction-specific settings
+    const globalSettings = {
+        doResearch: settings.doResearch,
+        scrollDirection: settings.scrollDirection,
+        blueBoxClickHoldDuration: settings.blueBoxClickHoldDuration
+    };
     
-    if (result.success) {
+    const directionSpecificSettings = {
+        perfectStartingPosition: settings.perfectStartingPosition,
+        scrollToBottomAfterFirstBuild: settings.scrollToBottomAfterFirstBuild,
+        scrollToBottomAfterSecondBuild: settings.scrollToBottomAfterSecondBuild,
+        firstBuildAction: settings.firstBuildAction,
+        secondBuildAction: settings.secondBuildAction
+    };
+    
+    // Save global settings
+    const globalResult = await ipcRenderer.invoke('save-level-settings', currentEditingLevel, globalSettings);
+    
+    // Save direction-specific settings
+    const directionResult = await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, currentDirection, directionSpecificSettings);
+    
+    if (globalResult.success && directionResult.success) {
         // Update original settings to match current (no changes now)
         originalSettings = getCurrentFormSettings();
         
@@ -2360,9 +2674,10 @@ async function saveCurrentSettings() {
         // Update level actions display if this is the current level
         await updateLevelActionsDisplay();
         
-        console.log(`Settings saved for ${currentEditingLevel}`);
+        console.log(`Settings saved for ${currentEditingLevel} (direction: ${currentDirection})`);
     } else {
-        alert(`Error saving settings: ${result.error}`);
+        const error = globalResult.error || directionResult.error;
+        alert(`Error saving settings: ${error}`);
     }
 }
 
@@ -2404,6 +2719,14 @@ async function updateLevelActionsDisplay() {
         settings = await ipcRenderer.invoke('get-level-settings', currentLevel.toLowerCase());
     }
     
+    // Update optimized status display
+    const optimizedStatusEl = document.getElementById('levelOptimizedStatus');
+    if (optimizedStatusEl) {
+        const isOptimized = settings.optimized !== undefined ? settings.optimized : (settings.scrollDirection === 'up');
+        optimizedStatusEl.textContent = isOptimized ? '(optimized)' : '(not optimized)';
+        optimizedStatusEl.style.color = isOptimized ? '#4fc3f7' : '#ff9800';
+    }
+    
     // Reset all checkboxes
     ['actionStartup', 'actionFirstBuild', 'actionAfterFirstBuild', 'actionSecondBuild', 'actionAfterSecondBuild'].forEach(id => {
         const element = document.getElementById(id);
@@ -2413,9 +2736,23 @@ async function updateLevelActionsDisplay() {
     });
     
     // Update Startup value
-    document.getElementById('startupValue').textContent = 
-        settings.perfectStartingPosition === 'nothing' ? 'None' : 
-        settings.perfectStartingPosition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    let startupText;
+    if (typeof settings.perfectStartingPosition === 'object') {
+        const action = settings.perfectStartingPosition.action;
+        if (action === 'nothing') {
+            startupText = 'None';
+        } else if (action === 'wait') {
+            const waitTime = settings.perfectStartingPosition.waitTimeMs || 1000;
+            startupText = `Wait ${waitTime}ms`;
+        } else {
+            startupText = action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+    } else {
+        // Backward compatibility
+        startupText = settings.perfectStartingPosition === 'nothing' ? 'None' : 
+            settings.perfectStartingPosition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    document.getElementById('startupValue').textContent = startupText;
     
     // Helper function to check if clickaround options are modified
     const isClickaroundModified = (options) => {

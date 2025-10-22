@@ -73,6 +73,21 @@
                         <div class="longest-level-item" id="longestStage2">—</div>
                         <div class="longest-level-item" id="longestStage3">—</div>
                     </div>
+                    <div class="daily-stats">
+                        <div class="longest-levels-title">📅 Today / Avg (7d)</div>
+                        <div class="longest-level-item">
+                            <span style="color: #4fc3f7;">Levels:</span> 
+                            <span id="dailyTodayLevels" style="color: #e0e6ed;">0</span>
+                            <span style="color: #666; margin: 0 4px;">/</span>
+                            <span id="dailyAvgLevels" style="color: #a8b2c4;">—</span>
+                        </div>
+                        <div class="longest-level-item">
+                            <span style="color: #4fc3f7;">Stages:</span> 
+                            <span id="dailyTodayStages" style="color: #e0e6ed;">0</span>
+                            <span style="color: #666; margin: 0 4px;">/</span>
+                            <span id="dailyAvgStages" style="color: #a8b2c4;">—</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -82,7 +97,7 @@
             <div class="level-progress-wrapper">
                 <!-- Level Progress displayed first -->
                 <div class="level-actions-display" id="levelActionsDisplay" style="display: none;">
-                    <h4>Level Progress:</h4>
+                    <h4>Level Progress: <span id="levelOptimizedStatus" style="font-size: 0.9em; color: #888;"></span></h4>
                     <div class="action-item" id="actionStartup">
                         <span class="action-checkbox">☐</span>
                         <span class="action-label">Startup</span>
@@ -141,13 +156,19 @@
         <!-- Main Content -->
         <div class="main-content">
             <!-- Live View Section -->
-            <div class="live-view-section">
-                <div class="preview-container">
-                    <canvas id="previewCanvas" width="800" height="600"></canvas>
-                    <div class="preview-overlay" id="previewOverlay"></div>
+            <div class="live-view-section collapsible-panel">
+                <div class="panel-header" data-panel="liveView">
+                    <h3>📺 Live View</h3>
+                    <button class="collapse-toggle">▼</button>
                 </div>
-                <div class="mouse-coordinates">
-                    <div id="coordinates">Mouse: (0, 0)</div>
+                <div class="panel-content">
+                    <div class="preview-container">
+                        <canvas id="previewCanvas" width="800" height="600"></canvas>
+                        <div class="preview-overlay" id="previewOverlay"></div>
+                    </div>
+                    <div class="mouse-coordinates">
+                        <div id="coordinates">Mouse: (0, 0)</div>
+                    </div>
                 </div>
             </div>
 
@@ -167,45 +188,69 @@
                 </div>
 
                 <!-- Activity Log -->
-                <div class="control-panel log-panel">
-                    <h3>📋 Activity Log</h3>
-                    <div id="activityLog" class="activity-log"></div>
+                <div class="control-panel log-panel collapsible-panel">
+                    <div class="panel-header" data-panel="activityLog">
+                        <h3>📋 Activity Log</h3>
+                        <button class="collapse-toggle">▼</button>
+                    </div>
+                    <div class="panel-content">
+                        <div id="activityLog" class="activity-log"></div>
+                    </div>
                 </div>
 
                 <!-- Detection Controls -->
-                <div class="control-panel">
-                    <h3>🔍 Detection</h3>
-                    <div class="button-group">
-                        <button id="detectRedBlobBtn" class="btn btn-primary">Detect Red Blobs</button>
-                        <button id="detectBlueBoxBtn" class="btn btn-primary">Detect Blue Boxes</button>
+                <div class="control-panel collapsible-panel">
+                    <div class="panel-header" data-panel="detection">
+                        <h3>🔍 Detection</h3>
+                        <button class="collapse-toggle">▼</button>
                     </div>
-                    <div id="detectionResults" class="detection-summary"></div>
+                    <div class="panel-content">
+                        <div class="button-group">
+                            <button id="detectRedBlobBtn" class="btn btn-primary">Detect Red Blobs</button>
+                            <button id="detectBlueBoxBtn" class="btn btn-primary">Detect Blue Boxes</button>
+                        </div>
+                        <div id="detectionResults" class="detection-summary"></div>
+                    </div>
                 </div>
 
                 <!-- Settings -->
-                <div class="control-panel settings-panel">
-                    <h3>⚙️ Settings</h3>
-                    <div class="settings-grid">
-                        <div class="input-group">
-                            <label for="scrollSwipeDistance">Scroll Distance (px):</label>
-                            <input type="number" id="scrollSwipeDistance" value="300" min="10">
+                <div class="control-panel settings-panel collapsible-panel">
+                    <div class="panel-header" data-panel="settings">
+                        <h3>⚙️ Settings</h3>
+                        <button class="collapse-toggle">▼</button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="settings-grid">
+                            <div class="input-group">
+                                <label for="scrollSwipeDistance">Scroll Distance (px):</label>
+                                <input type="number" id="scrollSwipeDistance" value="300" min="10">
+                            </div>
+                            <div class="input-group">
+                                <label for="scrollToBottomIterations">Scroll to Bottom Iterations:</label>
+                                <input type="number" id="scrollToBottomIterations" value="10" min="1">
+                            </div>
+                            <div class="input-group">
+                                <label for="scrollUpAttempts">Scroll Up Attempts:</label>
+                                <input type="number" id="scrollUpAttempts" value="8" min="1">
+                            </div>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="showOverlay"> Show Detection Overlay
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label>Overlay Opacity:</label>
+                                <input type="range" id="overlayOpacity" min="0.3" max="1" step="0.1" value="0.8">
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label for="scrollToBottomIterations">Scroll to Bottom Iterations:</label>
-                            <input type="number" id="scrollToBottomIterations" value="10" min="1">
-                        </div>
-                        <div class="input-group">
-                            <label for="scrollUpAttempts">Scroll Up Attempts:</label>
-                            <input type="number" id="scrollUpAttempts" value="8" min="1">
-                        </div>
-                        <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="showOverlay"> Show Detection Overlay
-                            </label>
-                        </div>
-                        <div class="setting-item">
-                            <label>Overlay Opacity:</label>
-                            <input type="range" id="overlayOpacity" min="0.3" max="1" step="0.1" value="0.8">
+                        
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(79, 195, 247, 0.2);">
+                            <button id="recalculateAllTimeBestsBtn" class="btn btn-secondary" style="width: 100%;">
+                                🏆 Recalculate All-Time Best Times
+                            </button>
+                            <div style="font-size: 0.85em; color: #9ca3af; margin-top: 8px; line-height: 1.4;">
+                                Resets all-time best times to the best of the current 5 saved completions per level. Use this if statistics data becomes corrupted.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -352,6 +397,14 @@
                         </div>
 
                         <div class="setting-item">
+                            <label for="optimized">
+                                <input type="checkbox" id="optimized">
+                                Optimized
+                            </label>
+                            <span class="setting-help">Check if this level's settings are optimized for this direction</span>
+                        </div>
+
+                        <div class="setting-item">
                             <label for="blueBoxClickHoldDuration">Blue Box Click Hold Duration (ms):</label>
                             <input type="number" id="blueBoxClickHoldDuration" min="1000" max="10000" step="100">
                             <span class="setting-help">How long to hold click on blue build box (4500ms = 4.5s)</span>
@@ -364,13 +417,20 @@
                             <label for="perfectStartingPosition">Starting Action:</label>
                             <select id="perfectStartingPosition">
                                 <option value="nothing">Nothing</option>
+                                <option value="scroll_up_1x">Scroll Up 1x</option>
                                 <option value="scroll_down_1x">Scroll Down 1x</option>
                                 <option value="scroll_down_2x">Scroll Down 2x</option>
                                 <option value="scroll_down_3x">Scroll Down 3x</option>
                                 <option value="scroll_down_4x">Scroll Down 4x</option>
                                 <option value="scroll_to_bottom">Scroll to Bottom</option>
+                                <option value="wait">Wait (custom time)</option>
                             </select>
                             <span class="setting-help">What to do when starting a new level</span>
+                        </div>
+                        <div class="setting-item" id="perfectStartingPositionWaitOptions" style="display:none;">
+                            <label for="perfectStartingPositionWaitTime">Wait Time (ms):</label>
+                            <input type="number" id="perfectStartingPositionWaitTime" min="0" max="60000" step="100" value="1000">
+                            <span class="setting-help">Time to wait before starting (default: 1000ms = 1 second)</span>
                         </div>
                     </div>
 

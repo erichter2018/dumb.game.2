@@ -1,7 +1,7 @@
 const settingsManager = require('../../lib/settingsManager');
 
 function startAutomation(dependencies) {
-    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollUpWithDistance, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getRandomInt } = dependencies;
+    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollUpWithDistance, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, getRandomInt } = dependencies;
 
     updateCurrentFunction('startAutomation'); // Update current function display
     updateStatus('Finish Level Automation Started', 'info');
@@ -404,7 +404,7 @@ function startAutomation(dependencies) {
     }
 
     async function exitAndStartNewLevel(exitDependencies) {
-        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, setFinishedLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = exitDependencies;
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, setFinishedLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = exitDependencies;
 
         // Store the current level name as the finished level name before clearing it
         const currentLevel = getCurrentLevelName();
@@ -493,10 +493,20 @@ function startAutomation(dependencies) {
         // Get perfect starting position from settings
         const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
         const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
-        const perfectStartingPosition = levelSettings.perfectStartingPosition || 'nothing';
+        
+        // Handle perfectStartingPosition (can be string or object for backward compatibility)
+        let perfectStartingPositionAction, perfectStartingPositionWaitTime;
+        if (typeof levelSettings.perfectStartingPosition === 'object') {
+            perfectStartingPositionAction = levelSettings.perfectStartingPosition.action || 'nothing';
+            perfectStartingPositionWaitTime = levelSettings.perfectStartingPosition.waitTimeMs || null;
+        } else {
+            perfectStartingPositionAction = levelSettings.perfectStartingPosition || 'nothing';
+            perfectStartingPositionWaitTime = null;
+        }
+        
         const scrollDirection = levelSettings.scrollDirection || 'up';
         
-        console.log(`DEBUG: Perfect starting position for "${settingsLevelName}": ${perfectStartingPosition} (scroll direction: ${scrollDirection})`);
+        console.log(`DEBUG: Perfect starting position for "${settingsLevelName}": ${perfectStartingPositionAction} (scroll direction: ${scrollDirection})`);
         
         // Notify that startup action is complete (always mark it, even if "nothing")
         if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
@@ -506,14 +516,26 @@ function startAutomation(dependencies) {
             console.log('⚠️ Cannot send startup signal - mainWindow not available');
         }
         
-        if (perfectStartingPosition === 'scroll_down_1x') {
+        if (perfectStartingPositionAction === 'wait') {
+            const waitTime = perfectStartingPositionWaitTime || 1000;
+            console.log(`DEBUG: Level "${currentLevelName}" requires wait: ${waitTime}ms`);
+            updateStatus(`Level-specific action: ${currentLevelName} - waiting ${waitTime}ms.`, 'info');
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else if (perfectStartingPositionAction === 'scroll_up_1x') {
+            const actualScrollFunc = scrollDirection === 'down' ? scrollDown : scrollUpWithDistance;
+            const directionText = scrollDirection === 'down' ? 'down' : 'up';
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} once (direction mode: ${scrollDirection}).`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} once.`, 'info');
+            await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } else if (perfectStartingPositionAction === 'scroll_down_1x') {
             const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
             const directionText = scrollDirection === 'down' ? 'up' : 'down';
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} once (direction mode: ${scrollDirection}).`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} once.`, 'info');
             await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
             await new Promise(resolve => setTimeout(resolve, 100));
-        } else if (perfectStartingPosition === 'scroll_down_2x') {
+        } else if (perfectStartingPositionAction === 'scroll_down_2x') {
             const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
             const directionText = scrollDirection === 'down' ? 'up' : 'down';
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} twice (direction mode: ${scrollDirection}).`);
@@ -523,7 +545,7 @@ function startAutomation(dependencies) {
                 await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-        } else if (perfectStartingPosition === 'scroll_down_3x') {
+        } else if (perfectStartingPositionAction === 'scroll_down_3x') {
             const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
             const directionText = scrollDirection === 'down' ? 'up' : 'down';
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} three times (direction mode: ${scrollDirection}).`);
@@ -533,7 +555,7 @@ function startAutomation(dependencies) {
                 await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-        } else if (perfectStartingPosition === 'scroll_down_4x') {
+        } else if (perfectStartingPositionAction === 'scroll_down_4x') {
             const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
             const directionText = scrollDirection === 'down' ? 'up' : 'down';
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} four times (direction mode: ${scrollDirection}).`);
@@ -543,7 +565,7 @@ function startAutomation(dependencies) {
                 await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-        } else if (perfectStartingPosition === 'scroll_to_bottom') {
+        } else if (perfectStartingPositionAction === 'scroll_to_bottom') {
             if (scrollDirection === 'down') {
                 console.log(`DEBUG: Level "${currentLevelName}" requires scroll to TOP (scroll direction: down).`);
                 updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to top.`, 'info');
@@ -562,7 +584,14 @@ function startAutomation(dependencies) {
         if (!getIsAutomationRunning()) { return; }
 
         // After a successful exit and new level start, update the previous level duration
-        updatePreviousLevelDuration(Date.now() - getCurrentLevelStartTime()); // Use the getter function
+        // Subtract reconnection downtime to compensate for connection interruptions
+        const rawDuration = Date.now() - getCurrentLevelStartTime();
+        const compensatedDuration = rawDuration - getReconnectionDowntimeMs();
+        const downtimeSeconds = (getReconnectionDowntimeMs() / 1000).toFixed(1);
+        if (getReconnectionDowntimeMs() > 0) {
+            console.log(`LEVEL COMPLETE: Raw duration: ${(rawDuration / 1000).toFixed(1)}s, Downtime: ${downtimeSeconds}s, Compensated: ${(compensatedDuration / 1000).toFixed(1)}s`);
+        }
+        updatePreviousLevelDuration(compensatedDuration);
         
         // Reset the build completion count for the new level
         buildCompletionCount = 0;
