@@ -840,7 +840,7 @@ ipcRenderer.on('update-average-level-duration', (event, durationText) => {
 });
 
 // New: IPC listener for current level name updates
-ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, levelBestUpMs, levelBestDownMs, levelLastMs, levelLastDirection) => {
+ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, levelAvgUpMs, levelAvgDownMs, levelBestUpMs, levelBestDownMs, levelLastUpMs, levelLastDownMs) => {
     // Toggle compact header depending on name
     try {
         const levelInfo = document.querySelector('.level-info');
@@ -855,27 +855,25 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
     if (currentLevelNameDisplay) {
         const name = levelName || 'Unnamed Level';
         
-        if (levelAverageMs || levelBestUpMs || levelBestDownMs) {
-            // Format the durations
-            const avgText = levelAverageMs ? formatDuration(levelAverageMs) : '—';
+        if (levelAverageMs || levelAvgUpMs || levelAvgDownMs || levelBestUpMs || levelBestDownMs) {
+            // Format average times for both directions
+            const avgUpText = levelAvgUpMs ? formatDuration(levelAvgUpMs) + `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 2px;">u</sup>` : '—';
+            const avgDownText = levelAvgDownMs ? formatDuration(levelAvgDownMs) + `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 2px;">d</sup>` : '—';
             
             // Format best times for both directions
             const bestUpText = levelBestUpMs ? formatDuration(levelBestUpMs) + `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 2px;">u</sup>` : '—';
             const bestDownText = levelBestDownMs ? formatDuration(levelBestDownMs) + `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 2px;">d</sup>` : '—';
             
-            // Format last time with direction indicator
-            let lastText = levelLastMs ? formatDuration(levelLastMs) : '—';
-            if (levelLastMs && levelLastDirection) {
-                const directionIndicator = levelLastDirection === 'up' ? 'u' : 'd';
-                lastText += `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 3px;">${directionIndicator}</sup>`;
-            }
+            // Format last times for both directions
+            const lastUpText = levelLastUpMs ? formatDuration(levelLastUpMs) + `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 2px;">u</sup>` : '—';
+            const lastDownText = levelLastDownMs ? formatDuration(levelLastDownMs) + `<sup style="font-size: 0.65em; opacity: 0.5; margin-left: 2px;">d</sup>` : '—';
             
             currentLevelNameDisplay.innerHTML = `
                 <div style="font-size: 1.6em; font-weight: 700; margin-bottom: 6px; color: #e0e6ed;">${name}</div>
                 <div style="font-size: 0.95em; margin-bottom: 3px; display: flex; gap: 12px; flex-wrap: wrap;">
                     <div>
-                        <span style="color: #ffc107; font-weight: 600;">average:</span> 
-                        <span style="color: #e0e6ed; font-weight: 500;">${avgText}</span>
+                        <span style="color: #ffc107; font-weight: 600;">avg:</span> 
+                        <span style="color: #e0e6ed; font-weight: 500;">${avgUpText} / ${avgDownText}</span>
                     </div>
                     <div>
                         <span style="color: #4caf50; font-weight: 600;">best:</span> 
@@ -884,7 +882,7 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
                 </div>
                 <div style="font-size: 1em;">
                     <span style="color: #9c27b0; font-weight: 600;">last:</span> 
-                    <span style="color: #e0e6ed; font-weight: 500; margin-right: 10px;">${lastText}</span>
+                    <span style="color: #e0e6ed; font-weight: 500; margin-right: 10px;">${lastUpText} / ${lastDownText}</span>
                     <span style="color: #666; margin: 0 8px;">|</span>
                     <span style="color: #2196f3; font-weight: 600;">current:</span> 
                     <span id="currentLevelTimer" style="color: #e0e6ed; font-weight: 500;">—</span>
@@ -1108,12 +1106,16 @@ async function updateStageETAs() {
                     // Calculate ETA for current level using historical average
                     const levelStats = statisticsData.levels[currentLevelName];
                     let eta = null;
-                    if (levelStats && levelStats.completions && levelStats.completions.length > 0) {
-                        // Extract durations (support both old format [number] and new format [{duration, direction}])
-                        const durations = levelStats.completions.map(c => typeof c === 'number' ? c : c.duration);
-                        const avg = durations.reduce((sum, time) => sum + time, 0) / durations.length;
-                        const elapsed = Date.now() - currentStageInfo.current.startTime - currentStageInfo.current.levels.reduce((sum, l) => sum + l.durationMs, 0);
-                        eta = Math.max(0, avg - elapsed);
+                    if (levelStats) {
+                        const allCompletions = [
+                            ...(levelStats.completionsUp || []),
+                            ...(levelStats.completionsDown || [])
+                        ];
+                        if (allCompletions.length > 0) {
+                            const avg = allCompletions.reduce((sum, time) => sum + time, 0) / allCompletions.length;
+                            const elapsed = Date.now() - currentStageInfo.current.startTime - currentStageInfo.current.levels.reduce((sum, l) => sum + l.durationMs, 0);
+                            eta = Math.max(0, avg - elapsed);
+                        }
                     }
                     if (eta !== null) {
                         timeSpan.textContent = `eta: ${formatDuration(eta)}`;
@@ -1346,8 +1348,8 @@ async function updatePreviousStageDetailsCompact(previousStage) {
             previousStage.levels.forEach((level, index) => {
                 const levelDiv = document.createElement('div');
                 
-                // Use saved comparison data
-                const comparison = level.comparison || calculateLevelComparison(level.durationMs, level.name);
+                // Use saved comparison data, recalculate with correct direction if not saved
+                const comparison = level.comparison || calculateLevelComparison(level.durationMs, level.name, level.direction || 'up');
                 
                 levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass || ''}`;
                 
@@ -1400,8 +1402,8 @@ async function updatePreviousStageDetailsCompact(previousStage) {
                     // Show completed level - use levelName from database (has originalName for position 1)
                     const level = previousStage.levels[completedLevelIndex];
                     
-                    // Recalculate comparison to get color class and timeDelta format
-                    const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName);
+                    // Recalculate comparison to get color class and timeDelta format, using the correct direction
+                    const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName, level.direction || 'up');
                     
                     // Apply color class based on performance
                     levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass || ''}`;
@@ -1436,19 +1438,29 @@ async function updatePreviousStageDetailsCompact(previousStage) {
 }
 
 /**
- * Calculate comparison indicator for a level time vs its historical average
+ * Calculate comparison indicator for a level time vs its historical average for a specific direction
  * Returns object with arrow and percentage text
  */
-function calculateLevelComparison(actualTime, levelName) {
+function calculateLevelComparison(actualTime, levelName, direction = 'up') {
     // Get historical average for this level
     const levelStats = statisticsData.levels[levelName];
-    if (!levelStats || !levelStats.completions || levelStats.completions.length === 0) {
+    
+    // Use only the completions for the specified direction
+    let directionCompletions = [];
+    if (levelStats) {
+        if (direction === 'up' && levelStats.completionsUp && Array.isArray(levelStats.completionsUp)) {
+            directionCompletions = levelStats.completionsUp;
+        } else if (direction === 'down' && levelStats.completionsDown && Array.isArray(levelStats.completionsDown)) {
+            directionCompletions = levelStats.completionsDown;
+        }
+    }
+    
+    if (directionCompletions.length === 0) {
         return { arrow: '', timeDelta: '', cssClass: '' };
     }
     
-    // Calculate average from completions (support both old format [number] and new format [{duration, direction}])
-    const durations = levelStats.completions.map(c => typeof c === 'number' ? c : c.duration);
-    const avg = durations.reduce((sum, time) => sum + time, 0) / durations.length;
+    // Calculate average from direction-specific completions
+    const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
     
     // Calculate time difference in milliseconds
     const timeDiffMs = actualTime - avg;
@@ -1530,9 +1542,9 @@ async function updateCurrentStageDetails(currentStage) {
             currentStage.levels.forEach((level, index) => {
                 const levelDiv = document.createElement('div');
                 
-                // Use saved comparison data if available, otherwise recalculate
+                // Use saved comparison data if available, otherwise recalculate with correct direction
                 // This ensures colors persist and match the full stage methodology
-                const comparison = level.comparison || calculateLevelComparison(level.durationMs, level.name);
+                const comparison = level.comparison || calculateLevelComparison(level.durationMs, level.name, level.direction || 'up');
                 
                 levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass}`;
                 
@@ -1560,12 +1572,16 @@ async function updateCurrentStageDetails(currentStage) {
                 // Calculate ETA for current level using historical average
                 const levelStats = statisticsData.levels[currentStage.currentLevelName];
                 let eta = null;
-                if (levelStats && levelStats.completions && levelStats.completions.length > 0) {
-                    // Extract durations (support both old format [number] and new format [{duration, direction}])
-                    const durations = levelStats.completions.map(c => typeof c === 'number' ? c : c.duration);
-                    const avg = durations.reduce((sum, time) => sum + time, 0) / durations.length;
-                    const elapsed = Date.now() - currentStage.startTime - currentStage.levels.reduce((sum, l) => sum + l.durationMs, 0);
-                    eta = Math.max(0, avg - elapsed);
+                if (levelStats) {
+                    const allCompletions = [
+                        ...(levelStats.completionsUp || []),
+                        ...(levelStats.completionsDown || [])
+                    ];
+                    if (allCompletions.length > 0) {
+                        const avg = allCompletions.reduce((sum, time) => sum + time, 0) / allCompletions.length;
+                        const elapsed = Date.now() - currentStage.startTime - currentStage.levels.reduce((sum, l) => sum + l.durationMs, 0);
+                        eta = Math.max(0, avg - elapsed);
+                    }
                 }
                 const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
                 
@@ -1624,9 +1640,9 @@ async function updateCurrentStageDetails(currentStage) {
                         await ipcRenderer.invoke('renderer-log', `Rendering completed level #${completedLevelIndex}: position=${position}, dbName="${levelName}", actualName="${level.name}"`);
 
                         
-                        // Use saved comparison data if available, otherwise recalculate
+                        // Use saved comparison data if available, otherwise recalculate with correct direction
                         // This ensures colors persist from current to previous stage
-                        const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName);
+                        const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName, level.direction || 'up');
                         
                         // Apply color class based on performance
                         levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass}`;
@@ -2028,24 +2044,44 @@ function populateLevelsView() {
     // Get all levels from statistics
     const allLevels = [];
     Object.entries(statisticsData.levels).forEach(([levelName, levelStats]) => {
-        const completions = levelStats.completions || [];
+        // Combine completions from both directions
+        const allCompletions = [
+            ...(levelStats.completionsUp || []),
+            ...(levelStats.completionsDown || [])
+        ];
         
-        // Extract durations (support both old format [number] and new format [{duration, direction}])
-        const durations = completions.map(c => typeof c === 'number' ? c : c.duration);
-        const filteredDurations = ignoreExtremes ? filterExtremes(durations) : durations;
+        const filteredDurations = ignoreExtremes ? filterExtremes(allCompletions) : allCompletions;
         
-        // Get last completion with direction
-        const lastCompletion = completions.length > 0 ? completions[completions.length - 1] : null;
-        const lastDuration = lastCompletion ? (typeof lastCompletion === 'number' ? lastCompletion : lastCompletion.duration) : 0;
-        const lastDirection = lastCompletion && typeof lastCompletion === 'object' ? lastCompletion.direction : null;
+        // Get last completion with direction (check both arrays)
+        let lastDuration = 0;
+        let lastDirection = null;
+        
+        // Determine which direction has the most recent completion
+        const upCount = levelStats.completionsUp ? levelStats.completionsUp.length : 0;
+        const downCount = levelStats.completionsDown ? levelStats.completionsDown.length : 0;
+        
+        if (upCount > 0 && downCount > 0) {
+            // Both exist - assume most recent is the last one added overall (use lastDirection from stats)
+            lastDirection = levelStats.lastDirection || null;
+            lastDuration = levelStats.lastTime || 0;
+        } else if (upCount > 0) {
+            lastDuration = levelStats.completionsUp[upCount - 1];
+            lastDirection = 'up';
+        } else if (downCount > 0) {
+            lastDuration = levelStats.completionsDown[downCount - 1];
+            lastDirection = 'down';
+        }
         
         // Get best (min) completion with direction
         const minDuration = filteredDurations.length > 0 ? Math.min(...filteredDurations) : 0;
         let minDirection = null;
         if (minDuration > 0) {
-            const minIndex = durations.indexOf(minDuration);
-            const minCompletion = completions[minIndex];
-            minDirection = typeof minCompletion === 'object' ? minCompletion.direction : null;
+            // Check which array contains the best time
+            if (levelStats.completionsUp && levelStats.completionsUp.includes(minDuration)) {
+                minDirection = 'up';
+            } else if (levelStats.completionsDown && levelStats.completionsDown.includes(minDuration)) {
+                minDirection = 'down';
+            }
         }
         
         // Find positions where this level appears
@@ -2069,14 +2105,14 @@ function populateLevelsView() {
             name: levelName,
             positions: uniquePositions,
             positionsText: positionsText,
-            completions: completions.length,
+            completions: allCompletions.length,
             last: lastDuration,
             lastDirection: lastDirection,
             average: filteredDurations.length > 0 ? Math.round(filteredDurations.reduce((a, b) => a + b, 0) / filteredDurations.length) : 0,
             min: minDuration,
             minDirection: minDirection,
             max: filteredDurations.length > 0 ? Math.max(...filteredDurations) : 0,
-            trend: calculateTrend(durations)
+            trend: calculateTrend(allCompletions)
         });
     });
     
@@ -2412,55 +2448,247 @@ async function initializeSettingsModal() {
     
     // Special handler for scroll direction changes - save old direction, load new direction
     document.getElementById('scrollDirection').addEventListener('change', async (e) => {
+        await ipcRenderer.invoke('renderer-log', 'DIR: handler fired');
         const newDirection = e.target.value;
         const oldDirection = originalSettings.scrollDirection;
+        await ipcRenderer.invoke('renderer-log', `DIR: old=${oldDirection} new=${newDirection}`);
         
         if (newDirection === oldDirection) {
+            console.error('Same direction, returning');
             return; // No change
         }
         
-        console.log(`Direction changed from ${oldDirection} to ${newDirection} for level: ${currentEditingLevel}`);
-        
         // Get current form settings (may have unsaved changes for old direction)
         const currentSettings = getCurrentFormSettings();
+        await ipcRenderer.invoke('renderer-log', `DIR: current form (pre-save old): ${JSON.stringify(currentSettings)}`);
         
-        // Extract only direction-specific settings (exclude global settings)
-        const directionSpecificSettings = {
+        // Check if there are unsaved changes for the OLD direction only (ignore scrollDirection)
+        const currentDirSettings = {
             optimized: currentSettings.optimized,
-            perfectStartingPosition: currentSettings.perfectStartingPosition,
             scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
             scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
             firstBuildAction: currentSettings.firstBuildAction,
-            secondBuildAction: currentSettings.secondBuildAction
+            secondBuildAction: currentSettings.secondBuildAction,
+            perfectStartingPosition: currentSettings.perfectStartingPosition
         };
+        const originalDirSettings = {
+            optimized: originalSettings.optimized,
+            scrollToBottomAfterFirstBuild: originalSettings.scrollToBottomAfterFirstBuild,
+            scrollToBottomAfterSecondBuild: originalSettings.scrollToBottomAfterSecondBuild,
+            firstBuildAction: originalSettings.firstBuildAction,
+            secondBuildAction: originalSettings.secondBuildAction,
+            perfectStartingPosition: originalSettings.perfectStartingPosition
+        };
+        const hasUnsavedChanges = JSON.stringify(currentDirSettings) !== JSON.stringify(originalDirSettings);
         
-        // Save any changes from old direction before switching
-        await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
-        console.log(`Auto-saved ${oldDirection} direction settings before switching`);
-        
-        // Load settings for the new direction
-        const newDirectionSettings = await ipcRenderer.invoke('get-direction-settings', currentEditingLevel, newDirection);
-        
-        // Set default optimized value based on direction if not already set
-        if (newDirectionSettings.optimized === undefined) {
-            newDirectionSettings.optimized = (newDirection === 'up');
+        if (hasUnsavedChanges) {
+            // Show confirmation dialog
+            const result = await new Promise((resolve) => {
+                const message = `You have unsaved changes for the "${oldDirection}" direction.\n\nWhat would you like to do?`;
+                const dialog = document.createElement('div');
+                dialog.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: #2a2a2a;
+                    border: 2px solid #555;
+                    border-radius: 8px;
+                    padding: 24px;
+                    z-index: 10000;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                    min-width: 400px;
+                `;
+                
+                dialog.innerHTML = `
+                    <div style="color: #e0e6ed; font-size: 16px; margin-bottom: 20px; white-space: pre-line;">${message}</div>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button id="dialogSave" style="padding: 8px 16px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Save & Switch</button>
+                        <button id="dialogDiscard" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Discard & Switch</button>
+                        <button id="dialogCancel" style="padding: 8px 16px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Cancel</button>
+                    </div>
+                `;
+                
+                document.body.appendChild(dialog);
+                
+                document.getElementById('dialogSave').onclick = () => {
+                    document.body.removeChild(dialog);
+                    resolve('save');
+                };
+                document.getElementById('dialogDiscard').onclick = () => {
+                    document.body.removeChild(dialog);
+                    resolve('discard');
+                };
+                document.getElementById('dialogCancel').onclick = () => {
+                    document.body.removeChild(dialog);
+                    resolve('cancel');
+                };
+            });
+            
+            if (result === 'cancel') {
+                // Revert the dropdown to old direction
+                document.getElementById('scrollDirection').value = oldDirection;
+                return;
+            }
+            
+            if (result === 'discard') {
+                // Don't save, just continue with switching
+            } else if (result === 'save') {
+                // Extract only direction-specific settings (exclude global settings)
+                const directionSpecificSettings = {
+                    optimized: currentSettings.optimized,
+                    perfectStartingPosition: currentSettings.perfectStartingPosition,
+                    scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
+                    scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
+                    firstBuildAction: currentSettings.firstBuildAction,
+                    secondBuildAction: currentSettings.secondBuildAction
+                };
+                await ipcRenderer.invoke('renderer-log', `DIR: saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
+                // Save changes from old direction before switching
+                await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
+            }
+        } else {
+            // No unsaved changes, just auto-save current state
+            const directionSpecificSettings = {
+                optimized: currentSettings.optimized,
+                perfectStartingPosition: currentSettings.perfectStartingPosition,
+                scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
+                scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
+                firstBuildAction: currentSettings.firstBuildAction,
+                secondBuildAction: currentSettings.secondBuildAction
+            };
+            await ipcRenderer.invoke('renderer-log', `DIR: auto-saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
+            await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
         }
         
-        // Reload settings which will populate the form with the new direction
-        await loadSettingsForLevel(currentEditingLevel);
+        // Save the new scrollDirection to the file
+        await ipcRenderer.invoke('renderer-log', `DIR: writing scrollDirection=${newDirection} for ${currentEditingLevel}`);
+        await ipcRenderer.invoke('save-level-settings', currentEditingLevel, { scrollDirection: newDirection });
         
-        // Update originalSettings to reflect the change (but scrollDirection is different now)
-        originalSettings = getCurrentFormSettings();
-        // Restore the old direction in originalSettings so checkForChanges detects the change
-        originalSettings.scrollDirection = oldDirection;
+        // Force reload settings from file (clears cache)
+        await ipcRenderer.invoke('renderer-log', 'DIR: reloading settings from disk');
+        await ipcRenderer.invoke('reload-settings');
         
-        // Trigger change detection to enable save button (scrollDirection differs)
+        // Now load the settings for the new direction
+        const settings = await ipcRenderer.invoke('get-level-settings', currentEditingLevel);
+        await ipcRenderer.invoke('renderer-log', `DIR: loaded merged settings: ${JSON.stringify(settings)}`);
+        
+        // CRITICAL: Update originalSettings FIRST before touching any form elements
+        // This prevents change listeners from interfering
+        originalSettings = {
+            doResearch: settings.doResearch,
+            scrollDirection: settings.scrollDirection,
+            blueBoxClickHoldDuration: settings.blueBoxClickHoldDuration,
+            optimized: settings.optimized,
+            scrollToBottomAfterFirstBuild: settings.scrollToBottomAfterFirstBuild,
+            scrollToBottomAfterSecondBuild: settings.scrollToBottomAfterSecondBuild,
+            perfectStartingPosition: settings.perfectStartingPosition,
+            firstBuildAction: settings.firstBuildAction,
+            secondBuildAction: settings.secondBuildAction,
+            maxBuildTimeMs: settings.maxBuildTimeMs
+        };
+        await ipcRenderer.invoke('renderer-log', `DIR: set originalSettings to: ${JSON.stringify(originalSettings)}`);
+        
+        // Now populate the form
+        document.getElementById('doResearch').checked = settings.doResearch;
+        document.getElementById('blueBoxClickHoldDuration').value = settings.blueBoxClickHoldDuration;
+        document.getElementById('optimized').checked = settings.optimized !== undefined ? settings.optimized : (newDirection === 'up');
+        
+        // Force the checkboxes using multiple methods
+        const checkbox1 = document.getElementById('scrollToBottomAfterFirstBuild');
+        const checkbox2 = document.getElementById('scrollToBottomAfterSecondBuild');
+        
+        // Method 1: Set property
+        checkbox1.checked = settings.scrollToBottomAfterFirstBuild;
+        await ipcRenderer.invoke('renderer-log', `UI: set checkbox1.checked=${checkbox1.checked}`);
+        checkbox2.checked = settings.scrollToBottomAfterSecondBuild;
+        
+        // Method 2: Set attribute
+        if (settings.scrollToBottomAfterFirstBuild) {
+            checkbox1.setAttribute('checked', '');
+        } else {
+            checkbox1.removeAttribute('checked');
+        }
+        if (settings.scrollToBottomAfterSecondBuild) {
+            checkbox2.setAttribute('checked', '');
+        } else {
+            checkbox2.removeAttribute('checked');
+        }
+        
+        // Method 3: Dispatch click events if values don't match
+        setTimeout(() => {
+            if (checkbox1.checked !== settings.scrollToBottomAfterFirstBuild) {
+                ipcRenderer.invoke('renderer-log', `UI: mismatch after set, clicking checkbox1 to ${settings.scrollToBottomAfterFirstBuild}`);
+                checkbox1.click();
+            }
+            if (checkbox2.checked !== settings.scrollToBottomAfterSecondBuild) {
+                checkbox2.click();
+            }
+        }, 100);
+        
+        // Handle perfectStartingPosition
+        if (typeof settings.perfectStartingPosition === 'object') {
+            document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition.action;
+            document.getElementById('perfectStartingPositionWaitTime').value = settings.perfectStartingPosition.waitTimeMs || 1000;
+            document.getElementById('perfectStartingPositionWaitOptions').style.display = 
+                settings.perfectStartingPosition.action === 'wait' ? 'block' : 'none';
+        } else {
+            document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition;
+            document.getElementById('perfectStartingPositionWaitOptions').style.display = 'none';
+        }
+        
+        // First build action
+        document.getElementById('firstBuildAction').value = settings.firstBuildAction.action;
+        document.getElementById('firstBuildTriggerTime').value = settings.firstBuildAction.triggerTimeMs || '';
+        document.getElementById('firstBuildClickOffScrollDistance').value = settings.firstBuildAction.clickOffAndScrollDistance || 150;
+        const firstOpts = settings.firstBuildAction.clickaroundOptions || {};
+        document.getElementById('firstBuildExcludeRedBlobs').checked = firstOpts.excludeRedBlobs !== undefined ? firstOpts.excludeRedBlobs : true;
+        document.getElementById('firstBuildClickaroundChunks').value = firstOpts.clickaroundChunks ?? 3;
+        document.getElementById('firstBuildScrollUpDistance').value = firstOpts.scrollUpDistance ?? 200;
+        document.getElementById('firstBuildScrollUpCount').value = firstOpts.scrollUpCount ?? 5;
+        document.getElementById('firstBuildInitialScrollDown').value = firstOpts.initialScrollDown ?? 150;
+        document.getElementById('firstBuildScrollToBottomAtEnd').checked = firstOpts.scrollToBottomAtEnd || false;
+        document.getElementById('firstBuildClickaroundOptions').style.display = 
+            settings.firstBuildAction.action === 'clickaround' ? 'block' : 'none';
+        document.getElementById('firstBuildClickOffScrollDistance').parentElement.style.display = 
+            settings.firstBuildAction.action === 'click_off_and_scroll' ? 'block' : 'none';
+        
+        // Second build action
+        document.getElementById('secondBuildAction').value = settings.secondBuildAction.action;
+        document.getElementById('secondBuildTriggerTime').value = settings.secondBuildAction.triggerTimeMs || '';
+        document.getElementById('secondBuildClickOffScrollDistance').value = settings.secondBuildAction.clickOffAndScrollDistance || 150;
+        const secondOpts = settings.secondBuildAction.clickaroundOptions || {};
+        document.getElementById('secondBuildExcludeRedBlobs').checked = secondOpts.excludeRedBlobs !== undefined ? secondOpts.excludeRedBlobs : true;
+        document.getElementById('secondBuildClickaroundChunks').value = secondOpts.clickaroundChunks ?? 3;
+        document.getElementById('secondBuildScrollUpDistance').value = secondOpts.scrollUpDistance ?? 200;
+        document.getElementById('secondBuildScrollUpCount').value = secondOpts.scrollUpCount ?? 5;
+        document.getElementById('secondBuildInitialScrollDown').value = secondOpts.initialScrollDown ?? 150;
+        document.getElementById('secondBuildScrollToBottomAtEnd').checked = secondOpts.scrollToBottomAtEnd || false;
+        document.getElementById('secondBuildClickaroundOptions').style.display = 
+            settings.secondBuildAction.action === 'clickaround' ? 'block' : 'none';
+        document.getElementById('secondBuildClickOffScrollDistance').parentElement.style.display = 
+            settings.secondBuildAction.action === 'click_off_and_scroll' ? 'block' : 'none';
+        
+        // originalSettings was already set at the beginning
+        // Disable save button since we just loaded saved settings
+        await ipcRenderer.invoke('renderer-log', `DIR: calling checkForChanges`);
         checkForChanges();
+        
+        // FINAL CHECK: Verify the checkbox is actually set correctly
+        setTimeout(() => {
+            const finalCheck = document.getElementById('scrollToBottomAfterFirstBuild');
+            if (finalCheck.checked !== settings.scrollToBottomAfterFirstBuild) {
+                ipcRenderer.invoke('renderer-log', `FINAL MISMATCH: expected=${settings.scrollToBottomAfterFirstBuild} actual=${finalCheck.checked}`);
+            } else {
+                ipcRenderer.invoke('renderer-log', `FINAL OK: checkbox1=${finalCheck.checked}`);
+            }
+        }, 500);
     });
     
     // Add change listeners to all form inputs to track modifications
+    // NOTE: scrollDirection has its own special handler above, don't add it here
     const formInputs = [
-        'doResearch', 'scrollDirection', 'optimized', 'blueBoxClickHoldDuration',
+        'doResearch', 'optimized', 'blueBoxClickHoldDuration',
         'scrollToBottomAfterFirstBuild', 'scrollToBottomAfterSecondBuild', 'perfectStartingPosition', 'perfectStartingPositionWaitTime',
         'firstBuildAction', 'firstBuildTriggerTime', 'firstBuildClickOffScrollDistance',
         'firstBuildExcludeRedBlobs', 'firstBuildClickaroundChunks', 'firstBuildScrollUpDistance', 'firstBuildScrollUpCount',
@@ -2648,6 +2876,7 @@ async function saveCurrentSettings() {
     };
     
     const directionSpecificSettings = {
+        optimized: settings.optimized,
         perfectStartingPosition: settings.perfectStartingPosition,
         scrollToBottomAfterFirstBuild: settings.scrollToBottomAfterFirstBuild,
         scrollToBottomAfterSecondBuild: settings.scrollToBottomAfterSecondBuild,

@@ -406,13 +406,13 @@ function startAutomation(dependencies) {
     async function exitAndStartNewLevel(exitDependencies) {
         const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, setFinishedLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = exitDependencies;
 
-        // Store the current level name as the finished level name before clearing it
+        // Store the current level name as the finished level name
         const currentLevel = getCurrentLevelName();
         setFinishedLevelName(currentLevel);
         console.log(`DEBUG: Stored finished level name: "${currentLevel}"`);
 
-        // Clear level name and overlays at start of new level
-        updateCurrentLevelName(''); // Set to empty string for unnamed level
+        // Note: Don't clear level name here - let it update naturally when OCR detects the new level
+        // This prevents the UI from briefly showing "Unknown Level" during the transition
 
         // Reset clickAround counter for new level
         resetClickAroundCallCounter();
@@ -448,14 +448,14 @@ function startAutomation(dependencies) {
                 dependencies.updateCurrentLevelName(levelName);
                 updateStatus(`Level name captured: "${levelName}"`, 'success');
             } else {
-                console.log('DEBUG: Level name capture failed or returned empty result');
-                dependencies.updateCurrentLevelName('Unknown Level');
-                updateStatus('Level name capture failed', 'warn');
+                console.log('DEBUG: Level name capture failed or returned empty result - keeping previous level name');
+                // Don't update the level name if OCR fails - keep the previous level's name
+                updateStatus('Level name capture failed - keeping previous name', 'warn');
             }
         } catch (error) {
             console.error('ERROR: Level name OCR failed:', error);
-            dependencies.updateCurrentLevelName('Unknown Level');
-            updateStatus('Level name OCR error', 'error');
+            // Don't update the level name on error - keep the previous level's name
+            updateStatus('Level name OCR error - keeping previous name', 'error');
         }
 
         // Click at "start level"
