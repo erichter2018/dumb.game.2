@@ -25,6 +25,45 @@ function startAutomation(dependencies) {
     }
 
     let buildCompletionCount = 0; // Track how many builds have completed
+    // Effective direction chosen once per level
+    let currentLevelEffectiveDirection = null; // 'up' | 'down'
+    let currentLevelRandomApplied = false;
+
+    function resetEffectiveDirectionForNewLevel() {
+        currentLevelEffectiveDirection = null;
+        currentLevelRandomApplied = false;
+    }
+
+    function selectEffectiveDirectionOnce(levelName) {
+        if (currentLevelEffectiveDirection) {
+            return { dir: currentLevelEffectiveDirection, randomApplied: currentLevelRandomApplied };
+        }
+        try {
+            const mode = settingsManager.getDirectionMode ? settingsManager.getDirectionMode() : 'random';
+            const savedDir = (settingsManager.getLevelSettings(levelName).scrollDirection) || 'up';
+            if (mode === 'up') {
+                currentLevelEffectiveDirection = 'up';
+                currentLevelRandomApplied = false;
+            } else if (mode === 'random') {
+                const upS = settingsManager.getDirectionSettings(levelName, 'up');
+                const downS = settingsManager.getDirectionSettings(levelName, 'down');
+                if (upS.optimized === true && downS.optimized === true) {
+                    currentLevelEffectiveDirection = Math.random() < 0.5 ? 'up' : 'down';
+                    currentLevelRandomApplied = true;
+                } else {
+                    currentLevelEffectiveDirection = savedDir;
+                    currentLevelRandomApplied = false;
+                }
+            } else {
+                currentLevelEffectiveDirection = savedDir; // 'saved'
+                currentLevelRandomApplied = false;
+            }
+        } catch (e) {
+            currentLevelEffectiveDirection = 'up';
+            currentLevelRandomApplied = false;
+        }
+        return { dir: currentLevelEffectiveDirection, randomApplied: currentLevelRandomApplied };
+    }
     const MAX_RED_BLOB_CLICK_ATTEMPTS = 3; // Define max retry attempts for red blob clicks
     const MAX_BLUE_BOX_CONFIRM_ATTEMPTS = 1; // New: Max retry attempts for confirming blue box
     const MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION = 2; // New: Max detection attempts before a single scroll up
@@ -138,8 +177,21 @@ function startAutomation(dependencies) {
                 // Get current level name to check settings
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
                 const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
-                const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+                // Use the once-selected effective direction for this level
+                const eff = selectEffectiveDirectionOnce(settingsLevelName);
+                const levelSettings = (() => {
+                    const global = settingsManager.getLevelSettings(settingsLevelName);
+                    const dirSettings = settingsManager.getDirectionSettings(settingsLevelName, eff.dir);
+                    return {
+                        ...dirSettings,
+                        doResearch: global.doResearch,
+                        blueBoxClickHoldDuration: global.blueBoxClickHoldDuration,
+                        maxBuildTimeMs: global.maxBuildTimeMs,
+                        scrollDirection: eff.dir
+                    };
+                })();
                 const scrollDirection = levelSettings.scrollDirection || 'up';
+                // Do not emit effective-direction here; it's sent at level start
                 
                 let shouldScrollAfterBuild = false;
                 if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
@@ -349,8 +401,41 @@ function startAutomation(dependencies) {
                 // Get current level name to check settings
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
                 const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
-                const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+                const resolveDirectionMode = () => {
+                    const mode = settingsManager.getDirectionMode ? settingsManager.getDirectionMode() : 'random';
+                    const savedDir = (settingsManager.getLevelSettings(settingsLevelName).scrollDirection) || 'up';
+                    if (mode === 'up') return { dir: 'up', mode, randomApplied: false };
+                    if (mode === 'random') {
+                        const upS = settingsManager.getDirectionSettings(settingsLevelName, 'up');
+                        const downS = settingsManager.getDirectionSettings(settingsLevelName, 'down');
+                        if (upS.optimized === true && downS.optimized === true) {
+                            const dir = Math.random() < 0.5 ? 'up' : 'down';
+                            return { dir, mode, randomApplied: true };
+                        }
+                        return { dir: savedDir, mode, randomApplied: false };
+                    }
+                    return { dir: savedDir, mode: 'saved', randomApplied: false };
+                };
+                // Use the once-selected effective direction for the rest of the level
+                const eff2 = { dir: currentLevelEffectiveDirection || 'up', randomApplied: currentLevelRandomApplied, mode: (settingsManager.getDirectionMode ? settingsManager.getDirectionMode() : 'random') };
+                const levelSettings = (() => {
+                    const global = settingsManager.getLevelSettings(settingsLevelName);
+                    const dirSettings = settingsManager.getDirectionSettings(settingsLevelName, eff2.dir);
+                    return {
+                        ...dirSettings,
+                        doResearch: global.doResearch,
+                        blueBoxClickHoldDuration: global.blueBoxClickHoldDuration,
+                        maxBuildTimeMs: global.maxBuildTimeMs,
+                        scrollDirection: eff2.dir
+                    };
+                })();
                 const scrollDirection = levelSettings.scrollDirection || 'up';
+                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    dependencies.mainWindow.webContents.send('effective-direction', eff2.mode, eff2.dir, eff2.randomApplied);
+                }
+                if (dependencies.setEffectiveDirectionInfo) {
+                    dependencies.setEffectiveDirectionInfo(eff2);
+                }
                 
                 let shouldScrollAfterBuild = false;
                 if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
@@ -438,6 +523,9 @@ function startAutomation(dependencies) {
         await new Promise(resolve => setTimeout(resolve, 7500));
         if (!getIsAutomationRunning()) { return; }
 
+        // New level starting: reset effective direction cache
+        resetEffectiveDirectionForNewLevel();
+
         // Capture level name using OCR before clicking "Start Level"
         console.log('DEBUG: Capturing level name using OCR...');
         updateStatus('Capturing level name...', 'info');
@@ -490,21 +578,41 @@ function startAutomation(dependencies) {
         const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : 'Unknown Level';
         console.log(`DEBUG: Current level name for scrolling decision: "${currentLevelName}"`);
         
-        // Get perfect starting position from settings
+        // Determine effective direction ONCE per level
         const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
-        const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+        const eff = selectEffectiveDirectionOnce(settingsLevelName);
+        // Build effective level settings for chosen direction
+        const effSettings = (() => {
+            const global = settingsManager.getLevelSettings(settingsLevelName);
+            const dirSettings = settingsManager.getDirectionSettings(settingsLevelName, eff.dir);
+            return {
+                ...dirSettings,
+                doResearch: global.doResearch,
+                blueBoxClickHoldDuration: global.blueBoxClickHoldDuration,
+                maxBuildTimeMs: global.maxBuildTimeMs,
+                scrollDirection: eff.dir
+            };
+        })();
+        // Inform UI of effective direction
+        if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+            const mode = settingsManager.getDirectionMode ? settingsManager.getDirectionMode() : 'random';
+            console.log(`DEBUG: Sending effective-direction to UI: mode=${mode}, dir=${eff.dir}, randomApplied=${eff.randomApplied}`);
+            dependencies.mainWindow.webContents.send('effective-direction', mode, eff.dir, eff.randomApplied);
+        } else {
+            console.log(`DEBUG: Cannot send effective-direction - mainWindow not available`);
+        }
         
         // Handle perfectStartingPosition (can be string or object for backward compatibility)
         let perfectStartingPositionAction, perfectStartingPositionWaitTime;
-        if (typeof levelSettings.perfectStartingPosition === 'object') {
-            perfectStartingPositionAction = levelSettings.perfectStartingPosition.action || 'nothing';
-            perfectStartingPositionWaitTime = levelSettings.perfectStartingPosition.waitTimeMs || null;
+        if (typeof effSettings.perfectStartingPosition === 'object') {
+            perfectStartingPositionAction = effSettings.perfectStartingPosition.action || 'nothing';
+            perfectStartingPositionWaitTime = effSettings.perfectStartingPosition.waitTimeMs || null;
         } else {
-            perfectStartingPositionAction = levelSettings.perfectStartingPosition || 'nothing';
+            perfectStartingPositionAction = effSettings.perfectStartingPosition || 'nothing';
             perfectStartingPositionWaitTime = null;
         }
         
-        const scrollDirection = levelSettings.scrollDirection || 'up';
+        const scrollDirection = effSettings.scrollDirection || 'up';
         
         console.log(`DEBUG: Perfect starting position for "${settingsLevelName}": ${perfectStartingPositionAction} (scroll direction: ${scrollDirection})`);
         
@@ -643,11 +751,11 @@ function startAutomation(dependencies) {
                 }
             }
             
-            // Get scroll direction from level settings (check each loop iteration in case level changes)
+            // Get scroll direction using the once-selected effective direction for this level
             const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
             const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
-            const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
-            const scrollDirection = levelSettings.scrollDirection || 'up';
+            const eff = selectEffectiveDirectionOnce(settingsLevelName);
+            const scrollDirection = eff.dir;
             console.log(`DEBUG: runFinishLevelProtocol - Level "${settingsLevelName}" scroll direction: ${scrollDirection}`);
             
             let blueBuildBox = null;

@@ -185,6 +185,23 @@
                         <button id="settingsBtn" class="btn btn-secondary">⚙️ Settings</button>
                         <button id="allStatisticsBtn" class="btn btn-info">📊 All Statistics</button>
                     </div>
+
+                    <!-- Direction Mode Controls -->
+                    <div id="directionModeControls" style="margin-top: 10px; display: flex; gap: 18px; align-items: center;">
+                        <div style="color:#e0e6ed; font-weight:600;">Direction:</div>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
+                            <input type="radio" name="directionMode" value="saved" id="directionModeSaved">
+                            <span>Saved</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
+                            <input type="radio" name="directionMode" value="random" id="directionModeRandom" checked>
+                            <span>Random</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
+                            <input type="radio" name="directionMode" value="up" id="directionModeUp">
+                            <span>Up</span>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Activity Log -->

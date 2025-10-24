@@ -2292,6 +2292,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Initialize collapsible panels
     initializeCollapsiblePanels();
+
+    // Initialize Direction Mode radio group
+    try {
+        const currentMode = await ipcRenderer.invoke('get-direction-mode');
+        const mode = currentMode || 'random';
+        const map = { saved: 'directionModeSaved', random: 'directionModeRandom', up: 'directionModeUp' };
+        if (document.getElementById(map[mode])) {
+            document.getElementById(map[mode]).checked = true;
+        }
+    } catch {}
+    ['directionModeSaved','directionModeRandom','directionModeUp'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', async () => {
+                if (!el.checked) return;
+                const mode = el.value; // saved | random | up
+                await ipcRenderer.invoke('set-direction-mode', mode);
+                await ipcRenderer.invoke('renderer-log', `UI: directionMode set to ${mode}`);
+            });
+        }
+    });
     
     // Initialize overlay system
     initializeOverlay();
@@ -2922,31 +2943,12 @@ async function resetLevelToDefaults() {
     }
 }
 
-// Level Actions Display
-async function updateLevelActionsDisplay() {
-    const currentLevel = await ipcRenderer.invoke('get-current-level-name');
+// Helper function to update the level actions display with given settings
+function updateLevelActionsDisplayWithSettings(settings) {
     const actionsDisplay = document.getElementById('levelActionsDisplay');
     
     // Always show the display
     actionsDisplay.style.display = 'block';
-    
-    // If no level, show default settings
-    let settings;
-    if (!currentLevel || currentLevel === 'Unknown Level' || currentLevel === '') {
-        // Default settings when no level is known (matching settingsManager defaults)
-        settings = {
-            perfectStartingPosition: 'nothing',
-            firstBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {} },
-            secondBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {} },
-            scrollToBottomAfterFirstBuild: true,  // Default is true for unnamed levels
-            scrollToBottomAfterSecondBuild: false,
-            doResearch: true,  // Default is true
-            blueBoxClickHoldDuration: 4500,  // Default is 4.5s
-            scrollDirection: 'up'
-        };
-    } else {
-        settings = await ipcRenderer.invoke('get-level-settings', currentLevel.toLowerCase());
-    }
     
     // Update optimized status display
     const optimizedStatusEl = document.getElementById('levelOptimizedStatus');
@@ -3031,14 +3033,69 @@ async function updateLevelActionsDisplay() {
     // Update other settings
     document.getElementById('researchValue').textContent = settings.doResearch ? 'Yes' : 'No';
     document.getElementById('holdDurationValue').textContent = `${settings.blueBoxClickHoldDuration / 1000}s`;
-    document.getElementById('scrollDirValue').textContent = settings.scrollDirection === 'up' ? 'Up ↑' : 'Down ↓';
+    // Note: Don't update scrollDirValue here - it's set by effective-direction event to preserve "Random" prefix
     
     console.log('✨ Level actions display updated and visible');
+}
+
+// Main function to load settings and update display
+async function updateLevelActionsDisplay() {
+    const currentLevel = await ipcRenderer.invoke('get-current-level-name');
+    
+    // If no level, show default settings
+    let settings;
+    if (!currentLevel || currentLevel === 'Unknown Level' || currentLevel === '') {
+        // Default settings when no level is known (matching settingsManager defaults)
+        settings = {
+            perfectStartingPosition: 'nothing',
+            firstBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {} },
+            secondBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {} },
+            scrollToBottomAfterFirstBuild: true,  // Default is true for unnamed levels
+            scrollToBottomAfterSecondBuild: false,
+            doResearch: true,  // Default is true
+            blueBoxClickHoldDuration: 4500,  // Default is 4.5s
+            scrollDirection: 'up'
+        };
+    } else {
+        settings = await ipcRenderer.invoke('get-level-settings', currentLevel.toLowerCase());
+    }
+    
+    updateLevelActionsDisplayWithSettings(settings);
+    
+    // Set scroll direction label (will be overridden by effective-direction event if random mode applies)
+    document.getElementById('scrollDirValue').textContent = settings.scrollDirection === 'up' ? 'Up ↑' : 'Down ↓';
 }
 
 // Listen for level name changes to update actions display
 ipcRenderer.on('update-current-level-name', async () => {
     await updateLevelActionsDisplay();
+});
+
+// Show effective direction in Level Progress when random applies
+ipcRenderer.on('effective-direction', async (event, mode, dir, randomApplied) => {
+    try {
+        const label = mode === 'random' && randomApplied ? `Random ${dir === 'up' ? 'Up ↑' : 'Down ↓'}` : (dir === 'up' ? 'Up ↑' : 'Down ↓');
+        const el = document.getElementById('scrollDirValue');
+        if (el) el.textContent = label;
+        
+        // Also update the entire level actions display with the effective direction's settings
+        const currentLevel = await ipcRenderer.invoke('get-current-level-name');
+        if (currentLevel && currentLevel !== 'Unknown Level' && currentLevel !== '') {
+            // Get both global and direction-specific settings
+            const globalSettings = await ipcRenderer.invoke('get-level-settings', currentLevel.toLowerCase());
+            const directionSettings = await ipcRenderer.invoke('get-direction-settings', currentLevel.toLowerCase(), dir);
+            // Merge: direction-specific settings override, but keep global settings like doResearch, blueBoxClickHoldDuration
+            const effectiveSettings = {
+                ...directionSettings,
+                doResearch: globalSettings.doResearch,
+                blueBoxClickHoldDuration: globalSettings.blueBoxClickHoldDuration,
+                scrollDirection: dir
+            };
+            await updateLevelActionsDisplayWithSettings(effectiveSettings);
+        }
+    } catch (e) {
+        console.error('Error updating effective direction:', e);
+    }
 });
 
 // Listen for action completion events to update checkmarks

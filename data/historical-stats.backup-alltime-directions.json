@@ -1,0 +1,2361 @@
+{
+  "levels": {
+    "Taco Stand": {
+      "completions": [
+        {
+          "duration": 30898,
+          "direction": "up"
+        },
+        {
+          "duration": 31124,
+          "direction": "up"
+        },
+        {
+          "duration": 29888,
+          "direction": "up"
+        },
+        {
+          "duration": 30952,
+          "direction": "up"
+        },
+        {
+          "duration": 30916,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 30756,
+      "totalCompletions": 5,
+      "bestTime": 29888,
+      "worstTime": 31124,
+      "lastTime": 30916,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 29888,
+      "allTimeBestDirection": "up"
+    },
+    "Ice Cream Truck": {
+      "completions": [
+        {
+          "duration": 49737,
+          "direction": "up"
+        },
+        {
+          "duration": 50973,
+          "direction": "up"
+        },
+        {
+          "duration": 51426,
+          "direction": "up"
+        },
+        {
+          "duration": 53544,
+          "direction": "up"
+        },
+        {
+          "duration": 51405,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 51417,
+      "totalCompletions": 5,
+      "bestTime": 49737,
+      "worstTime": 53544,
+      "lastTime": 51405,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 46729,
+      "allTimeBestDirection": "up"
+    },
+    "Mocktail Bar": {
+      "completions": [
+        {
+          "duration": 120138,
+          "direction": "up"
+        },
+        {
+          "duration": 95178,
+          "direction": "up"
+        },
+        {
+          "duration": 98306,
+          "direction": "up"
+        },
+        {
+          "duration": 119634,
+          "direction": "up"
+        },
+        {
+          "duration": 91085,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 104868,
+      "totalCompletions": 5,
+      "bestTime": 91085,
+      "worstTime": 120138,
+      "lastTime": 91085,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 91085,
+      "allTimeBestDirection": "up"
+    },
+    "Joghurt House": {
+      "completions": [
+        {
+          "duration": 87907,
+          "direction": "up"
+        },
+        {
+          "duration": 105522,
+          "direction": "down"
+        },
+        {
+          "duration": 76870,
+          "direction": "down"
+        },
+        {
+          "duration": 79500,
+          "direction": "down"
+        },
+        {
+          "duration": 77199,
+          "direction": "down"
+        }
+      ],
+      "averageDuration": 85400,
+      "totalCompletions": 5,
+      "bestTime": 76870,
+      "worstTime": 105522,
+      "lastTime": 77199,
+      "bestDirection": "down",
+      "lastDirection": "down",
+      "allTimeBestTime": 76870,
+      "allTimeBestDirection": "down"
+    },
+    "Tapas Bar": {
+      "completions": [
+        {
+          "duration": 83345,
+          "direction": "down"
+        },
+        {
+          "duration": 99009,
+          "direction": "down"
+        },
+        {
+          "duration": 84095,
+          "direction": "down"
+        },
+        {
+          "duration": 78154,
+          "direction": "down"
+        },
+        {
+          "duration": 79763,
+          "direction": "down"
+        }
+      ],
+      "averageDuration": 84873,
+      "totalCompletions": 5,
+      "bestTime": 78154,
+      "worstTime": 99009,
+      "lastTime": 79763,
+      "bestDirection": "down",
+      "lastDirection": "down",
+      "allTimeBestTime": 78154,
+      "allTimeBestDirection": "down"
+    },
+    "Food Stand": {
+      "completions": [
+        {
+          "duration": 31096,
+          "direction": "up"
+        },
+        {
+          "duration": 31417,
+          "direction": "up"
+        },
+        {
+          "duration": 31346,
+          "direction": "up"
+        },
+        {
+          "duration": 29552,
+          "direction": "up"
+        },
+        {
+          "duration": 31006,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 30883,
+      "totalCompletions": 5,
+      "bestTime": 29552,
+      "worstTime": 31417,
+      "lastTime": 31006,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 29552,
+      "allTimeBestDirection": "up"
+    },
+    "Coffee Truck": {
+      "completions": [
+        {
+          "duration": 45395,
+          "direction": "up"
+        },
+        {
+          "duration": 92746,
+          "direction": "up"
+        },
+        {
+          "duration": 50103,
+          "direction": "up"
+        },
+        {
+          "duration": 45373,
+          "direction": "up"
+        },
+        {
+          "duration": 54269,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 57577,
+      "totalCompletions": 5,
+      "bestTime": 45373,
+      "worstTime": 92746,
+      "lastTime": 54269,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 43403,
+      "allTimeBestDirection": "up"
+    },
+    "Cafe": {
+      "completions": [
+        {
+          "duration": 74966,
+          "direction": "up"
+        },
+        {
+          "duration": 74776,
+          "direction": "up"
+        },
+        {
+          "duration": 77683,
+          "direction": "up"
+        },
+        {
+          "duration": 76588,
+          "direction": "up"
+        },
+        {
+          "duration": 80599,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 76922,
+      "totalCompletions": 5,
+      "bestTime": 74776,
+      "worstTime": 80599,
+      "lastTime": 80599,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 69401,
+      "allTimeBestDirection": "up"
+    },
+    "Sushi Bar": {
+      "completions": [
+        {
+          "duration": 102438,
+          "direction": "up"
+        },
+        {
+          "duration": 103839,
+          "direction": "up"
+        },
+        {
+          "duration": 100649,
+          "direction": "up"
+        },
+        {
+          "duration": 100227,
+          "direction": "up"
+        },
+        {
+          "duration": 99760,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 101383,
+      "totalCompletions": 5,
+      "bestTime": 99760,
+      "worstTime": 103839,
+      "lastTime": 99760,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 99534,
+      "allTimeBestDirection": "up"
+    },
+    "Drive Thru": {
+      "completions": [
+        {
+          "duration": 209452,
+          "direction": "up"
+        },
+        {
+          "duration": 201547,
+          "direction": "down"
+        },
+        {
+          "duration": 204456,
+          "direction": "down"
+        },
+        {
+          "duration": 190077,
+          "direction": "down"
+        },
+        {
+          "duration": 196172,
+          "direction": "down"
+        }
+      ],
+      "averageDuration": 200341,
+      "totalCompletions": 5,
+      "bestTime": 190077,
+      "worstTime": 209452,
+      "lastTime": 196172,
+      "bestDirection": "down",
+      "lastDirection": "down",
+      "allTimeBestTime": 190077,
+      "allTimeBestDirection": "down"
+    },
+    "Seafood Restaurant": {
+      "completions": [
+        {
+          "duration": 334504,
+          "direction": "up"
+        },
+        {
+          "duration": 327654,
+          "direction": "up"
+        },
+        {
+          "duration": 300235,
+          "direction": "up"
+        },
+        {
+          "duration": 336190,
+          "direction": "up"
+        },
+        {
+          "duration": 302928,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 320302,
+      "totalCompletions": 5,
+      "bestTime": 300235,
+      "worstTime": 336190,
+      "lastTime": 302928,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 300235,
+      "allTimeBestDirection": "up"
+    },
+    "Floral Stand": {
+      "completions": [
+        {
+          "duration": 30689,
+          "direction": "up"
+        },
+        {
+          "duration": 29345,
+          "direction": "up"
+        },
+        {
+          "duration": 31152,
+          "direction": "up"
+        },
+        {
+          "duration": 29494,
+          "direction": "up"
+        },
+        {
+          "duration": 30340,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 30204,
+      "totalCompletions": 5,
+      "bestTime": 29345,
+      "worstTime": 31152,
+      "lastTime": 30340,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 29267,
+      "allTimeBestDirection": "up"
+    },
+    "Cheese Shop": {
+      "completions": [
+        {
+          "duration": 136893,
+          "direction": "up"
+        },
+        {
+          "duration": 122465,
+          "direction": "up"
+        },
+        {
+          "duration": 123499,
+          "direction": "up"
+        },
+        {
+          "duration": 122139,
+          "direction": "up"
+        },
+        {
+          "duration": 125200,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 126039,
+      "totalCompletions": 5,
+      "bestTime": 122139,
+      "worstTime": 136893,
+      "lastTime": 125200,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 122139,
+      "allTimeBestDirection": "up"
+    },
+    "Pizzeria": {
+      "completions": [
+        {
+          "duration": 88113,
+          "direction": "up"
+        },
+        {
+          "duration": 103239,
+          "direction": "up"
+        },
+        {
+          "duration": 109590,
+          "direction": "up"
+        },
+        {
+          "duration": 88954,
+          "direction": "up"
+        },
+        {
+          "duration": 87124,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 95404,
+      "totalCompletions": 5,
+      "bestTime": 87124,
+      "worstTime": 109590,
+      "lastTime": 87124,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 86943,
+      "allTimeBestDirection": "up"
+    },
+    "Fish and Chips Shop": {
+      "completions": [
+        {
+          "duration": 103062,
+          "direction": "up"
+        },
+        {
+          "duration": 100247,
+          "direction": "up"
+        },
+        {
+          "duration": 114350,
+          "direction": "up"
+        },
+        {
+          "duration": 100840,
+          "direction": "up"
+        },
+        {
+          "duration": 99528,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 103605,
+      "totalCompletions": 5,
+      "bestTime": 99528,
+      "worstTime": 114350,
+      "lastTime": 99528,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 99528,
+      "allTimeBestDirection": "up"
+    },
+    "Big Drive Thru": {
+      "completions": [
+        {
+          "duration": 465895,
+          "direction": "up"
+        },
+        {
+          "duration": 332089,
+          "direction": "up"
+        },
+        {
+          "duration": 331550,
+          "direction": "up"
+        },
+        {
+          "duration": 437695,
+          "direction": "up"
+        },
+        {
+          "duration": 277408,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 368927,
+      "totalCompletions": 5,
+      "bestTime": 277408,
+      "worstTime": 465895,
+      "lastTime": 277408,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 277408,
+      "allTimeBestDirection": "up"
+    },
+    "Big Ice Cream Stand": {
+      "completions": [
+        {
+          "duration": 29603,
+          "direction": "up"
+        },
+        {
+          "duration": 30928,
+          "direction": "up"
+        },
+        {
+          "duration": 29653,
+          "direction": "up"
+        },
+        {
+          "duration": 29669,
+          "direction": "up"
+        },
+        {
+          "duration": 40997,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 32170,
+      "totalCompletions": 5,
+      "bestTime": 29603,
+      "worstTime": 40997,
+      "lastTime": 40997,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 29374,
+      "allTimeBestDirection": "up"
+    },
+    "Ramen Truck": {
+      "completions": [
+        {
+          "duration": 62242,
+          "direction": "up"
+        },
+        {
+          "duration": 63083,
+          "direction": "up"
+        },
+        {
+          "duration": 66101,
+          "direction": "up"
+        },
+        {
+          "duration": 69760,
+          "direction": "up"
+        },
+        {
+          "duration": 67566,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 65750,
+      "totalCompletions": 5,
+      "bestTime": 62242,
+      "worstTime": 69760,
+      "lastTime": 67566,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 62242,
+      "allTimeBestDirection": "up"
+    },
+    "Fast Food": {
+      "completions": [
+        {
+          "duration": 109003,
+          "direction": "up"
+        },
+        {
+          "duration": 120691,
+          "direction": "up"
+        },
+        {
+          "duration": 101421,
+          "direction": "up"
+        },
+        {
+          "duration": 122542,
+          "direction": "up"
+        },
+        {
+          "duration": 105370,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 111805,
+      "totalCompletions": 5,
+      "bestTime": 101421,
+      "worstTime": 122542,
+      "lastTime": 105370,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 101421,
+      "allTimeBestDirection": "up"
+    },
+    "Restaurant": {
+      "completions": [
+        {
+          "duration": 323573,
+          "direction": "up"
+        },
+        {
+          "duration": 371021,
+          "direction": "up"
+        },
+        {
+          "duration": 324885,
+          "direction": "up"
+        },
+        {
+          "duration": 305625,
+          "direction": "up"
+        },
+        {
+          "duration": 320042,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 329029,
+      "totalCompletions": 5,
+      "bestTime": 305625,
+      "worstTime": 371021,
+      "lastTime": 320042,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 305625,
+      "allTimeBestDirection": "up"
+    },
+    "Waffle Stand": {
+      "completions": [
+        {
+          "duration": 31103,
+          "direction": "up"
+        },
+        {
+          "duration": 31014,
+          "direction": "up"
+        },
+        {
+          "duration": 31091,
+          "direction": "up"
+        },
+        {
+          "duration": 31048,
+          "direction": "up"
+        },
+        {
+          "duration": 31035,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 31058,
+      "totalCompletions": 5,
+      "bestTime": 31014,
+      "worstTime": 31103,
+      "lastTime": 31035,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 30856,
+      "allTimeBestDirection": "up"
+    },
+    "Cafe Napolita": {
+      "completions": [
+        {
+          "duration": 114389,
+          "direction": "down"
+        },
+        {
+          "duration": 90377,
+          "direction": "down"
+        },
+        {
+          "duration": 85831,
+          "direction": "down"
+        },
+        {
+          "duration": 182334,
+          "direction": "down"
+        },
+        {
+          "duration": 112944,
+          "direction": "down"
+        }
+      ],
+      "averageDuration": 117175,
+      "totalCompletions": 5,
+      "bestTime": 85831,
+      "worstTime": 182334,
+      "lastTime": 112944,
+      "bestDirection": "down",
+      "lastDirection": "down",
+      "allTimeBestTime": 85269,
+      "allTimeBestDirection": "up"
+    },
+    "Dessert Co": {
+      "completions": [
+        {
+          "duration": 103661,
+          "direction": "up"
+        },
+        {
+          "duration": 106276,
+          "direction": "up"
+        },
+        {
+          "duration": 99200,
+          "direction": "up"
+        },
+        {
+          "duration": 105702,
+          "direction": "up"
+        },
+        {
+          "duration": 99244,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 102817,
+      "totalCompletions": 5,
+      "bestTime": 99200,
+      "worstTime": 106276,
+      "lastTime": 99244,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 99034,
+      "allTimeBestDirection": "up"
+    },
+    "Italiano": {
+      "completions": [
+        {
+          "duration": 388453,
+          "direction": "up"
+        },
+        {
+          "duration": 310741,
+          "direction": "up"
+        },
+        {
+          "duration": 367180,
+          "direction": "up"
+        },
+        {
+          "duration": 303940,
+          "direction": "up"
+        },
+        {
+          "duration": 305965,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 335256,
+      "totalCompletions": 5,
+      "bestTime": 303940,
+      "worstTime": 388453,
+      "lastTime": 305965,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 300630,
+      "allTimeBestDirection": "up"
+    },
+    "Baklava Shop": {
+      "completions": [
+        {
+          "duration": 78724,
+          "direction": "up"
+        },
+        {
+          "duration": 82720,
+          "direction": "up"
+        },
+        {
+          "duration": 80383,
+          "direction": "down"
+        },
+        {
+          "duration": 77902,
+          "direction": "down"
+        },
+        {
+          "duration": 77660,
+          "direction": "down"
+        }
+      ],
+      "averageDuration": 79478,
+      "totalCompletions": 5,
+      "bestTime": 77660,
+      "worstTime": 82720,
+      "lastTime": 77660,
+      "bestDirection": "down",
+      "lastDirection": "down",
+      "allTimeBestTime": 77660,
+      "allTimeBestDirection": "down"
+    },
+    "Kebab Shop": {
+      "completions": [
+        {
+          "duration": 128335,
+          "direction": "up"
+        },
+        {
+          "duration": 111661,
+          "direction": "up"
+        },
+        {
+          "duration": 142675,
+          "direction": "down"
+        },
+        {
+          "duration": 95991,
+          "direction": "down"
+        },
+        {
+          "duration": 101488,
+          "direction": "down"
+        }
+      ],
+      "averageDuration": 116030,
+      "totalCompletions": 5,
+      "bestTime": 95991,
+      "worstTime": 142675,
+      "lastTime": 101488,
+      "bestDirection": "down",
+      "lastDirection": "down",
+      "allTimeBestTime": 95991,
+      "allTimeBestDirection": "down"
+    },
+    "Coffee House": {
+      "completions": [
+        {
+          "duration": 106969,
+          "direction": "down"
+        },
+        {
+          "duration": 109802,
+          "direction": "down"
+        },
+        {
+          "duration": 108437,
+          "direction": "down"
+        },
+        {
+          "duration": 107962,
+          "direction": "down"
+        },
+        {
+          "duration": 107158,
+          "direction": "down"
+        }
+      ],
+      "averageDuration": 108066,
+      "totalCompletions": 5,
+      "bestTime": 106969,
+      "worstTime": 109802,
+      "lastTime": 107158,
+      "bestDirection": "down",
+      "lastDirection": "down",
+      "allTimeBestTime": 106969,
+      "allTimeBestDirection": "down"
+    },
+    "Mezze Bar": {
+      "completions": [
+        {
+          "duration": 334387,
+          "direction": "up"
+        },
+        {
+          "duration": 315202,
+          "direction": "up"
+        },
+        {
+          "duration": 350580,
+          "direction": "up"
+        },
+        {
+          "duration": 353118,
+          "direction": "up"
+        },
+        {
+          "duration": 344950,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 339647,
+      "totalCompletions": 5,
+      "bestTime": 315202,
+      "worstTime": 353118,
+      "lastTime": 344950,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 315202,
+      "allTimeBestDirection": "up"
+    },
+    "Curry Wurst Stand": {
+      "completions": [
+        {
+          "duration": 31731,
+          "direction": "up"
+        },
+        {
+          "duration": 32003,
+          "direction": "up"
+        },
+        {
+          "duration": 31935,
+          "direction": "up"
+        },
+        {
+          "duration": 31669,
+          "direction": "up"
+        },
+        {
+          "duration": 30172,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 31502,
+      "totalCompletions": 5,
+      "bestTime": 30172,
+      "worstTime": 32003,
+      "lastTime": 30172,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 30079,
+      "allTimeBestDirection": "up"
+    },
+    "Food Truck": {
+      "completions": [
+        {
+          "duration": 45259,
+          "direction": "up"
+        },
+        {
+          "duration": 46440,
+          "direction": "up"
+        },
+        {
+          "duration": 45521,
+          "direction": "up"
+        },
+        {
+          "duration": 45249,
+          "direction": "up"
+        },
+        {
+          "duration": 51461,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 46786,
+      "totalCompletions": 5,
+      "bestTime": 45249,
+      "worstTime": 51461,
+      "lastTime": 51461,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 45127,
+      "allTimeBestDirection": "up"
+    },
+    "Apple Juice Bar": {
+      "completions": [
+        {
+          "duration": 348260,
+          "direction": "up"
+        },
+        {
+          "duration": 319095,
+          "direction": "up"
+        },
+        {
+          "duration": 383056,
+          "direction": "up"
+        },
+        {
+          "duration": 486591,
+          "direction": "up"
+        },
+        {
+          "duration": 323200,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 372040,
+      "totalCompletions": 5,
+      "bestTime": 319095,
+      "worstTime": 486591,
+      "lastTime": 323200,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 319095,
+      "allTimeBestDirection": "up"
+    },
+    "Lobster House": {
+      "completions": [
+        {
+          "duration": 195190,
+          "direction": "up"
+        },
+        {
+          "duration": 211737,
+          "direction": "up"
+        },
+        {
+          "duration": 167586,
+          "direction": "up"
+        },
+        {
+          "duration": 180053,
+          "direction": "up"
+        },
+        {
+          "duration": 186671,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 188247,
+      "totalCompletions": 5,
+      "bestTime": 167586,
+      "worstTime": 211737,
+      "lastTime": 186671,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 167586,
+      "allTimeBestDirection": "up"
+    },
+    "Dumpling Hut": {
+      "completions": [
+        {
+          "duration": 164414,
+          "direction": "up"
+        },
+        {
+          "duration": 97825,
+          "direction": "up"
+        },
+        {
+          "duration": 94004,
+          "direction": "up"
+        },
+        {
+          "duration": 97993,
+          "direction": "up"
+        },
+        {
+          "duration": 92033,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 109254,
+      "totalCompletions": 5,
+      "bestTime": 92033,
+      "worstTime": 164414,
+      "lastTime": 92033,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 92033,
+      "allTimeBestDirection": "up"
+    },
+    "The Fresh Kitchen": {
+      "completions": [
+        {
+          "duration": 379061,
+          "direction": "up"
+        },
+        {
+          "duration": 401088,
+          "direction": "up"
+        },
+        {
+          "duration": 341990,
+          "direction": "up"
+        },
+        {
+          "duration": 331705,
+          "direction": "up"
+        },
+        {
+          "duration": 347961,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 360361,
+      "totalCompletions": 5,
+      "bestTime": 331705,
+      "worstTime": 401088,
+      "lastTime": 347961,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 331705,
+      "allTimeBestDirection": "up"
+    },
+    "Burrito King": {
+      "completions": [
+        {
+          "duration": 80238,
+          "direction": "up"
+        },
+        {
+          "duration": 84378,
+          "direction": "up"
+        },
+        {
+          "duration": 100819,
+          "direction": "up"
+        },
+        {
+          "duration": 84771,
+          "direction": "up"
+        },
+        {
+          "duration": 80552,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 86152,
+      "totalCompletions": 5,
+      "bestTime": 80238,
+      "worstTime": 100819,
+      "lastTime": 80552,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 80238,
+      "allTimeBestDirection": "up"
+    },
+    "Drive Thru Take Out": {
+      "completions": [
+        {
+          "duration": 316193,
+          "direction": "up"
+        },
+        {
+          "duration": 316513,
+          "direction": "up"
+        },
+        {
+          "duration": 267764,
+          "direction": "up"
+        },
+        {
+          "duration": 306757,
+          "direction": "up"
+        },
+        {
+          "duration": 286153,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 298676,
+      "totalCompletions": 5,
+      "bestTime": 267764,
+      "worstTime": 316513,
+      "lastTime": 286153,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 267764,
+      "allTimeBestDirection": "up"
+    },
+    "Diner": {
+      "completions": [
+        {
+          "duration": 282661,
+          "direction": "up"
+        },
+        {
+          "duration": 280659,
+          "direction": "up"
+        },
+        {
+          "duration": 296643,
+          "direction": "up"
+        },
+        {
+          "duration": 269169,
+          "direction": "up"
+        },
+        {
+          "duration": 270817,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 279990,
+      "totalCompletions": 5,
+      "bestTime": 269169,
+      "worstTime": 296643,
+      "lastTime": 270817,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 269169,
+      "allTimeBestDirection": "up"
+    },
+    "News Stand": {
+      "completions": [
+        {
+          "duration": 31051,
+          "direction": "up"
+        },
+        {
+          "duration": 30763,
+          "direction": "up"
+        },
+        {
+          "duration": 29547,
+          "direction": "up"
+        },
+        {
+          "duration": 29544,
+          "direction": "up"
+        },
+        {
+          "duration": 30917,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 30364,
+      "totalCompletions": 5,
+      "bestTime": 29544,
+      "worstTime": 31051,
+      "lastTime": 30917,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 29454,
+      "allTimeBestDirection": "up"
+    },
+    "LJ UR TIN": {
+      "completions": [
+        {
+          "duration": 11826,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 11826,
+      "totalCompletions": 1,
+      "bestTime": 11826,
+      "worstTime": 11826,
+      "lastTime": 11826,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 11826,
+      "allTimeBestDirection": "up"
+    },
+    "4 We": {
+      "completions": [
+        {
+          "duration": 11773,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 11773,
+      "totalCompletions": 1,
+      "bestTime": 11773,
+      "worstTime": 11773,
+      "lastTime": 11773,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 11773,
+      "allTimeBestDirection": "up"
+    },
+    "Street Nuts": {
+      "completions": [
+        {
+          "duration": 20921,
+          "direction": "up"
+        },
+        {
+          "duration": 20923,
+          "direction": "up"
+        },
+        {
+          "duration": 20969,
+          "direction": "up"
+        },
+        {
+          "duration": 20731,
+          "direction": "up"
+        },
+        {
+          "duration": 22110,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 21131,
+      "totalCompletions": 5,
+      "bestTime": 20731,
+      "worstTime": 22110,
+      "lastTime": 22110,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 20646,
+      "allTimeBestDirection": "up"
+    },
+    "Ice Cream Stand": {
+      "completions": [
+        {
+          "duration": 20955,
+          "direction": "up"
+        },
+        {
+          "duration": 20879,
+          "direction": "up"
+        },
+        {
+          "duration": 20958,
+          "direction": "up"
+        },
+        {
+          "duration": 20813,
+          "direction": "up"
+        },
+        {
+          "duration": 20876,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 20896,
+      "totalCompletions": 5,
+      "bestTime": 20813,
+      "worstTime": 20958,
+      "lastTime": 20876,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 20708,
+      "allTimeBestDirection": "up"
+    },
+    "Hot Dog Stand": {
+      "completions": [
+        {
+          "duration": 22071,
+          "direction": "up"
+        },
+        {
+          "duration": 21966,
+          "direction": "up"
+        },
+        {
+          "duration": 21718,
+          "direction": "up"
+        },
+        {
+          "duration": 21918,
+          "direction": "up"
+        },
+        {
+          "duration": 21958,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 21926,
+      "totalCompletions": 5,
+      "bestTime": 21718,
+      "worstTime": 22071,
+      "lastTime": 21958,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 21718,
+      "allTimeBestDirection": "up"
+    },
+    "Lemonade Stand": {
+      "completions": [
+        {
+          "duration": 24146,
+          "direction": "up"
+        },
+        {
+          "duration": 19998,
+          "direction": "up"
+        },
+        {
+          "duration": 19949,
+          "direction": "up"
+        },
+        {
+          "duration": 19899,
+          "direction": "up"
+        },
+        {
+          "duration": 23931,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 21585,
+      "totalCompletions": 5,
+      "bestTime": 19899,
+      "worstTime": 24146,
+      "lastTime": 23931,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 19891,
+      "allTimeBestDirection": "up"
+    },
+    "Dango Stand": {
+      "completions": [
+        {
+          "duration": 24127,
+          "direction": "down"
+        },
+        {
+          "duration": 24158,
+          "direction": "down"
+        },
+        {
+          "duration": 24106,
+          "direction": "down"
+        },
+        {
+          "duration": 24125,
+          "direction": "down"
+        },
+        {
+          "duration": 23982,
+          "direction": "down"
+        }
+      ],
+      "averageDuration": 24100,
+      "totalCompletions": 5,
+      "bestTime": 23982,
+      "worstTime": 24158,
+      "lastTime": 23982,
+      "bestDirection": "down",
+      "lastDirection": "down",
+      "allTimeBestTime": 23981,
+      "allTimeBestDirection": "down"
+    },
+    "LAE) =<": {
+      "completions": [
+        {
+          "duration": 49794,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 49794,
+      "totalCompletions": 1,
+      "bestTime": 49794,
+      "worstTime": 49794,
+      "lastTime": 49794,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 49794,
+      "allTimeBestDirection": "up"
+    },
+    "os 7A": {
+      "completions": [
+        {
+          "duration": 61814,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 61814,
+      "totalCompletions": 1,
+      "bestTime": 61814,
+      "worstTime": 61814,
+      "lastTime": 61814,
+      "bestDirection": "up",
+      "lastDirection": "up",
+      "allTimeBestTime": 61814,
+      "allTimeBestDirection": "up"
+    },
+    "—": {
+      "completions": [
+        {
+          "duration": 11773,
+          "direction": "up"
+        }
+      ],
+      "averageDuration": 11773,
+      "totalCompletions": 1,
+      "bestTime": 11773,
+      "bestDirection": "up",
+      "worstTime": 11773,
+      "lastTime": 11773,
+      "lastDirection": "up",
+      "allTimeBestTime": 11773,
+      "allTimeBestDirection": "up"
+    }
+  },
+  "stages": {
+    "Brussels": {
+      "completions": [
+        849737,
+        922028,
+        806597,
+        932549,
+        804279
+      ],
+      "averageDuration": 863038,
+      "totalCompletions": 5,
+      "bestTime": 804279,
+      "worstTime": 932549,
+      "lastTime": 804279
+    },
+    "Luxembourg": {
+      "completions": [
+        745731,
+        894197,
+        1262888,
+        749318
+      ],
+      "averageDuration": 913034,
+      "totalCompletions": 4,
+      "bestTime": 745731,
+      "worstTime": 1262888,
+      "lastTime": 749318
+    },
+    "Hong Kong": {
+      "completions": [
+        743852,
+        785990
+      ],
+      "averageDuration": 764921,
+      "totalCompletions": 2,
+      "bestTime": 743852,
+      "worstTime": 785990,
+      "lastTime": 785990
+    },
+    "Treviso": {
+      "completions": [
+        741911,
+        710136,
+        2316460
+      ],
+      "averageDuration": 1256169,
+      "totalCompletions": 3,
+      "bestTime": 710136,
+      "worstTime": 2316460,
+      "lastTime": 2316460
+    },
+    "Marrakesh": {
+      "completions": [
+        802268,
+        920515
+      ],
+      "averageDuration": 861392,
+      "totalCompletions": 2,
+      "bestTime": 802268,
+      "worstTime": 920515,
+      "lastTime": 920515
+    },
+    "Cologne": {
+      "completions": [
+        736790,
+        780012
+      ],
+      "averageDuration": 758401,
+      "totalCompletions": 2,
+      "bestTime": 736790,
+      "worstTime": 780012,
+      "lastTime": 780012
+    },
+    "Tallinn": {
+      "completions": [
+        886837,
+        855368,
+        854029
+      ],
+      "averageDuration": 865411,
+      "totalCompletions": 3,
+      "bestTime": 854029,
+      "worstTime": 886837,
+      "lastTime": 854029
+    },
+    "Florence": {
+      "completions": [
+        705692,
+        1049981
+      ],
+      "averageDuration": 877837,
+      "totalCompletions": 2,
+      "bestTime": 705692,
+      "worstTime": 1049981,
+      "lastTime": 1049981
+    },
+    "Prague": {
+      "completions": [
+        819274,
+        771153,
+        774084
+      ],
+      "averageDuration": 788170,
+      "totalCompletions": 3,
+      "bestTime": 771153,
+      "worstTime": 819274,
+      "lastTime": 774084
+    },
+    "Cape Town": {
+      "completions": [
+        695559,
+        673926,
+        764871
+      ],
+      "averageDuration": 711452,
+      "totalCompletions": 3,
+      "bestTime": 673926,
+      "worstTime": 764871,
+      "lastTime": 764871,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Copenhagen": {
+      "completions": [
+        845302,
+        860023,
+        908991,
+        887826
+      ],
+      "averageDuration": 875536,
+      "totalCompletions": 4,
+      "bestTime": 845302,
+      "worstTime": 908991,
+      "lastTime": 887826,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Lima": {
+      "completions": [
+        723267,
+        667838,
+        698299,
+        650655
+      ],
+      "averageDuration": 685015,
+      "totalCompletions": 4,
+      "bestTime": 650655,
+      "worstTime": 723267,
+      "lastTime": 650655,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Los Angeles": {
+      "completions": [
+        770453,
+        752770,
+        765938,
+        743727
+      ],
+      "averageDuration": 758222,
+      "totalCompletions": 4,
+      "bestTime": 743727,
+      "worstTime": 770453,
+      "lastTime": 743727,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Pittsburgh": {
+      "completions": [
+        601420,
+        611374,
+        641245
+      ],
+      "averageDuration": 618013,
+      "totalCompletions": 3,
+      "bestTime": 601420,
+      "worstTime": 641245,
+      "lastTime": 641245,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Nassau": {
+      "completions": [
+        706856,
+        763504,
+        701417,
+        798645
+      ],
+      "averageDuration": 742606,
+      "totalCompletions": 4,
+      "bestTime": 701417,
+      "worstTime": 798645,
+      "lastTime": 798645,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Madrid": {
+      "completions": [
+        930585,
+        869133,
+        894339
+      ],
+      "averageDuration": 898019,
+      "totalCompletions": 3,
+      "bestTime": 869133,
+      "worstTime": 930585,
+      "lastTime": 894339
+    },
+    "Amsterdam": {
+      "completions": [
+        679239,
+        698716,
+        701308,
+        673611,
+        786936
+      ],
+      "averageDuration": 707962,
+      "totalCompletions": 5,
+      "bestTime": 673611,
+      "worstTime": 786936,
+      "lastTime": 786936,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Birmingham": {
+      "completions": [
+        683254,
+        724994,
+        649952,
+        669720
+      ],
+      "averageDuration": 681980,
+      "totalCompletions": 4,
+      "bestTime": 649952,
+      "worstTime": 724994,
+      "lastTime": 669720
+    },
+    "Cairo": {
+      "completions": [
+        814574,
+        775628,
+        795363
+      ],
+      "averageDuration": 795188,
+      "totalCompletions": 3,
+      "bestTime": 775628,
+      "worstTime": 814574,
+      "lastTime": 795363
+    },
+    "Frankfurt": {
+      "completions": [
+        742506,
+        732075,
+        736234,
+        766410
+      ],
+      "averageDuration": 744306,
+      "totalCompletions": 4,
+      "bestTime": 732075,
+      "worstTime": 766410,
+      "lastTime": 766410
+    },
+    "Quebec": {
+      "completions": [
+        863357,
+        863715,
+        898345,
+        854921,
+        866256
+      ],
+      "averageDuration": 869319,
+      "totalCompletions": 5,
+      "bestTime": 854921,
+      "worstTime": 898345,
+      "lastTime": 866256,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Naples": {
+      "completions": [
+        835352,
+        707416,
+        1338680,
+        756759
+      ],
+      "averageDuration": 909552,
+      "totalCompletions": 4,
+      "bestTime": 707416,
+      "worstTime": 1338680,
+      "lastTime": 756759,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Gothenburg": {
+      "completions": [
+        759084,
+        819449,
+        766059,
+        801553,
+        820004
+      ],
+      "averageDuration": 793230,
+      "totalCompletions": 5,
+      "bestTime": 759084,
+      "worstTime": 820004,
+      "lastTime": 820004,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "New York": {
+      "completions": [
+        600365,
+        643789,
+        632193,
+        636647,
+        594172
+      ],
+      "averageDuration": 621433,
+      "totalCompletions": 5,
+      "bestTime": 594172,
+      "worstTime": 643789,
+      "lastTime": 594172,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Miami": {
+      "completions": [
+        706242,
+        709510,
+        694740,
+        675112,
+        713451
+      ],
+      "averageDuration": 699811,
+      "totalCompletions": 5,
+      "bestTime": 675112,
+      "worstTime": 713451,
+      "lastTime": 713451,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Paris": {
+      "completions": [
+        822515,
+        840016,
+        800865,
+        855705,
+        825358
+      ],
+      "averageDuration": 828892,
+      "totalCompletions": 5,
+      "bestTime": 800865,
+      "worstTime": 855705,
+      "lastTime": 825358,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Venice": {
+      "completions": [
+        729568,
+        708081,
+        791591,
+        728945,
+        1458954
+      ],
+      "averageDuration": 883428,
+      "totalCompletions": 5,
+      "bestTime": 708081,
+      "worstTime": 1458954,
+      "lastTime": 1458954
+    },
+    "Beirut": {
+      "completions": [
+        837196,
+        803926,
+        778007
+      ],
+      "averageDuration": 806376,
+      "totalCompletions": 3,
+      "bestTime": 778007,
+      "worstTime": 837196,
+      "lastTime": 778007
+    },
+    "Berlin": {
+      "completions": [
+        758777,
+        730188,
+        760578,
+        795282,
+        739582
+      ],
+      "averageDuration": 756881,
+      "totalCompletions": 5,
+      "bestTime": 730188,
+      "worstTime": 795282,
+      "lastTime": 739582
+    },
+    "Oslo": {
+      "completions": [
+        920715,
+        949253,
+        933267,
+        846698,
+        877861
+      ],
+      "averageDuration": 905559,
+      "totalCompletions": 5,
+      "bestTime": 846698,
+      "worstTime": 949253,
+      "lastTime": 877861,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Rome": {
+      "completions": [
+        737508,
+        721326,
+        761708,
+        696373
+      ],
+      "averageDuration": 729229,
+      "totalCompletions": 4,
+      "bestTime": 696373,
+      "worstTime": 761708,
+      "lastTime": 696373
+    },
+    "Warsaw": {
+      "completions": [
+        812725,
+        779858,
+        782675,
+        849886,
+        788943
+      ],
+      "averageDuration": 802817,
+      "totalCompletions": 5,
+      "bestTime": 779858,
+      "worstTime": 849886,
+      "lastTime": 788943,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Johannesburg": {
+      "completions": [
+        712015,
+        666891,
+        740124,
+        676317,
+        761491
+      ],
+      "averageDuration": 711368,
+      "totalCompletions": 5,
+      "bestTime": 666891,
+      "worstTime": 761491,
+      "lastTime": 761491,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Stockholm": {
+      "completions": [
+        864461,
+        877497,
+        895381,
+        985691,
+        807049
+      ],
+      "averageDuration": 886016,
+      "totalCompletions": 5,
+      "bestTime": 807049,
+      "worstTime": 985691,
+      "lastTime": 807049,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Toronto": {
+      "completions": [
+        600021,
+        577890,
+        575611,
+        603379,
+        603534
+      ],
+      "averageDuration": 592087,
+      "totalCompletions": 5,
+      "bestTime": 575611,
+      "worstTime": 603534,
+      "lastTime": 603534,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Sydney": {
+      "completions": [
+        783809,
+        738317,
+        688600,
+        733106,
+        746505
+      ],
+      "averageDuration": 738067,
+      "totalCompletions": 5,
+      "bestTime": 688600,
+      "worstTime": 783809,
+      "lastTime": 746505,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Lyon": {
+      "completions": [
+        990611,
+        887257,
+        926934,
+        992064
+      ],
+      "averageDuration": 949217,
+      "totalCompletions": 4,
+      "bestTime": 887257,
+      "worstTime": 992064,
+      "lastTime": 992064
+    },
+    "Glasgow": {
+      "completions": [
+        687782,
+        672584,
+        706798,
+        850232
+      ],
+      "averageDuration": 729349,
+      "totalCompletions": 4,
+      "bestTime": 672584,
+      "worstTime": 850232,
+      "lastTime": 850232
+    },
+    "Beijing": {
+      "completions": [
+        739181,
+        773683,
+        1194046,
+        756614,
+        750264
+      ],
+      "averageDuration": 842758,
+      "totalCompletions": 5,
+      "bestTime": 739181,
+      "worstTime": 1194046,
+      "lastTime": 750264,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Bruges": {
+      "completions": [
+        752806,
+        698994,
+        1403552,
+        690823,
+        467788
+      ],
+      "averageDuration": 802793,
+      "totalCompletions": 5,
+      "bestTime": 467788,
+      "worstTime": 1403552,
+      "lastTime": 467788,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Istanbul": {
+      "completions": [
+        812440,
+        760990,
+        793369,
+        807233,
+        791558
+      ],
+      "averageDuration": 793118,
+      "totalCompletions": 5,
+      "bestTime": 760990,
+      "worstTime": 812440,
+      "lastTime": 791558
+    },
+    "Zurich": {
+      "completions": [
+        844727,
+        889835,
+        879586,
+        907783,
+        833494
+      ],
+      "averageDuration": 871085,
+      "totalCompletions": 5,
+      "bestTime": 833494,
+      "worstTime": 907783,
+      "lastTime": 833494,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Milan": {
+      "completions": [
+        732148,
+        711460,
+        1061549,
+        686187,
+        719620
+      ],
+      "averageDuration": 782193,
+      "totalCompletions": 5,
+      "bestTime": 686187,
+      "worstTime": 1061549,
+      "lastTime": 719620,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Budapest": {
+      "completions": [
+        879990,
+        935236,
+        866137
+      ],
+      "averageDuration": 893788,
+      "totalCompletions": 3,
+      "bestTime": 866137,
+      "worstTime": 935236,
+      "lastTime": 866137,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Nairobi": {
+      "completions": [
+        697260,
+        768724
+      ],
+      "averageDuration": 732992,
+      "totalCompletions": 2,
+      "bestTime": 697260,
+      "worstTime": 768724,
+      "lastTime": 768724
+    },
+    "Helsinki": {
+      "completions": [
+        1133421,
+        791806,
+        863244,
+        751924
+      ],
+      "averageDuration": 885099,
+      "totalCompletions": 4,
+      "bestTime": 751924,
+      "worstTime": 1133421,
+      "lastTime": 751924,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Sao Paulo": {
+      "completions": [
+        674358,
+        734119,
+        680095,
+        934644,
+        634678
+      ],
+      "averageDuration": 731579,
+      "totalCompletions": 5,
+      "bestTime": 634678,
+      "worstTime": 934644,
+      "lastTime": 634678,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Seattle": {
+      "completions": [
+        901450,
+        826211,
+        834525,
+        808661
+      ],
+      "averageDuration": 842712,
+      "totalCompletions": 4,
+      "bestTime": 808661,
+      "worstTime": 901450,
+      "lastTime": 808661,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Zagreb": {
+      "completions": [
+        959556,
+        916858
+      ],
+      "averageDuration": 938207,
+      "totalCompletions": 2,
+      "bestTime": 916858,
+      "worstTime": 959556,
+      "lastTime": 916858
+    },
+    "Pretoria": {
+      "completions": [
+        711623,
+        684571,
+        671321
+      ],
+      "averageDuration": 689172,
+      "totalCompletions": 3,
+      "bestTime": 671321,
+      "worstTime": 711623,
+      "lastTime": 671321
+    },
+    "Santiago": {
+      "completions": [
+        659265,
+        688985
+      ],
+      "averageDuration": 674125,
+      "totalCompletions": 2,
+      "bestTime": 659265,
+      "worstTime": 688985,
+      "lastTime": 688985
+    },
+    "San Francisco": {
+      "completions": [
+        861241,
+        893716,
+        891508,
+        933542
+      ],
+      "averageDuration": 895002,
+      "totalCompletions": 4,
+      "bestTime": 861241,
+      "worstTime": 933542,
+      "lastTime": 933542,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "London": {
+      "completions": [
+        734107,
+        784510,
+        822838,
+        900051,
+        865575
+      ],
+      "averageDuration": 821416,
+      "totalCompletions": 5,
+      "bestTime": 734107,
+      "worstTime": 900051,
+      "lastTime": 865575,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Tokyo": {
+      "completions": [
+        757439,
+        767967,
+        819878,
+        1388908,
+        1003594
+      ],
+      "averageDuration": 947557,
+      "totalCompletions": 5,
+      "bestTime": 757439,
+      "worstTime": 1388908,
+      "lastTime": 1003594,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Portland": {
+      "completions": [
+        791933,
+        723739,
+        778167
+      ],
+      "averageDuration": 764613,
+      "totalCompletions": 3,
+      "bestTime": 723739,
+      "worstTime": 791933,
+      "lastTime": 778167
+    },
+    "San Diego": {
+      "completions": [
+        596717,
+        692900
+      ],
+      "averageDuration": 644809,
+      "totalCompletions": 2,
+      "bestTime": 596717,
+      "worstTime": 692900,
+      "lastTime": 692900
+    },
+    "Santa Monica": {
+      "completions": [
+        827813,
+        882471,
+        687527
+      ],
+      "averageDuration": 799270,
+      "totalCompletions": 3,
+      "bestTime": 687527,
+      "worstTime": 882471,
+      "lastTime": 687527
+    },
+    "Mexico City": {
+      "completions": [
+        716986,
+        690989,
+        673237
+      ],
+      "averageDuration": 693737,
+      "totalCompletions": 3,
+      "bestTime": 673237,
+      "worstTime": 716986,
+      "lastTime": 673237
+    },
+    "Hamburg": {
+      "completions": [
+        696924,
+        732298,
+        708456,
+        701023
+      ],
+      "averageDuration": 709675,
+      "totalCompletions": 4,
+      "bestTime": 696924,
+      "worstTime": 732298,
+      "lastTime": 701023,
+      "bestDirection": null,
+      "lastDirection": null
+    },
+    "Seoul": {
+      "completions": [
+        761729
+      ],
+      "averageDuration": 761729,
+      "totalCompletions": 1,
+      "bestTime": 761729,
+      "worstTime": 761729,
+      "lastTime": 761729
+    }
+  },
+  "metadata": {
+    "lastUpdated": "2025-10-22T10:17:19.887Z",
+    "totalLevelsTracked": 48,
+    "totalStagesTracked": 60,
+    "lastCompletedStage": {
+      "name": "Seattle",
+      "stageNumber": 31,
+      "completedAt": "2025-10-22T10:12:17.823Z"
+    },
+    "migrationHistory": [
+      {
+        "date": "2025-10-21T03:20:35.340Z",
+        "type": "add-direction",
+        "levelsModified": 47,
+        "levelsSkipped": 0
+      }
+    ]
+  }
+}

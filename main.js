@@ -174,15 +174,15 @@ function updateCurrentLevelName(levelName) {
         // Start new stage
         startNewStage(stageCityName);
         
-        // Get the proper first level name from the database (use 'name', not 'originalName')
+        // Look up the proper first level name from the database using 'originalName'
         const stageInfo = levelDatabase.getStageByCity(stageCityName);
-        if (stageInfo && stageInfo.levels[0] && stageInfo.levels[0].name) {
-            currentLevelName = stageInfo.levels[0].name; // This will be "Level 1"
-            console.log(`DEBUG: Stage start level renamed from "${originalLevelName}" to "${currentLevelName}" (proper first level name)`);
+        if (stageInfo && stageInfo.levels[0] && stageInfo.levels[0].originalName) {
+            currentLevelName = stageInfo.levels[0].originalName; // e.g., "Ice Cream Stand"
+            console.log(`DEBUG: Stage start - using database originalName: "${currentLevelName}" (OCR read: "${originalLevelName}")`);
         } else {
-            // Fallback to "Level 1" if database lookup fails
-            currentLevelName = 'Level 1';
-            console.log(`DEBUG: Stage start level renamed from "${originalLevelName}" to "Level 1" (database lookup failed)`);
+            // Fallback to OCR result if database lookup fails
+            currentLevelName = originalLevelName;
+            console.log(`DEBUG: Stage start - database lookup failed, using OCR result: "${currentLevelName}"`);
         }
     } else {
         // Regular level - keep original name and increment counter for new levels
@@ -1396,6 +1396,25 @@ ipcMain.handle('get-level-settings', async (event, levelName) => {
   return settingsManager.getLevelSettings(levelName);
 });
 
+ipcMain.handle('get-direction-settings', async (event, levelName, direction) => {
+  return settingsManager.getDirectionSettings(levelName, direction);
+});
+
+// Global direction mode
+ipcMain.handle('get-direction-mode', async () => {
+  return settingsManager.getDirectionMode();
+});
+
+ipcMain.handle('set-direction-mode', async (event, mode) => {
+  try {
+    settingsManager.setDirectionMode(mode);
+    const saved = settingsManager.saveSettings();
+    return { success: saved };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 ipcMain.handle('save-level-settings', async (event, levelName, settings) => {
   try {
     settingsManager.updateLevelSettings(levelName, settings);
@@ -1416,10 +1435,6 @@ ipcMain.handle('switch-direction', async (event, levelName, newDirection) => {
     console.error('Error switching direction:', error);
     return { success: false, error: error.message };
   }
-});
-
-ipcMain.handle('get-direction-settings', async (event, levelName, direction) => {
-  return settingsManager.getDirectionSettings(levelName, direction);
 });
 
 ipcMain.handle('save-direction-settings', async (event, levelName, direction, settings) => {
