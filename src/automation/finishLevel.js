@@ -619,6 +619,22 @@ function startAutomation(dependencies) {
         // Notify that startup action is complete (always mark it, even if "nothing")
         if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
             console.log('🚀 Sending startup action completed signal');
+            console.log('🚀 MainWindow state:', {
+                isDestroyed: dependencies.mainWindow.isDestroyed(),
+                webContents: !!dependencies.mainWindow.webContents,
+                isReady: dependencies.mainWindow.webContents && !dependencies.mainWindow.webContents.isDestroyed()
+            });
+            
+            // Try sending with a delay to ensure renderer is ready
+            setTimeout(() => {
+                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    console.log('🚀 Delayed send - attempting to send events');
+                    dependencies.mainWindow.webContents.send('test-event', 'startup-test-delayed');
+                    dependencies.mainWindow.webContents.send('level-action-completed', 'startup');
+                }
+            }, 1000);
+            
+            dependencies.mainWindow.webContents.send('test-event', 'startup-test');
             dependencies.mainWindow.webContents.send('level-action-completed', 'startup');
         } else {
             console.log('⚠️ Cannot send startup signal - mainWindow not available');

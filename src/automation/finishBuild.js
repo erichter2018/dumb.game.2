@@ -377,12 +377,18 @@ async function runBuildProtocol(dependencies) {
                 return 'timeout';
             }
             
-            // Only check for action if one is configured with a trigger time and hasn't been executed yet
-            if (!actionExecuted && currentBuildAction.action !== 'nothing' && actionTriggerTime && elapsedTime >= actionTriggerTime) {
+            // Only check for action if one is configured and hasn't been executed yet
+            // If triggerTimeMs is null, execute immediately; otherwise wait for the trigger time
+            if (!actionExecuted && currentBuildAction.action !== 'nothing' && (actionTriggerTime === null || elapsedTime >= actionTriggerTime)) {
                 actionExecuted = true; // Mark as executed
-                const intervalMinutes = actionTriggerTime / (60 * 1000);
-                updateStatus(`Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`, 'warn');
-                console.log(`DEBUG: Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`);
+                if (actionTriggerTime === null) {
+                    updateStatus(`Finish Build routine: Executing ${currentBuildAction.action} action immediately`, 'warn');
+                    console.log(`DEBUG: Finish Build routine: Executing ${currentBuildAction.action} action immediately`);
+                } else {
+                    const intervalMinutes = actionTriggerTime / (60 * 1000);
+                    updateStatus(`Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`, 'warn');
+                    console.log(`DEBUG: Finish Build routine: Executing ${currentBuildAction.action} action after ${intervalMinutes} minute(s)`);
+                }
                 
                 // Execute the action based on type
                 if (currentBuildAction.action === 'clickaround') {

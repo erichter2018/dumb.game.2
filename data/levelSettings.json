@@ -465,119 +465,101 @@
     },
     "news stand": {
       "doResearch": false,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 3000,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
-        "perfectStartingPosition": "nothing",
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
         "firstBuildAction": {
           "action": "nothing",
-          "triggerTimeMs": null
+          "triggerTimeMs": null,
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
-          "triggerTimeMs": null
-        }
+          "triggerTimeMs": null,
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
+        },
+        "optimized": true
       },
       "directionDown": {
-        "perfectStartingPosition": "nothing",
-        "scrollToBottomAfterFirstBuild": true,
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
-        }
+          "clickaroundOptions": {}
+        },
+        "optimized": true
       }
     },
     "coffee truck": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 3500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
-        "perfectStartingPosition": "scroll_down_1x",
+        "perfectStartingPosition": {
+          "action": "scroll_down_1x",
+          "waitTimeMs": null
+        },
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
-        }
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
+        },
+        "optimized": true
       },
       "directionDown": {
-        "perfectStartingPosition": "nothing",
-        "scrollToBottomAfterFirstBuild": true,
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
-        }
+          "clickaroundOptions": {}
+        },
+        "optimized": true
       }
     },
     "pizzeria": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -605,7 +587,7 @@
           "action": "scroll_up_1x",
           "waitTimeMs": null
         },
-        "scrollToBottomAfterFirstBuild": true,
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
@@ -780,69 +762,49 @@
     },
     "ice cream stand": {
       "doResearch": false,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 2500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
-        "perfectStartingPosition": "nothing",
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
-        }
+          "clickaroundOptions": {}
+        },
+        "optimized": true
       },
       "directionDown": {
-        "perfectStartingPosition": "nothing",
-        "scrollToBottomAfterFirstBuild": true,
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
-        }
+          "clickaroundOptions": {}
+        },
+        "optimized": true
       }
     },
     "taco stand": {
@@ -1337,7 +1299,7 @@
     },
     "cheese shop": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -1362,7 +1324,7 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "scroll_down_1x",
+          "action": "nothing",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
@@ -1773,7 +1735,7 @@
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "clickaround",
-          "triggerTimeMs": null,
+          "triggerTimeMs": 30000,
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": true,
@@ -1945,51 +1907,49 @@
     },
     "curry wurst stand": {
       "doResearch": false,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 3000,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
-        "perfectStartingPosition": "nothing",
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
         "firstBuildAction": {
           "action": "nothing",
-          "triggerTimeMs": null
+          "triggerTimeMs": null,
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
-          "triggerTimeMs": null
-        }
+          "triggerTimeMs": null,
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
+        },
+        "optimized": true
       },
       "directionDown": {
-        "perfectStartingPosition": "nothing",
-        "scrollToBottomAfterFirstBuild": true,
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
-        }
+          "clickaroundOptions": {}
+        },
+        "optimized": true
       }
     },
     "apple juice bar": {
@@ -2153,10 +2113,10 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "scroll_down_1x",
+          "action": "nothing",
           "waitTimeMs": null
         },
-        "scrollToBottomAfterFirstBuild": true,
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
@@ -2169,7 +2129,8 @@
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
-        }
+        },
+        "optimized": true
       }
     },
     "the fresh kitchen": {
@@ -2329,7 +2290,7 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": false
+        "optimized": true
       }
     }
   }

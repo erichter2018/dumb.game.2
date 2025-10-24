@@ -2958,13 +2958,17 @@ function updateLevelActionsDisplayWithSettings(settings) {
         optimizedStatusEl.style.color = isOptimized ? '#4fc3f7' : '#ff9800';
     }
     
-    // Reset all checkboxes
-    ['actionStartup', 'actionFirstBuild', 'actionAfterFirstBuild', 'actionSecondBuild', 'actionAfterSecondBuild'].forEach(id => {
-        const element = document.getElementById(id);
-        const checkbox = element.querySelector('.action-checkbox');
-        checkbox.textContent = '☐';
-        checkbox.classList.remove('checked');
-    });
+    // Only reset checkboxes if this is a new level (not just updating settings for same level)
+    // This prevents clearing checkmarks when updating effective direction
+    const shouldResetCheckboxes = !settings._isDirectionUpdate;
+    if (shouldResetCheckboxes) {
+        ['actionStartup', 'actionFirstBuild', 'actionAfterFirstBuild', 'actionSecondBuild', 'actionAfterSecondBuild'].forEach(id => {
+            const element = document.getElementById(id);
+            const checkbox = element.querySelector('.action-checkbox');
+            checkbox.textContent = '☐';
+            checkbox.classList.remove('checked');
+        });
+    }
     
     // Update Startup value
     let startupText;
@@ -3089,7 +3093,8 @@ ipcRenderer.on('effective-direction', async (event, mode, dir, randomApplied) =>
                 ...directionSettings,
                 doResearch: globalSettings.doResearch,
                 blueBoxClickHoldDuration: globalSettings.blueBoxClickHoldDuration,
-                scrollDirection: dir
+                scrollDirection: dir,
+                _isDirectionUpdate: true  // Mark as direction update to prevent clearing checkmarks
             };
             await updateLevelActionsDisplayWithSettings(effectiveSettings);
         }
@@ -3098,9 +3103,16 @@ ipcRenderer.on('effective-direction', async (event, mode, dir, randomApplied) =>
     }
 });
 
+// Test event handler to verify IPC is working
+ipcRenderer.on('test-event', (event, data) => {
+    console.log(`🧪 RENDERER: Received test event: ${data}`);
+});
+
 // Listen for action completion events to update checkmarks
 ipcRenderer.on('level-action-completed', (event, actionType) => {
-    console.log(`🔔 Received level-action-completed event: ${actionType}`);
+    console.log(`🔔 RENDERER: Received level-action-completed event: ${actionType}`);
+    console.log(`🔔 RENDERER: Event object:`, event);
+    console.log(`🔔 RENDERER: Action type:`, actionType);
     
     const actionMap = {
         'startup': 'actionStartup',
@@ -3111,21 +3123,27 @@ ipcRenderer.on('level-action-completed', (event, actionType) => {
     };
     
     const elementId = actionMap[actionType];
-    console.log(`📍 Mapped to element ID: ${elementId}`);
+    console.log(`📍 RENDERER: Mapped to element ID: ${elementId}`);
     
     if (elementId) {
         const element = document.getElementById(elementId);
-        console.log(`🎯 Found element:`, element);
+        console.log(`🎯 RENDERER: Found element:`, element);
         
         if (element) {
             const checkbox = element.querySelector('.action-checkbox');
-            console.log(`✅ Found checkbox:`, checkbox);
+            console.log(`✅ RENDERER: Found checkbox:`, checkbox);
             
             if (checkbox) {
                 checkbox.textContent = '☑';
                 checkbox.classList.add('checked');
-                console.log(`✨ Checkbox updated for ${actionType}!`);
+                console.log(`✨ RENDERER: Checkbox updated for ${actionType}!`);
+            } else {
+                console.log(`❌ RENDERER: No checkbox found in element for ${actionType}`);
             }
+        } else {
+            console.log(`❌ RENDERER: Element not found: ${elementId}`);
         }
+    } else {
+        console.log(`❌ RENDERER: No mapping found for action: ${actionType}`);
     }
 });
