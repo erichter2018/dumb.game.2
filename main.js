@@ -45,6 +45,8 @@ let reconnectionStartTime = null; // Track when reconnection started
 let currentLevelStartTime = null; // New: To track the start time of the current level
 let currentLevelName = 'Unknown Level'; // New: To track the current level name
 let finishedLevelName = ''; // New: Track the name of the level that just finished
+let currentEffectiveDirection = null; // New: Track the effective direction for the current level
+let levelDirections = new Map(); // Store direction used for each level
 let levelBuildCounts = new Map(); // Track build count per level (levelName -> buildCount)
 let previousLevelDurationMs = null; // New: To store the duration of the previous level
 let longestLevelDurationMs = null; // New: To store the longest level duration
@@ -166,12 +168,7 @@ function updateCurrentLevelName(levelName) {
         const stageCityName = statistics.getStageCity(originalLevelName);
         console.log(`DEBUG: New stage detected: "${stageCityName}"`);
         
-        // Complete current stage if one exists
-        if (currentStage && stageTrackingEnabled) {
-            completeCurrentStage();
-        }
-        
-        // Start new stage
+        // Start new stage (this will complete the current stage if one exists)
         startNewStage(stageCityName);
         
         // Look up the proper first level name from the database using 'originalName'
@@ -257,17 +254,28 @@ function setFinishedLevelName(levelName) {
     console.log(`DEBUG: Finished level name set to: "${finishedLevelName}"`);
 }
 
+function setCurrentEffectiveDirection(direction) {
+    currentEffectiveDirection = direction;
+    // Store the direction for the current level
+    if (currentLevelName && currentLevelName !== 'Unknown Level') {
+        levelDirections.set(currentLevelName, direction);
+        console.log(`DEBUG: Stored direction "${direction}" for level "${currentLevelName}"`);
+    }
+    console.log(`DEBUG: Current effective direction set to: "${direction}"`);
+}
+
 // Stage management functions
 function startNewStage(stageCityName) {
     const now = Date.now();
     
-    // Force complete the previous stage if it exists (to prevent cross-contamination)
+    // Complete the previous stage before starting the new one
     if (currentStage && stageTrackingEnabled) {
-        console.log(`DEBUG: Force completing previous stage "${currentStage.name}" before starting "${stageCityName}"`);
+        console.log(`DEBUG: Completing previous stage "${currentStage.name}" before starting new stage "${stageCityName}"`);
         completeCurrentStage();
         
-        // DON'T clear level mappings - let pending levels complete to their correct stages
-        console.log(`DEBUG: Keeping ${levelToStageId.size} pending level mappings to allow proper completion`);
+        // Clear level mappings for the new stage to prevent cross-contamination
+        console.log(`DEBUG: Clearing ${levelToStageId.size} level mappings for new stage`);
+        levelToStageId.clear();
     }
     
     currentStage = {
@@ -463,9 +471,16 @@ function completeCurrentStage() {
     // Mark as completed with timestamp
     currentStage.completed = true;
     
-    // Complete the stage
+    // Complete the stage - create a proper deep copy to avoid reference issues
     const completedStage = {
-        ...currentStage,
+        name: currentStage.name,
+        startTime: currentStage.startTime,
+        levels: currentStage.levels.map(level => ({
+            ...level,
+            comparisons: level.comparisons ? { ...level.comparisons } : null
+        })), // Create a deep copy of the levels array
+        id: currentStage.id,
+        isPartial: currentStage.isPartial,
         endTime: now,
         durationMs: stageDurationMs,
         levelCount: currentStage.levels.length
@@ -500,6 +515,30 @@ function completeCurrentStage() {
     
     // Always update previousStage for display purposes
     previousStage = completedStage;
+    console.log(`DEBUG: Set previousStage to "${previousStage.name}" with ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
+    
+    // Clear currentStage so renderer knows we're between stages
+    currentStage = null;
+    currentStageLevel = 0;
+    console.log(`DEBUG: Cleared currentStage, previousStage now has ${previousStage.levels.length} levels`);
+    console.log(`DEBUG: Previous stage levels after completion: [${previousStage.levels.map(l => l.name).join(', ')}]`);
+    
+    // Send updated stage info to renderer after completion
+    sendStageInfoToRenderer();
+}
+
+function resetStageInformationForFreshStart() {
+    // Reset stage information as if app was started fresh
+    console.log('DEBUG: Resetting stage information for fresh start');
+    currentStage = null;
+    previousStage = null;
+    stageTrackingEnabled = false;
+    currentStageLevel = 0;
+    levelToStageId.clear();
+    longestStages = [];
+    shortestStages = [];
+    completedStagesCount = 0;
+    totalStagesDurationMs = 0;
 }
 
 function updateStageRecords(completedStage) {
@@ -574,7 +613,89 @@ function calculateLevelComparison(actualTime, levelName, direction = 'up') {
     return { arrow, timeDelta, cssClass };
 }
 
-function addLevelToCurrentStage(levelName, durationMs) {
+function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
+    // Get historical average for this level
+    const stats = historicalStats.loadStats();
+    const levelStats = stats.levels[levelName];
+    
+    // Use only the completions for the specified direction
+    let directionCompletions = [];
+    if (levelStats) {
+        if (direction === 'up' && levelStats.completionsUp && Array.isArray(levelStats.completionsUp)) {
+            directionCompletions = levelStats.completionsUp;
+        } else if (direction === 'down' && levelStats.completionsDown && Array.isArray(levelStats.completionsDown)) {
+            directionCompletions = levelStats.completionsDown;
+        }
+    }
+    
+    if (directionCompletions.length === 0) {
+        return { 
+            average: { arrow: '', timeDelta: '', cssClass: '' },
+            best: { arrow: '', timeDelta: '', cssClass: '' }
+        };
+    }
+    
+    // Calculate average
+    const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
+    
+    // Find best time
+    const best = Math.min(...directionCompletions);
+    
+    // Calculate average comparison
+    const avgDiffMs = actualTime - avg;
+    
+    let avgArrow = '';
+    let avgCssClass = '';
+    let avgTimeDelta = '';
+    
+    if (Math.abs(avgDiffMs) < 5000) {
+        // Within 5 seconds - blue
+        avgArrow = '↔';
+        avgCssClass = 'stage-level-blue';
+        avgTimeDelta = `${(avgDiffMs / 1000).toFixed(1)}s`;
+    } else if (avgDiffMs > 0) {
+        // Slower than average - red
+        avgArrow = '↑';
+        avgCssClass = 'stage-level-red';
+        avgTimeDelta = `+${(avgDiffMs / 1000).toFixed(1)}s`;
+    } else {
+        // Faster than average - green
+        avgArrow = '↓';
+        avgCssClass = 'stage-level-green';
+        avgTimeDelta = `${(avgDiffMs / 1000).toFixed(1)}s`;
+    }
+    
+    // Calculate best comparison
+    const bestDiffMs = actualTime - best;
+    
+    let bestArrow = '';
+    let bestCssClass = '';
+    let bestTimeDelta = '';
+    
+    if (Math.abs(bestDiffMs) < 1000) {
+        // Within 1 second - blue
+        bestArrow = '↔';
+        bestCssClass = 'stage-level-blue';
+        bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
+    } else if (bestDiffMs > 0) {
+        // Slower than best - red
+        bestArrow = '↑';
+        bestCssClass = 'stage-level-red';
+        bestTimeDelta = `+${(bestDiffMs / 1000).toFixed(1)}s`;
+    } else {
+        // Faster than best - green
+        bestArrow = '↓';
+        bestCssClass = 'stage-level-green';
+        bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
+    }
+    
+    return {
+        average: { arrow: avgArrow, timeDelta: avgTimeDelta, cssClass: avgCssClass },
+        best: { arrow: bestArrow, timeDelta: bestTimeDelta, cssClass: bestCssClass }
+    };
+}
+
+function addLevelToCurrentStage(levelName, durationMs, effectiveDirection = null) {
     if (!currentStage || !stageTrackingEnabled) {
         console.log(`LEVEL ADD: Rejected - no stage (stageTrackingEnabled: ${stageTrackingEnabled}, currentStage: ${!!currentStage})`);
         return;
@@ -597,9 +718,11 @@ function addLevelToCurrentStage(levelName, durationMs) {
     const nameForStats = getOriginalLevelName(levelName);
     console.log(`LEVEL ADD: Resolved name for stats: "${levelName}" -> "${nameForStats}"`);
     
-    // Get current direction from settings (needed for comparison and saving)
+    // Use stored direction for this level, or effective direction if available, otherwise fall back to saved settings
     const levelSettings = settingsManager.getLevelSettings(nameForStats);
-    const direction = levelSettings.scrollDirection || 'up';
+    const storedDirection = levelDirections.get(levelName);
+    const direction = storedDirection || effectiveDirection || levelSettings.scrollDirection || 'up';
+    console.log(`LEVEL ADD: Using direction: ${direction} (storedDirection: ${storedDirection}, effectiveDirection: ${effectiveDirection}, savedDirection: ${levelSettings.scrollDirection})`);
     
     if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
         historicalStats.recordLevelCompletion(nameForStats, durationMs, direction);
@@ -610,19 +733,22 @@ function addLevelToCurrentStage(levelName, durationMs) {
         console.log(`LEVEL ADD: NOT recorded in stats (nameForStats: "${nameForStats}")`);
     }
     
-    // Calculate comparison with historical average (before recording so we use pre-update stats)
-    const comparison = calculateLevelComparison(durationMs, nameForStats, direction);
+    // Calculate both average and best comparisons (after recording so we use updated stats)
+    console.log(`DEBUG: Calculating comparisons for "${nameForStats}" (${durationMs}ms, direction: ${direction})`);
+    const comparisons = calculateLevelComparisons(durationMs, nameForStats, direction);
+    console.log(`DEBUG: Comparison results:`, comparisons);
     
     const levelInfo = {
         name: levelName,
         durationMs: durationMs,
         completedAt: Date.now(),
-        comparison: comparison, // Save comparison info for display in previous stage
+        comparisons: comparisons, // Save both average and best comparison info for display
         direction: direction // Save direction for proper comparison calculation
     };
     
     currentStage.levels.push(levelInfo);
     console.log(`LEVEL ADD: SUCCESS - Added level #${currentStage.levels.length}`);
+    console.log(`LEVEL ADD: Current stage now has levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
     
     // Update last known level position for offline detection (AFTER adding to array)
     if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
@@ -660,12 +786,10 @@ function addLevelToCurrentStage(levelName, durationMs) {
     if (currentStage.levels.length >= expectedLevelCount) {
         console.log(`DEBUG: Stage "${currentStage.name}" complete with ${currentStage.levels.length}/${expectedLevelCount} levels - moving to previous`);
         completeCurrentStage();
-        currentStage = null;
-        currentStageLevel = 0;
     }
 }
 
-function addLevelToCurrentStageIfValid(levelName, durationMs) {
+function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection = null) {
     // Check if we need a stage (partial stage should have been started when level began)
     if (!stageTrackingEnabled || !currentStage) {
         console.log(`DEBUG: No active stage when level "${levelName}" completed - level ignored`);
@@ -674,12 +798,13 @@ function addLevelToCurrentStageIfValid(levelName, durationMs) {
     
     // Check if this level was mapped to a specific stage ID
     const mappedStageId = levelToStageId.get(levelName);
+    console.log(`DEBUG: Level "${levelName}" mapped to stage ID: ${mappedStageId}, current stage ID: ${currentStage ? currentStage.id : 'null'}, previous stage ID: ${previousStage ? previousStage.id : 'null'}`);
     
     if (mappedStageId) {
         // Check if it belongs to the current stage
         if (currentStage && mappedStageId === currentStage.id) {
             console.log(`DEBUG: Adding level "${levelName}" to current stage "${currentStage.name}"`);
-            addLevelToCurrentStage(levelName, durationMs);
+            addLevelToCurrentStage(levelName, durationMs, effectiveDirection);
             
             // If this is a partial stage, attempt deduction
             if (currentStage.isPartial) {
@@ -791,8 +916,10 @@ function sendStageInfoToRenderer() {
     }
     if (previousStage) {
         console.log(`DEBUG: Sending stage info - Previous stage "${previousStage.name}" has ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
+        console.log(`DEBUG: Previous stage ID: ${previousStage.id}, Current stage ID: ${currentStage ? currentStage.id : 'null'}`);
     }
     
+    console.log(`DEBUG: Sending stage info to renderer - previous stage: ${stageInfo.previous ? stageInfo.previous.name : 'null'}`);
     mainWindow.webContents.send('update-stage-info', stageInfo);
 }
 
@@ -1712,17 +1839,9 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
 
   isFinishLevelRunning = isRunning;
   if (isRunning) {
-    // Reset stage information as if app was started fresh
-    console.log('DEBUG: Resetting stage information for fresh start');
-    currentStage = null;
-    previousStage = null;
-    stageTrackingEnabled = false;
-    currentStageLevel = 0;
-    levelToStageId.clear();
-    longestStages = [];
-    shortestStages = [];
-    completedStagesCount = 0;
-    totalStagesDurationMs = 0;
+    // Reset stage information when automation starts
+    console.log('DEBUG: Finish Level automation starting - resetting stage information');
+    resetStageInformationForFreshStart();
     
     // Clear level name and overlays at start of finish level automation
     // This makes the app behave as if it was just loaded
@@ -1863,6 +1982,11 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     scrollUpAttempts: scrollUpAttempts, // New: Pass scroll up attempts
     // New: Functions to handle level duration updates
     updateCurrentLevelDuration: updateCurrentLevelDuration,
+    getEffectiveDirectionForLevel: () => {
+      // This function will be set by the automation when a level starts
+      return currentEffectiveDirection;
+    },
+    setCurrentEffectiveDirection: setCurrentEffectiveDirection,
     updatePreviousLevelDuration: (duration) => {
         previousLevelDurationMs = duration;
         
@@ -1891,12 +2015,20 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
             updateAverageLevelDuration(levelsFinishedCount > 0 ? totalLevelsDurationMs / levelsFinishedCount : null); // Update display
             
             // Add level to stage tracking (but only if it belongs to current stage)
-            addLevelToCurrentStageIfValid(finishedLevelName, duration);
+            // Get the effective direction that was actually used during gameplay
+            const effectiveDirection = currentEffectiveDirection;
+            addLevelToCurrentStageIfValid(finishedLevelName, duration, effectiveDirection);
         }
 
         // Always update the previous level duration display (for unnamed levels too)
         updatePreviousLevelDuration(duration);
         currentLevelStartTime = Date.now(); // Reset current level timer
+        
+        // Clean up stored direction for the finished level
+        if (finishedLevelName) {
+            levelDirections.delete(finishedLevelName);
+            console.log(`DEBUG: Cleaned up stored direction for finished level: "${finishedLevelName}"`);
+        }
         reconnectionDowntimeMs = 0; // Reset reconnection downtime for new level
         
         // Note: sendStageInfoToRenderer() is already called by updateCurrentLevelName() above

@@ -876,7 +876,7 @@ ipcRenderer.on('update-current-level-name', (event, levelName, levelAverageMs, l
                         <span style="color: #e0e6ed; font-weight: 500;">${avgUpText} / ${avgDownText}</span>
                     </div>
                     <div>
-                        <span style="color: #4caf50; font-weight: 600;">best:</span> 
+                    <span style="color: #4caf50; font-weight: 600;">best:</span> 
                         <span style="color: #e0e6ed; font-weight: 500;">${bestUpText} / ${bestDownText}</span>
                     </div>
                 </div>
@@ -943,6 +943,7 @@ ipcRenderer.on('update-daily-stats', async (event, dailyStats) => {
 });
 
 ipcRenderer.on('update-stage-info', async (event, stageInfo) => {
+    console.log(`RENDERER: Received stage info - previous stage: ${stageInfo.previous ? stageInfo.previous.name : 'null'}`);
     // Load statistics data for comparison calculations
     await loadStatisticsData();
     
@@ -1257,7 +1258,7 @@ async function updateStageDisplay(stageInfo) {
     await updateCurrentStageDetails(stageInfo.current);
     
     // Show/hide and update previous stage (full view - in sidebar)
-    updatePreviousStageDetails(stageInfo.previous);
+    // Note: Using updatePreviousStageDetailsCompact for consistent formatting
 
     // Update summaries above stage lists
     const currentSummary = document.getElementById('currentStageSummary');
@@ -1349,89 +1350,151 @@ async function updatePreviousStageDetailsCompact(previousStage) {
                 const levelDiv = document.createElement('div');
                 
                 // Use saved comparison data, recalculate with correct direction if not saved
-                const comparison = level.comparison || calculateLevelComparison(level.durationMs, level.name, level.direction || 'up');
+                const comparisons = level.comparisons || calculateLevelComparisons(level.durationMs, level.name, level.direction || 'up');
                 
-                levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass || ''}`;
+                // Determine blended color based on both comparisons
+                let blendedColor = '';
+                const avgColor = comparisons.average.cssClass;
+                const bestColor = comparisons.best.cssClass;
                 
-                let timeDisplay = formatDuration(level.durationMs);
-                if (comparison.arrow) {
-                    timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
-                    if (comparison.timeDelta) {
-                        timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
-                    }
+                // Create blended color combinations
+                if (avgColor === 'stage-level-green' && bestColor === 'stage-level-green') {
+                    blendedColor = 'stage-level-green-green';
+                } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-blue') {
+                    blendedColor = 'stage-level-green-blue';
+                } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-green') {
+                    blendedColor = 'stage-level-blue-green';
+                } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-blue') {
+                    blendedColor = 'stage-level-blue-blue';
+                } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-red') {
+                    blendedColor = 'stage-level-green-red';
+                } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-green') {
+                    blendedColor = 'stage-level-red-green';
+                } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-red') {
+                    blendedColor = 'stage-level-blue-red';
+                } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-blue') {
+                    blendedColor = 'stage-level-red-blue';
+                } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-red') {
+                    blendedColor = 'stage-level-red-red';
+                } else {
+                    // Fallback for any other combinations
+                    blendedColor = 'stage-level-red-red';
                 }
                 
+                levelDiv.className = 'stage-level-item stage-level-completed';
+                
+                const timeDisplay = formatDuration(level.durationMs);
+                
                 levelDiv.innerHTML = `
-                    <span class="stage-level-name">${level.name}</span>
-                    <span class="stage-level-time">${timeDisplay}</span>
+                    <div class="stage-level-main ${blendedColor}">
+                        <span class="stage-level-name">${level.name} <sup>${level.direction === 'up' ? 'u' : 'd'}</sup>&nbsp;</span>
+                        <span class="stage-level-time">    ${timeDisplay}</span>
+                    </div>
+                    <div class="stage-level-delta-box ${comparisons.average.cssClass}">
+                        avg: ${comparisons.average.arrow} ${comparisons.average.timeDelta}
+                    </div>
+                    <div class="stage-level-delta-box ${comparisons.best.cssClass}">
+                        best: ${comparisons.best.arrow} ${comparisons.best.timeDelta}
+                    </div>
                 `;
                 prevStageLevels.appendChild(levelDiv);
                 console.log(`DEBUG: Added completed level from partial stage: ${level.name} (${formatDuration(level.durationMs)})`);
             });
         } else {
             // Full stage - use database to show all 7 positions
-            let stageLevelNames = [];
-            try {
-                const levelDatabase = await ipcRenderer.invoke('get-level-database');
-                const stageInfo = levelDatabase[previousStage.name];
-                if (stageInfo && stageInfo.levels) {
-                    // For stage display, use originalName for first level (if exists), else use name
-                    stageLevelNames = stageInfo.levels.map(level => 
-                        (level.position === 1 && level.originalName) ? level.originalName : level.name
-                    );
-                }
-            } catch (error) {
-                console.error('Failed to load level database for previous stage:', error);
+        let stageLevelNames = [];
+        try {
+            const levelDatabase = await ipcRenderer.invoke('get-level-database');
+            const stageInfo = levelDatabase[previousStage.name];
+            if (stageInfo && stageInfo.levels) {
+                // For stage display, use originalName for first level (if exists), else use name
+                stageLevelNames = stageInfo.levels.map(level => 
+                    (level.position === 1 && level.originalName) ? level.originalName : level.name
+                );
+            }
+        } catch (error) {
+            console.error('Failed to load level database for previous stage:', error);
+        }
+        
+        // Show all 7 level positions for previous stage (skip N/A)
+        let completedLevelIndex = 0; // Track index into previousStage.levels array
+        for (let position = 0; position < 7; position++) {
+            const levelIndex = position;
+            const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+            
+            // Skip N/A levels - they don't exist in the game
+            if (levelName === 'N/A') {
+                console.log(`DEBUG: Skipping N/A level at position ${position} in previous stage`);
+                continue;
             }
             
-            // Show all 7 level positions for previous stage (skip N/A)
-            let completedLevelIndex = 0; // Track index into previousStage.levels array
-            for (let position = 0; position < 7; position++) {
-                const levelIndex = position;
-                const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+            const levelDiv = document.createElement('div');
+            
+            if (completedLevelIndex < previousStage.levels.length) {
+                // Show completed level - use levelName from database (has originalName for position 1)
+                const level = previousStage.levels[completedLevelIndex];
                 
-                // Skip N/A levels - they don't exist in the game
-                if (levelName === 'N/A') {
-                    console.log(`DEBUG: Skipping N/A level at position ${position} in previous stage`);
-                    continue;
-                }
-                
-                const levelDiv = document.createElement('div');
-                
-                if (completedLevelIndex < previousStage.levels.length) {
-                    // Show completed level - use levelName from database (has originalName for position 1)
-                    const level = previousStage.levels[completedLevelIndex];
-                    
                     // Recalculate comparison to get color class and timeDelta format, using the correct direction
-                    const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName, level.direction || 'up');
+                    const comparisons = level.comparisons || calculateLevelComparisons(level.durationMs, levelName, level.direction || 'up');
                     
-                    // Apply color class based on performance
-                    levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass || ''}`;
+                    // Determine blended color based on both comparisons (same logic as current stage)
+                    let blendedColor = '';
+                    const avgColor = comparisons.average.cssClass;
+                    const bestColor = comparisons.best.cssClass;
                     
-                    // Build time display with saved comparison info (if available)
-                    let timeDisplay = formatDuration(level.durationMs);
-                    if (comparison.arrow) {
-                        timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
-                        if (comparison.timeDelta) {
-                            timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
-                        }
+                    // Create blended color combinations (same as current stage)
+                    if (avgColor === 'stage-level-green' && bestColor === 'stage-level-green') {
+                        blendedColor = 'stage-level-green-green';
+                    } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-blue') {
+                        blendedColor = 'stage-level-green-blue';
+                    } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-green') {
+                        blendedColor = 'stage-level-blue-green';
+                    } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-blue') {
+                        blendedColor = 'stage-level-blue-blue';
+                    } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-red') {
+                        blendedColor = 'stage-level-green-red';
+                    } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-green') {
+                        blendedColor = 'stage-level-red-green';
+                    } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-red') {
+                        blendedColor = 'stage-level-blue-red';
+                    } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-blue') {
+                        blendedColor = 'stage-level-red-blue';
+                    } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-red') {
+                        blendedColor = 'stage-level-red-red';
+                    } else {
+                        // Fallback for any other combinations
+                        blendedColor = 'stage-level-red-red';
                     }
-                    
-                    levelDiv.innerHTML = `
-                        <span class="stage-level-name">${levelName}</span>
-                        <span class="stage-level-time">${timeDisplay}</span>
-                    `;
-                    completedLevelIndex++; // Increment only for displayed levels
-                } else {
-                    // Show level name without time (if available)
-                    levelDiv.className = 'stage-level-item stage-level-incomplete';
-                    levelDiv.innerHTML = `
-                        <span class="stage-level-name">${levelName}</span>
-                        <span class="stage-level-time">—</span>
-                    `;
-                }
                 
-                prevStageLevels.appendChild(levelDiv);
+                // Apply color class based on performance
+                    levelDiv.className = 'stage-level-item stage-level-completed';
+                    
+                    // Build time display
+                    const timeDisplay = formatDuration(level.durationMs);
+                
+                levelDiv.innerHTML = `
+                        <div class="stage-level-main ${blendedColor}">
+                            <span class="stage-level-name">${levelName} <sup>${level.direction === 'up' ? 'u' : 'd'}</sup>&nbsp;</span>
+                            <span class="stage-level-time">    ${timeDisplay}</span>
+                        </div>
+                        <div class="stage-level-delta-box ${comparisons.average.cssClass}">
+                            avg: ${comparisons.average.arrow} ${comparisons.average.timeDelta}
+                        </div>
+                        <div class="stage-level-delta-box ${comparisons.best.cssClass}">
+                            best: ${comparisons.best.arrow} ${comparisons.best.timeDelta}
+                        </div>
+                `;
+                completedLevelIndex++; // Increment only for displayed levels
+            } else {
+                // Show level name without time (if available)
+                levelDiv.className = 'stage-level-item stage-level-incomplete';
+                levelDiv.innerHTML = `
+                        <span class="stage-level-name">${levelName} <sup>${level.direction === 'up' ? 'u' : 'd'}</sup>&nbsp;</span>
+                    <span class="stage-level-time">—</span>
+                `;
+            }
+            
+            prevStageLevels.appendChild(levelDiv);
             }
         }
     }
@@ -1490,6 +1553,90 @@ function calculateLevelComparison(actualTime, levelName, direction = 'up') {
     return { arrow, timeDelta, cssClass };
 }
 
+/**
+ * Calculate both average and best comparisons for a level time
+ * Returns object with separate average and best comparisons
+ */
+function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
+    const levelStats = statisticsData.levels[levelName];
+    
+    // Use only the completions for the specified direction
+    let directionCompletions = [];
+    if (levelStats) {
+        if (direction === 'up' && levelStats.completionsUp && Array.isArray(levelStats.completionsUp)) {
+            directionCompletions = levelStats.completionsUp;
+        } else if (direction === 'down' && levelStats.completionsDown && Array.isArray(levelStats.completionsDown)) {
+            directionCompletions = levelStats.completionsDown;
+        }
+    }
+    
+    if (directionCompletions.length === 0) {
+        return { 
+            average: { arrow: '', timeDelta: '', cssClass: '' },
+            best: { arrow: '', timeDelta: '', cssClass: '' }
+        };
+    }
+    
+    // Calculate average
+    const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
+    
+    // Find best time
+    const best = Math.min(...directionCompletions);
+    
+    // Calculate average comparison
+    const avgDiffMs = actualTime - avg;
+    
+    let avgArrow = '';
+    let avgCssClass = '';
+    let avgTimeDelta = '';
+    
+    if (Math.abs(avgDiffMs) < 5000) {
+        // Within 5 seconds - blue
+        avgArrow = '↔';
+        avgCssClass = 'stage-level-blue';
+        avgTimeDelta = `${(avgDiffMs / 1000).toFixed(1)}s`;
+    } else if (avgDiffMs > 0) {
+        // Slower than average - red
+        avgArrow = '↑';
+        avgCssClass = 'stage-level-red';
+        avgTimeDelta = `+${(avgDiffMs / 1000).toFixed(1)}s`;
+    } else {
+        // Faster than average - green
+        avgArrow = '↓';
+        avgCssClass = 'stage-level-green';
+        avgTimeDelta = `${(avgDiffMs / 1000).toFixed(1)}s`;
+    }
+    
+    // Calculate best comparison
+    const bestDiffMs = actualTime - best;
+    
+    let bestArrow = '';
+    let bestCssClass = '';
+    let bestTimeDelta = '';
+    
+    if (Math.abs(bestDiffMs) < 1000) {
+        // Within 1 second - blue
+        bestArrow = '↔';
+        bestCssClass = 'stage-level-blue';
+        bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
+    } else if (bestDiffMs > 0) {
+        // Slower than best - red
+        bestArrow = '↑';
+        bestCssClass = 'stage-level-red';
+        bestTimeDelta = `+${(bestDiffMs / 1000).toFixed(1)}s`;
+    } else {
+        // Faster than best - green
+        bestArrow = '↓';
+        bestCssClass = 'stage-level-green';
+        bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
+    }
+    
+    return {
+        average: { arrow: avgArrow, timeDelta: avgTimeDelta, cssClass: avgCssClass },
+        best: { arrow: bestArrow, timeDelta: bestTimeDelta, cssClass: bestCssClass }
+    };
+}
+
 async function updateCurrentStageDetails(currentStage) {
     updateStageCallCounter++;
     await ipcRenderer.invoke('renderer-log', `updateCurrentStageDetails called #${updateStageCallCounter}`);
@@ -1535,33 +1682,68 @@ async function updateCurrentStageDetails(currentStage) {
         }
         
         // For partial stages, we display levels differently
+        console.log(`DEBUG: Checking isPartialStage: ${isPartialStage}`);
         if (isPartialStage) {
             console.log(`DEBUG: Rendering partial stage - showing only completed and current level`);
             
             // Show completed levels
+            console.log(`DEBUG: Rendering ${currentStage.levels.length} completed levels in partial stage`);
             currentStage.levels.forEach((level, index) => {
                 const levelDiv = document.createElement('div');
                 
                 // Use saved comparison data if available, otherwise recalculate with correct direction
                 // This ensures colors persist and match the full stage methodology
-                const comparison = level.comparison || calculateLevelComparison(level.durationMs, level.name, level.direction || 'up');
+                const comparisons = level.comparisons || calculateLevelComparisons(level.durationMs, level.name, level.direction || 'up');
                 
-                levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass}`;
+                // Determine blended color based on both comparisons
+                let blendedColor = '';
+                const avgColor = comparisons.average.cssClass;
+                const bestColor = comparisons.best.cssClass;
                 
-                let timeDisplay = formatDuration(level.durationMs);
-                if (comparison.arrow) {
-                    timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
-                    if (comparison.timeDelta) {
-                        timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
-                    }
+                // Create blended color combinations
+                if (avgColor === 'stage-level-green' && bestColor === 'stage-level-green') {
+                    blendedColor = 'stage-level-green-green';
+                } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-blue') {
+                    blendedColor = 'stage-level-green-blue';
+                } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-green') {
+                    blendedColor = 'stage-level-blue-green';
+                } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-blue') {
+                    blendedColor = 'stage-level-blue-blue';
+                } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-red') {
+                    blendedColor = 'stage-level-green-red';
+                } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-green') {
+                    blendedColor = 'stage-level-red-green';
+                } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-red') {
+                    blendedColor = 'stage-level-blue-red';
+                } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-blue') {
+                    blendedColor = 'stage-level-red-blue';
+                } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-red') {
+                    blendedColor = 'stage-level-red-red';
+                } else {
+                    // Fallback for any other combinations
+                    blendedColor = 'stage-level-red-red';
                 }
                 
-                levelDiv.innerHTML = `
-                    <span class="stage-level-name">${level.name}</span>
-                    <span class="stage-level-time">${timeDisplay}</span>
+                levelDiv.className = 'stage-level-item stage-level-completed';
+                
+                const timeDisplay = formatDuration(level.durationMs);
+                
+                const htmlContent = `
+                    <div class="stage-level-main ${blendedColor}">
+                        <span class="stage-level-name">${level.name} <sup>${level.direction === 'up' ? 'u' : 'd'}</sup>&nbsp;</span>
+                        <span class="stage-level-time">    ${timeDisplay}</span>
+                    </div>
+                    <div class="stage-level-delta-box ${comparisons.average.cssClass}">
+                        avg: ${comparisons.average.arrow} ${comparisons.average.timeDelta}
+                    </div>
+                    <div class="stage-level-delta-box ${comparisons.best.cssClass}">
+                        best: ${comparisons.best.arrow} ${comparisons.best.timeDelta}
+                    </div>
                 `;
+                console.log(`DEBUG PARTIAL STAGE HTML for "${level.name}":`, htmlContent);
+                levelDiv.innerHTML = htmlContent;
                 stageLevels.appendChild(levelDiv);
-                console.log(`DEBUG: Added completed level in partial stage: ${level.name} (${formatDuration(level.durationMs)}) with cssClass: ${comparison.cssClass}`);
+                console.log(`DEBUG: Added completed level in partial stage: ${level.name} (${formatDuration(level.durationMs)})`);
             });
             
             // Show current level (if we have a name for it)
@@ -1586,48 +1768,50 @@ async function updateCurrentStageDetails(currentStage) {
                 const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
                 
                 levelDiv.innerHTML = `
-                    <span class="stage-level-name">${currentStage.currentLevelName}</span>
-                    <span class="stage-level-time">${etaText}</span>
+                    <div class="stage-level-main">
+                        <span class="stage-level-name">${currentStage.currentLevelName}</span>
+                        <span class="stage-level-time">    ${etaText}</span>
+                    </div>
                 `;
                 stageLevels.appendChild(levelDiv);
                 console.log(`DEBUG: Added current level in partial stage: ${currentStage.currentLevelName} (${etaText})`);
             }
         } else {
             // Normal stage rendering with all 7 positions
-            // Map currentStage.level (counts non-N/A levels) to array position (includes N/A)
-            let nonNALevelsSeen = 0;
-            let currentLevelArrayPosition = -1;
-            for (let p = 0; p < stageLevelNames.length; p++) {
-                if (stageLevelNames[p] !== 'N/A') {
-                    nonNALevelsSeen++;
-                    if (nonNALevelsSeen === currentStage.level) {
-                        currentLevelArrayPosition = p;
-                        break;
-                    }
+        // Map currentStage.level (counts non-N/A levels) to array position (includes N/A)
+        let nonNALevelsSeen = 0;
+        let currentLevelArrayPosition = -1;
+        for (let p = 0; p < stageLevelNames.length; p++) {
+            if (stageLevelNames[p] !== 'N/A') {
+                nonNALevelsSeen++;
+                if (nonNALevelsSeen === currentStage.level) {
+                    currentLevelArrayPosition = p;
+                    break;
                 }
             }
-            
+        }
+        
             await ipcRenderer.invoke('renderer-log', `Normal stage render: level=${currentStage.level}, arrayPos=${currentLevelArrayPosition}, completed=${currentStage.levels.length}`);
             await ipcRenderer.invoke('renderer-log', `Stage database names: [${stageLevelNames.join(', ')}]`);
-            
-            let completedLevelIndex = 0; // Index into currentStage.levels array
-            
-            for (let position = 0; position < 7; position++) {
-                try {
-                    const levelIndex = position;
-                    const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
-                    
-                    // Skip N/A levels - they don't exist in the game
-                    if (levelName === 'N/A') {
-                        continue;
-                    }
-                    
-                    const levelDiv = document.createElement('div');
-                    
-                    // Check if this position corresponds to a completed level
-                    if (position < currentLevelArrayPosition) {
-                        // Show completed level - use levelName from database (has originalName for position 1)
-                        const level = currentStage.levels[completedLevelIndex];
+        
+        let completedLevelIndex = 0; // Index into currentStage.levels array
+        
+        for (let position = 0; position < 7; position++) {
+            try {
+                const levelIndex = position;
+                const levelName = stageLevelNames[levelIndex] || `Level ${levelIndex + 1}`;
+                
+                // Skip N/A levels - they don't exist in the game
+                if (levelName === 'N/A') {
+                    continue;
+                }
+                
+                const levelDiv = document.createElement('div');
+                
+                // Check if this position corresponds to a completed level
+                if (position < currentLevelArrayPosition) {
+                // Show completed level - use levelName from database (has originalName for position 1)
+                const level = currentStage.levels[completedLevelIndex];
                         
                         // Safety check: if level data is missing, skip this position
                         if (!level) {
@@ -1642,58 +1826,93 @@ async function updateCurrentStageDetails(currentStage) {
                         
                         // Use saved comparison data if available, otherwise recalculate with correct direction
                         // This ensures colors persist from current to previous stage
-                        const comparison = level.comparison || calculateLevelComparison(level.durationMs, levelName, level.direction || 'up');
+                        const comparisons = level.comparisons || calculateLevelComparisons(level.durationMs, levelName, level.direction || 'up');
                         
-                        // Apply color class based on performance
-                        levelDiv.className = `stage-level-item stage-level-completed ${comparison.cssClass}`;
+                        // Determine blended color based on both comparisons
+                        let blendedColor = '';
+                        const avgColor = comparisons.average.cssClass;
+                        const bestColor = comparisons.best.cssClass;
                         
-                        // Build time display with arrow and time delta
-                        let timeDisplay = formatDuration(level.durationMs);
-                        if (comparison.arrow) {
-                            timeDisplay += ` <span style="opacity: 0.7;">${comparison.arrow}</span>`;
-                            if (comparison.timeDelta) {
-                                timeDisplay += ` <span style="font-size: 0.85em; opacity: 0.65;">${comparison.timeDelta}</span>`;
-                            }
+                        // Create blended color combinations
+                        if (avgColor === 'stage-level-green' && bestColor === 'stage-level-green') {
+                            blendedColor = 'stage-level-green-green';
+                        } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-blue') {
+                            blendedColor = 'stage-level-green-blue';
+                        } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-green') {
+                            blendedColor = 'stage-level-blue-green';
+                        } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-blue') {
+                            blendedColor = 'stage-level-blue-blue';
+                        } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-red') {
+                            blendedColor = 'stage-level-green-red';
+                        } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-green') {
+                            blendedColor = 'stage-level-red-green';
+                        } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-red') {
+                            blendedColor = 'stage-level-blue-red';
+                        } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-blue') {
+                            blendedColor = 'stage-level-red-blue';
+                        } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-red') {
+                            blendedColor = 'stage-level-red-red';
+                        } else {
+                            // Fallback for any other combinations
+                            blendedColor = 'stage-level-red-red';
                         }
                         
-                        levelDiv.innerHTML = `
-                            <span class="stage-level-name">${levelName}</span>
-                            <span class="stage-level-time">${timeDisplay}</span>
-                        `;
-                        levelItemsAdded++;
-                        completedLevelIndex++;
-                } else if (position === currentLevelArrayPosition) {
-                    // Show current level with actual name and ETA
-                    levelDiv.className = 'stage-level-item stage-level-current';
-                    
-                    // Calculate ETA for current level (historical avg - elapsed time)
-                    const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
-                    const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
-                    
-                    levelDiv.innerHTML = `
-                        <span class="stage-level-name">${levelName}</span>
-                        <span class="stage-level-time">${etaText}</span>
-                    `;
-                    levelItemsAdded++;
-                    await ipcRenderer.invoke('renderer-log', `Rendering current level at position ${position}: "${levelName}"`);
-                } else {
-                    // Show upcoming level with historical average as static ETA
-                    levelDiv.className = 'stage-level-item';
-                    
-                    // Get historical average for this specific level (static, doesn't count down)
-                    const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
-                    const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : '—';
-                    
-                    levelDiv.innerHTML = `
-                        <span class="stage-level-name">${levelName}</span>
-                        <span class="stage-level-time">${etaText}</span>
-                    `;
-                    levelItemsAdded++;
-                }
+                        // Apply color class based on performance
+                        levelDiv.className = 'stage-level-item stage-level-completed';
+                        
+                        // Build time display
+                        const timeDisplay = formatDuration(level.durationMs);
                 
-                stageLevels.appendChild(levelDiv);
-                } catch (error) {
-                    console.error(`ERROR: Failed to process level at position ${position}:`, error);
+                        levelDiv.innerHTML = `
+                            <div class="stage-level-main ${blendedColor}">
+                                <span class="stage-level-name">${levelName} <sup>${level.direction === 'up' ? 'u' : 'd'}</sup>&nbsp;</span>
+                                <span class="stage-level-time">    ${timeDisplay}</span>
+                            </div>
+                            <div class="stage-level-delta-box ${comparisons.average.cssClass}">
+                                avg: ${comparisons.average.arrow} ${comparisons.average.timeDelta}
+                            </div>
+                            <div class="stage-level-delta-box ${comparisons.best.cssClass}">
+                                best: ${comparisons.best.arrow} ${comparisons.best.timeDelta}
+                            </div>
+                        `;
+                levelItemsAdded++;
+                completedLevelIndex++;
+            } else if (position === currentLevelArrayPosition) {
+                // Show current level with actual name and ETA
+                levelDiv.className = 'stage-level-item stage-level-current';
+                
+                // Calculate ETA for current level (historical avg - elapsed time)
+                const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
+                const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
+                
+                levelDiv.innerHTML = `
+                    <div class="stage-level-main">
+                        <span class="stage-level-name">${levelName}</span>
+                        <span class="stage-level-time">    ${etaText}</span>
+                    </div>
+                `;
+                levelItemsAdded++;
+                    await ipcRenderer.invoke('renderer-log', `Rendering current level at position ${position}: "${levelName}"`);
+            } else {
+                // Show upcoming level with historical average as static ETA
+                levelDiv.className = 'stage-level-item';
+                
+                // Get historical average for this specific level (static, doesn't count down)
+                const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
+                const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : '—';
+                
+                levelDiv.innerHTML = `
+                    <div class="stage-level-main">
+                        <span class="stage-level-name">${levelName}</span>
+                        <span class="stage-level-time">    ${etaText}</span>
+                    </div>
+                `;
+                levelItemsAdded++;
+            }
+            
+            stageLevels.appendChild(levelDiv);
+            } catch (error) {
+                console.error(`ERROR: Failed to process level at position ${position}:`, error);
                 }
             }
         }
@@ -1702,43 +1921,7 @@ async function updateCurrentStageDetails(currentStage) {
     }
 }
 
-function updatePreviousStageDetails(previousStage) {
-    const previousStageDiv = document.getElementById('previousStage');
-    const previousStageTitle = document.getElementById('previousStageTitle');
-    const previousStageDuration = document.getElementById('previousStageDuration');
-    const previousStageLevels = document.getElementById('previousStageLevels');
-    
-    if (!previousStage) {
-        if (previousStageDiv) previousStageDiv.style.display = 'none';
-        return;
-    }
-    
-    if (previousStageDiv) previousStageDiv.style.display = 'block';
-    
-    if (previousStageTitle) {
-        const historicalAvg = previousStage.historicalAverage;
-        const avgText = historicalAvg ? ` (avg: ${formatDuration(historicalAvg)})` : '';
-        previousStageTitle.textContent = `Previous Stage: ${previousStage.name}${avgText}`;
-    }
-    
-    if (previousStageDuration) {
-        previousStageDuration.textContent = formatDuration(previousStage.durationMs);
-    }
-    
-    if (previousStageLevels) {
-        previousStageLevels.innerHTML = '';
-        
-        previousStage.levels.forEach((level, index) => {
-            const levelDiv = document.createElement('div');
-            levelDiv.className = 'stage-level-item stage-level-completed';
-            levelDiv.innerHTML = `
-                <span class="stage-level-name">${level.name}</span>
-                <span class="stage-level-time">${formatDuration(level.durationMs)}</span>
-            `;
-            previousStageLevels.appendChild(levelDiv);
-        });
-    }
-}
+// Removed updatePreviousStageDetails function - using updatePreviousStageDetailsCompact for consistent formatting
 
 // Statistics Modal Functions
 let statisticsData = {
@@ -2166,27 +2349,27 @@ function populateLevelsView() {
         let lastTimeDisplay = level.last ? formatDuration(level.last) : '<span class="no-data">—</span>';
         if (level.last && level.lastDirection) {
             const directionIndicator = level.lastDirection === 'up' ? 'u' : 'd';
-            lastTimeDisplay += `<sup style="font-size: 0.7em; opacity: 0.6; margin-left: 2px;">${directionIndicator}</sup>`;
+            lastTimeDisplay += `<sup style="font-size: 0.7em; opacity: 0.6; margin-left: 2px;">${directionIndicator}</sup> `;
         }
         
         // Format min (best) time with direction indicator
         let minTimeDisplay = level.min ? formatDuration(level.min) : '<span class="no-data">—</span>';
         if (level.min && level.minDirection) {
             const directionIndicator = level.minDirection === 'up' ? 'u' : 'd';
-            minTimeDisplay += `<sup style="font-size: 0.7em; opacity: 0.6; margin-left: 2px;">${directionIndicator}</sup>`;
+            minTimeDisplay += `<sup style="font-size: 0.7em; opacity: 0.6; margin-left: 2px;">${directionIndicator}</sup> `;
         }
         
         return `
-            <tr>
-                <td>${level.name}</td>
-                <td>${level.positionsText}</td>
-                <td>${level.completions || '<span class="no-data">0</span>'}</td>
+        <tr>
+            <td>${level.name}</td>
+            <td>${level.positionsText}</td>
+            <td>${level.completions || '<span class="no-data">0</span>'}</td>
                 <td>${lastTimeDisplay}</td>
-                <td>${level.average ? formatDuration(level.average) : '<span class="no-data">—</span>'}</td>
+            <td>${level.average ? formatDuration(level.average) : '<span class="no-data">—</span>'}</td>
                 <td>${minTimeDisplay}</td>
-                <td>${level.max ? formatDuration(level.max) : '<span class="no-data">—</span>'}</td>
-                <td class="trend-${level.trend.direction}">${level.trend.text}</td>
-            </tr>
+            <td>${level.max ? formatDuration(level.max) : '<span class="no-data">—</span>'}</td>
+            <td class="trend-${level.trend.direction}">${level.trend.text}</td>
+        </tr>
         `;
     }).join('');
     
@@ -2830,7 +3013,7 @@ async function loadSettingsForLevel(levelName) {
             settings.perfectStartingPosition.action === 'wait' ? 'block' : 'none';
     } else {
         // Backward compatibility: old settings stored as string
-        document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition;
+    document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition;
         document.getElementById('perfectStartingPositionWaitTime').value = 1000;
         document.getElementById('perfectStartingPositionWaitOptions').style.display = 'none';
     }
@@ -2962,12 +3145,12 @@ function updateLevelActionsDisplayWithSettings(settings) {
     // This prevents clearing checkmarks when updating effective direction
     const shouldResetCheckboxes = !settings._isDirectionUpdate;
     if (shouldResetCheckboxes) {
-        ['actionStartup', 'actionFirstBuild', 'actionAfterFirstBuild', 'actionSecondBuild', 'actionAfterSecondBuild'].forEach(id => {
-            const element = document.getElementById(id);
-            const checkbox = element.querySelector('.action-checkbox');
-            checkbox.textContent = '☐';
-            checkbox.classList.remove('checked');
-        });
+    ['actionStartup', 'actionFirstBuild', 'actionAfterFirstBuild', 'actionSecondBuild', 'actionAfterSecondBuild'].forEach(id => {
+        const element = document.getElementById(id);
+        const checkbox = element.querySelector('.action-checkbox');
+        checkbox.textContent = '☐';
+        checkbox.classList.remove('checked');
+    });
     }
     
     // Update Startup value
@@ -2985,7 +3168,7 @@ function updateLevelActionsDisplayWithSettings(settings) {
     } else {
         // Backward compatibility
         startupText = settings.perfectStartingPosition === 'nothing' ? 'None' : 
-            settings.perfectStartingPosition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        settings.perfectStartingPosition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
     document.getElementById('startupValue').textContent = startupText;
     
