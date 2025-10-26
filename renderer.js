@@ -1328,10 +1328,26 @@ async function updatePreviousStageDetailsCompact(previousStage) {
     const prevStageDetails = document.getElementById('prevStageDetails');
     const prevStageLevels = document.getElementById('prevStageLevels');
     
-    if (!previousStage || !previousStage.levels || previousStage.levels.length === 0) {
+    // Validate previous stage data
+    if (!previousStage) {
+        console.log(`RENDERER: No previous stage data provided`);
         if (prevStageDetails) prevStageDetails.style.display = 'none';
         return;
     }
+    
+    if (!previousStage.levels || !Array.isArray(previousStage.levels)) {
+        console.log(`RENDERER: Previous stage has invalid levels data:`, previousStage.levels);
+        if (prevStageDetails) prevStageDetails.style.display = 'none';
+        return;
+    }
+    
+    if (previousStage.levels.length === 0) {
+        console.log(`RENDERER: Previous stage has no levels`);
+        if (prevStageDetails) prevStageDetails.style.display = 'none';
+        return;
+    }
+    
+    console.log(`RENDERER: Updating previous stage "${previousStage.name}" with ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
     
     if (prevStageDetails) prevStageDetails.style.display = 'block';
     

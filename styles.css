@@ -81,6 +81,19 @@ body {
     /* Keep Current and Previous Stage on the same row */
     flex-wrap: nowrap;
     align-items: stretch;
+    width: 100%;
+}
+
+.stage-details-compact {
+    flex: 1;
+    min-width: 0;
+    max-width: 50%;
+}
+
+.stage-details-compact#prevStageDetails {
+    flex: 1;
+    min-width: 0;
+    max-width: 50%;
 }
 
 .stage-info {
@@ -962,8 +975,10 @@ kbd {
 
 .stage-levels, .previous-stage-levels {
     display: grid;
-    grid-template-columns: repeat(auto-fit, 600px);
+    grid-template-columns: 1fr;
     gap: 10px;
+    width: 100%;
+    max-width: 50%;
 }
 
 .stage-level-item {
@@ -982,27 +997,27 @@ kbd {
     align-items: center;
     flex: 1;
     min-width: 0;
-    max-width: 500px;
+    width: 100%;
 }
 
-/* Upcoming levels should be wider to match completed levels */
+/* Upcoming levels should be fully flexible to match completed levels */
 .stage-level-item:not(.stage-level-completed):not(.stage-level-current) .stage-level-main {
-    max-width: 520px;
+    width: 100%;
 }
 
 .stage-level-delta-box {
     background: rgba(255, 255, 255, 0.05);
-    padding: 8px 12px;
+    padding: 8px 6px;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 0.8em;
     font-weight: 500;
-    width: 140px;
     text-align: center;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    min-width: fit-content;
 }
 
 .stage-level-blue {

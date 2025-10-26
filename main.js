@@ -63,8 +63,13 @@ let currentStageLevel = 0; // Current level within the stage (1-6 or 1-7 dependi
 let longestStages = []; // Array to store longest stages
 let shortestStages = []; // Array to store shortest stages
 let completedStagesCount = 0; // Count of completed stages
-let totalStagesDurationMs = 0; // Total duration of all completed stages
-let levelToStageId = new Map(); // Map level names to stage IDs to prevent cross-contamination
+let totalStagesDurationMs = 0;
+
+// Level mapping management
+let levelToStageId = new Map(); // Map level names to stage IDs
+let pendingLevelMappings = new Map(); // Map for levels that might complete late
+let stageTransitionTime = null; // Track when stage transition occurred
+let cleanupInterval = null; // Interval for cleaning up pending mappings
 
 // Window state management
 const windowStateFile = path.join(__dirname, 'data', 'window-state.json');
@@ -271,11 +276,20 @@ function startNewStage(stageCityName) {
     // Complete the previous stage before starting the new one
     if (currentStage && stageTrackingEnabled) {
         console.log(`DEBUG: Completing previous stage "${currentStage.name}" before starting new stage "${stageCityName}"`);
+        
+        // Move current mappings to pending for grace period
+        if (levelToStageId.size > 0) {
+            console.log(`DEBUG: Moving ${levelToStageId.size} level mappings to pending for grace period`);
+            for (const [levelName, stageId] of levelToStageId.entries()) {
+                pendingLevelMappings.set(levelName, stageId);
+            }
+        }
+        
         completeCurrentStage();
         
-        // Clear level mappings for the new stage to prevent cross-contamination
-        console.log(`DEBUG: Clearing ${levelToStageId.size} level mappings for new stage`);
-        levelToStageId.clear();
+        // Set transition time for grace period
+        stageTransitionTime = now;
+        console.log(`DEBUG: Stage transition time set to ${stageTransitionTime}`);
     }
     
     currentStage = {
@@ -308,6 +322,55 @@ function startNewStage(stageCityName) {
     stageTrackingEnabled = true; // Enable tracking for this fresh stage
     
     console.log(`DEBUG: Started new stage: "${stageCityName}"`);
+    
+    // Start periodic cleanup of pending mappings
+    if (!cleanupInterval) {
+        cleanupInterval = setInterval(cleanupPendingMappings, 5000); // Check every 5 seconds
+        console.log(`DEBUG: Started periodic cleanup of pending mappings`);
+    }
+}
+
+// Clean up old pending mappings (called periodically)
+function cleanupPendingMappings() {
+    if (!stageTransitionTime) return;
+    
+    const now = Date.now();
+    const gracePeriodMs = 30000; // 30 seconds grace period
+    
+    if (now - stageTransitionTime > gracePeriodMs) {
+        console.log(`DEBUG: Cleaning up ${pendingLevelMappings.size} old pending mappings after grace period`);
+        pendingLevelMappings.clear();
+        stageTransitionTime = null;
+    }
+}
+
+// Validate stage data integrity
+function validateStageData(stage, stageName) {
+    if (!stage) {
+        console.error(`VALIDATION ERROR: ${stageName} stage is null`);
+        return false;
+    }
+    
+    if (!stage.name) {
+        console.error(`VALIDATION ERROR: ${stageName} stage has no name`);
+        return false;
+    }
+    
+    if (!Array.isArray(stage.levels)) {
+        console.error(`VALIDATION ERROR: ${stageName} stage levels is not an array:`, stage.levels);
+        return false;
+    }
+    
+    // Check for duplicate level names
+    const levelNames = stage.levels.map(l => l.name);
+    const uniqueNames = new Set(levelNames);
+    if (levelNames.length !== uniqueNames.size) {
+        console.error(`VALIDATION ERROR: ${stageName} stage has duplicate level names:`, levelNames);
+        return false;
+    }
+    
+    console.log(`VALIDATION: ${stageName} stage "${stage.name}" is valid with ${stage.levels.length} levels`);
+    return true;
 }
 
 // Start a partial stage when we encounter a named level but don't know the stage yet
@@ -476,15 +539,29 @@ function completeCurrentStage() {
         name: currentStage.name,
         startTime: currentStage.startTime,
         levels: currentStage.levels.map(level => ({
-            ...level,
-            comparisons: level.comparisons ? { ...level.comparisons } : null
-        })), // Create a deep copy of the levels array
+            name: level.name,
+            durationMs: level.durationMs,
+            completedAt: level.completedAt,
+            direction: level.direction,
+            comparisons: level.comparisons ? {
+                average: level.comparisons.average ? { ...level.comparisons.average } : null,
+                best: level.comparisons.best ? { ...level.comparisons.best } : null
+            } : null
+        })), // Create a deep copy of the levels array with all nested objects
         id: currentStage.id,
         isPartial: currentStage.isPartial,
         endTime: now,
         durationMs: stageDurationMs,
         levelCount: currentStage.levels.length
     };
+    
+    // Validate the completed stage data
+    console.log(`DEBUG: Validating completed stage data:`);
+    console.log(`  - Name: ${completedStage.name}`);
+    console.log(`  - Level count: ${completedStage.levelCount}`);
+    console.log(`  - Levels: [${completedStage.levels.map(l => l.name).join(', ')}]`);
+    console.log(`  - Duration: ${completedStage.durationMs}ms`);
+    console.log(`  - Is partial: ${completedStage.isPartial}`);
     
     // Only record to historical stats if this is NOT a partial stage
     if (!currentStage.isPartial) {
@@ -790,15 +867,29 @@ function addLevelToCurrentStage(levelName, durationMs, effectiveDirection = null
 }
 
 function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection = null) {
+    // Clean up old pending mappings first
+    cleanupPendingMappings();
+    
     // Check if we need a stage (partial stage should have been started when level began)
     if (!stageTrackingEnabled || !currentStage) {
         console.log(`DEBUG: No active stage when level "${levelName}" completed - level ignored`);
         return;
     }
     
-    // Check if this level was mapped to a specific stage ID
-    const mappedStageId = levelToStageId.get(levelName);
-    console.log(`DEBUG: Level "${levelName}" mapped to stage ID: ${mappedStageId}, current stage ID: ${currentStage ? currentStage.id : 'null'}, previous stage ID: ${previousStage ? previousStage.id : 'null'}`);
+    // Check current mappings first
+    let mappedStageId = levelToStageId.get(levelName);
+    let isPendingMapping = false;
+    
+    // If not found in current mappings, check pending mappings
+    if (!mappedStageId) {
+        mappedStageId = pendingLevelMappings.get(levelName);
+        isPendingMapping = true;
+        if (mappedStageId) {
+            console.log(`DEBUG: Level "${levelName}" found in pending mappings (stage ID: ${mappedStageId})`);
+        }
+    }
+    
+    console.log(`DEBUG: Level "${levelName}" mapped to stage ID: ${mappedStageId}, current stage ID: ${currentStage ? currentStage.id : 'null'}, previous stage ID: ${previousStage ? previousStage.id : 'null'}, isPending: ${isPendingMapping}`);
     
     if (mappedStageId) {
         // Check if it belongs to the current stage
@@ -816,6 +907,9 @@ function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection
             
             // Clean up the mapping
             levelToStageId.delete(levelName);
+            if (isPendingMapping) {
+                pendingLevelMappings.delete(levelName);
+            }
             // Send updated info to renderer
             sendStageInfoToRenderer();
         } 
@@ -849,9 +943,13 @@ function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection
                 comparison: comparison, // Save comparison info
                 direction: direction // Save direction for proper comparison calculation
             });
-            console.log(`DEBUG: Previous stage "${previousStage.name}" now has ${previousStage.levels.length} levels`);
+            console.log(`DEBUG: Previous stage "${previousStage.name}" now has ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
+            
             // Clean up the mapping
             levelToStageId.delete(levelName);
+            if (isPendingMapping) {
+                pendingLevelMappings.delete(levelName);
+            }
             // Send updated info to renderer
             sendStageInfoToRenderer();
         }
@@ -859,6 +957,9 @@ function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection
             console.log(`DEBUG: Skipping level "${levelName}" - belongs to unknown stage (ID: ${mappedStageId})`);
             // Clean up stale mapping
             levelToStageId.delete(levelName);
+            if (isPendingMapping) {
+                pendingLevelMappings.delete(levelName);
+            }
         }
     } else {
         // NO FALLBACK - if a level has no mapping, it belongs to a previous stage and should be ignored
@@ -909,6 +1010,17 @@ function sendStageInfoToRenderer() {
         return;
     }
     lastStageInfoSent = stageInfoString;
+    
+    // Validate stage data before sending
+    if (currentStage && !validateStageData(currentStage, 'Current')) {
+        console.error(`VALIDATION FAILED: Current stage data is invalid, not sending to renderer`);
+        return;
+    }
+    
+    if (previousStage && !validateStageData(previousStage, 'Previous')) {
+        console.error(`VALIDATION FAILED: Previous stage data is invalid, not sending to renderer`);
+        return;
+    }
     
     // Debug logging for stage level counts
     if (currentStage) {
