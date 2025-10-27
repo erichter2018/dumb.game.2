@@ -1378,10 +1378,20 @@ async function updatePreviousStageDetailsCompact(previousStage) {
                     blendedColor = 'stage-level-green-green';
                 } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-blue') {
                     blendedColor = 'stage-level-green-blue';
+                } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-gold') {
+                    blendedColor = 'stage-level-green-gold';
                 } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-green') {
                     blendedColor = 'stage-level-blue-green';
                 } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-blue') {
                     blendedColor = 'stage-level-blue-blue';
+                } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-gold') {
+                    blendedColor = 'stage-level-blue-gold';
+                } else if (avgColor === 'stage-level-gold' && bestColor === 'stage-level-gold') {
+                    blendedColor = 'stage-level-gold-gold';
+                } else if (avgColor === 'stage-level-gold' && bestColor === 'stage-level-green') {
+                    blendedColor = 'stage-level-gold-green';
+                } else if (avgColor === 'stage-level-gold' && bestColor === 'stage-level-blue') {
+                    blendedColor = 'stage-level-gold-blue';
                 } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-red') {
                     blendedColor = 'stage-level-green-red';
                 } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-green') {
@@ -1721,10 +1731,20 @@ async function updateCurrentStageDetails(currentStage) {
                     blendedColor = 'stage-level-green-green';
                 } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-blue') {
                     blendedColor = 'stage-level-green-blue';
+                } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-gold') {
+                    blendedColor = 'stage-level-green-gold';
                 } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-green') {
                     blendedColor = 'stage-level-blue-green';
                 } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-blue') {
                     blendedColor = 'stage-level-blue-blue';
+                } else if (avgColor === 'stage-level-blue' && bestColor === 'stage-level-gold') {
+                    blendedColor = 'stage-level-blue-gold';
+                } else if (avgColor === 'stage-level-gold' && bestColor === 'stage-level-gold') {
+                    blendedColor = 'stage-level-gold-gold';
+                } else if (avgColor === 'stage-level-gold' && bestColor === 'stage-level-green') {
+                    blendedColor = 'stage-level-gold-green';
+                } else if (avgColor === 'stage-level-gold' && bestColor === 'stage-level-blue') {
+                    blendedColor = 'stage-level-gold-blue';
                 } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-red') {
                     blendedColor = 'stage-level-green-red';
                 } else if (avgColor === 'stage-level-red' && bestColor === 'stage-level-green') {

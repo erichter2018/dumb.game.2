@@ -715,8 +715,15 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
     // Calculate average
     const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
     
-    // Find best time
-    const best = Math.min(...directionCompletions);
+    // Find best time - use allTimeBestTimeUp/Down if available, otherwise fall back to min of completions
+    let best;
+    if (levelStats.allTimeBestTimeUp && direction === 'up') {
+        best = levelStats.allTimeBestTimeUp;
+    } else if (levelStats.allTimeBestTimeDown && direction === 'down') {
+        best = levelStats.allTimeBestTimeDown;
+    } else {
+        best = Math.min(...directionCompletions);
+    }
     
     // Calculate average comparison
     const avgDiffMs = actualTime - avg;
@@ -760,10 +767,17 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
         bestCssClass = 'stage-level-red';
         bestTimeDelta = `+${(bestDiffMs / 1000).toFixed(1)}s`;
     } else {
-        // Faster than best - green
-        bestArrow = '↓';
-        bestCssClass = 'stage-level-green';
-        bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
+        // Faster than best - check if it's even 0.1s faster for gold
+        if (bestDiffMs <= -100) { // 0.1 second or more faster
+            bestArrow = '↓';
+            bestCssClass = 'stage-level-gold';
+            bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
+        } else {
+            // Less than 0.1s faster - green
+            bestArrow = '↓';
+            bestCssClass = 'stage-level-green';
+            bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
+        }
     }
     
     return {

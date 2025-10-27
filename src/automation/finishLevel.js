@@ -142,6 +142,10 @@ function startAutomation(dependencies) {
             console.log('DEBUG: Blue build box confirmed. Launching Finish Build.');
             // Set internal flag before launching finishBuildAutomation
             isFinishBuildRunningInternal = true;
+            // Get effective direction for this level
+            const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+            const eff = selectEffectiveDirectionOnce(settingsLevelName);
+            
             // Create custom dependencies for finishBuildAutomation
             const finishBuildDependencies = {
                 ...dependencies,
@@ -155,6 +159,7 @@ function startAutomation(dependencies) {
                 },
                 originalRedBlobCoords: redBlobCoords, // Pass the red blob coordinates to finishBuild
                 confirmedBlueBuildBox: blueBuildBoxConfirmed, // Pass the confirmed blue box to skip re-detection
+                getEffectiveDirection: () => eff.dir, // Pass effective direction to build protocol
             };
             // Launch finishBuild automation
             const buildResult = await dependencies.finishBuildAutomationRunBuildProtocol(finishBuildDependencies); // Pass custom dependencies
@@ -367,6 +372,10 @@ function startAutomation(dependencies) {
             console.log('DEBUG: Blue build found after clicking red blob. Launching Finish Build.');
             // Set internal flag before launching finishBuildAutomation
             isFinishBuildRunningInternal = true;
+            // Get effective direction for this level (reuse the same direction as first build)
+            const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+            const eff = selectEffectiveDirectionOnce(settingsLevelName);
+            
             // Create custom dependencies for finishBuildAutomation
             const finishBuildDependencies = {
                 ...dependencies,
@@ -380,6 +389,7 @@ function startAutomation(dependencies) {
                 },
                 originalRedBlobCoords: redBlobCoords, // Pass the red blob coordinates to finishBuild
                 confirmedBlueBuildBox: blueBuildBoxAfterClicks, // Pass the confirmed blue box to skip re-detection
+                getEffectiveDirection: () => eff.dir, // Pass effective direction to build protocol
             };
             const buildResult = await dependencies.finishBuildAutomationRunBuildProtocol(finishBuildDependencies); // Corrected dependency call
             // Reset internal flag after finishBuildAutomation returns
@@ -581,6 +591,11 @@ function startAutomation(dependencies) {
         // Determine effective direction ONCE per level
         const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
         const eff = selectEffectiveDirectionOnce(settingsLevelName);
+        
+        // Store the effective direction for later use in stage tracking
+        if (dependencies.setCurrentEffectiveDirection) {
+            dependencies.setCurrentEffectiveDirection(eff.dir);
+        }
         // Build effective level settings for chosen direction
         const effSettings = (() => {
             const global = settingsManager.getLevelSettings(settingsLevelName);
@@ -913,7 +928,7 @@ function startAutomation(dependencies) {
                         
                         // Scroll in the appropriate direction based on settings
                         if (scrollDirection === 'down') {
-                            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                            await scrollDown(scrollX, scrollY, 250); // 250px for red blob search
                         } else {
                             await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
                         }
@@ -922,7 +937,7 @@ function startAutomation(dependencies) {
                         detectionAttemptCount = 0; // Reset attempt count after scrolling
 
                         if (scrollUpCount >= scrollUpAttempts) {
-                            console.log(`DEBUG: Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Scrolling to ${scrollDirection === 'down' ? 'top then bottom' : 'top then bottom'} and restarting search.`);
+                            console.log(`DEBUG: Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Scrolling to ${scrollDirection === 'down' ? 'top then bottom' : 'bottom'} and restarting search.`);
                             updateStatus(`Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting position and restarting search...`, 'warn');
                             if (scrollDirection === 'down') {
                                 // For scroll down mode: scroll to bottom, then to top (end at top ready to scroll down)
@@ -934,13 +949,7 @@ function startAutomation(dependencies) {
                                     iphoneMirroringRegion: iphoneMirroringRegion 
                                 });
                             } else {
-                                // For scroll up mode: scroll to top, then to bottom (end at bottom ready to scroll up)
-                                await scrollToTop({ 
-                                    updateCurrentFunction, 
-                                    performClick, 
-                                    CLICK_AREAS: dependencies.CLICK_AREAS,
-                                    iphoneMirroringRegion: iphoneMirroringRegion 
-                                });
+                                // For scroll up mode: scroll to bottom (end at bottom ready to scroll up)
                                 await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                             }
                             scrollUpCount = 0; // Reset scroll count
@@ -1013,7 +1022,7 @@ function startAutomation(dependencies) {
                                     
                                     // Scroll in the appropriate direction based on settings
                                     if (scrollDirection === 'down') {
-                                        await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                                        await scrollDown(scrollX, scrollY, 250); // 250px for red blob search
                                     } else {
                                         await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
                                     }
@@ -1034,13 +1043,7 @@ function startAutomation(dependencies) {
                                             });
                                             await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                                         } else {
-                                            // For scroll up mode: scroll to top, then to bottom
-                                            await scrollToTop({ 
-                                                updateCurrentFunction, 
-                                                performClick, 
-                                                CLICK_AREAS: dependencies.CLICK_AREAS,
-                                                iphoneMirroringRegion: iphoneMirroringRegion 
-                                            });
+                                            // For scroll up mode: scroll to bottom
                                             await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                                         }
                                         scrollUpCount = 0; // Reset scroll count
@@ -1212,7 +1215,7 @@ function startAutomation(dependencies) {
                         
                         // Scroll in the appropriate direction based on settings
                         if (scrollDirection === 'down') {
-                            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+                            await scrollDown(scrollX, scrollY, 250); // 250px for red blob search
                         } else {
                             await scrollUp(scrollX, scrollY, { updateCurrentFunction, CLICK_AREAS: dependencies.CLICK_AREAS, performClick, getRandomInt });
                         }

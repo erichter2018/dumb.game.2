@@ -179,8 +179,8 @@ async function scrollToBottom(x, y, distance, count, dependencies) { // Accept d
   updateCurrentFunction('scrollToBottom'); // Update current function
   
   try {
-    // Perform 5 scrolls of 300px each (1500px total)
-    const scrollCount = 5;
+    // Perform 6 scrolls of 300px each (1800px total)
+    const scrollCount = 6;
     const scrollDistance = 300;
     console.log(`DEBUG: scrollToBottom - Performing ${scrollCount} scrolls of ${scrollDistance}px each from X:${x}, Y:${y}`);
     
