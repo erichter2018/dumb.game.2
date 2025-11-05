@@ -606,10 +606,11 @@ previewCanvas.addEventListener('mousemove', async (e) => { // Added async here
     }
 
     // Use currentRegion for calculations
-    const { x: currentRegionX, y: currentRegionY, width: currentRegionWidth } = currentRegion;
+    const { x: currentRegionX, y: currentRegionY, width: currentRegionWidth, height: currentRegionHeight } = currentRegion;
 
-    // Calculate the scaling factor of the displayed live view
-    const scaleFactor = previewCanvas.width / currentRegionWidth;
+    // Calculate the scaling factor using the displayed canvas size (not internal canvas.width)
+    // rect.width gives us the actual displayed size in CSS pixels
+    const scaleFactor = rect.width / currentRegionWidth;
 
     // Convert mouse coordinates on canvas to coordinates within the *original* capture region
     const xInRegion = Math.round(clientX / scaleFactor);
