@@ -29,9 +29,123 @@ function startAutomation(dependencies) {
     let currentLevelEffectiveDirection = null; // 'up' | 'down'
     let currentLevelRandomApplied = false;
 
+    // Custom triggers tracking
+    let levelStartTime = Date.now(); // Track when level started
+    let triggeredActions = new Set(); // Track which triggers have already fired
+
     function resetEffectiveDirectionForNewLevel() {
         currentLevelEffectiveDirection = null;
         currentLevelRandomApplied = false;
+    }
+
+    // Custom trigger detection and execution
+    async function checkCustomTriggers(levelName) {
+        try {
+            // Normalize level name to match how it's stored in settings
+            const normalizedLevelName = levelName ? levelName.toLowerCase().trim() : '';
+            console.log(`DEBUG: checkCustomTriggers called for level: "${levelName}" -> normalized: "${normalizedLevelName}"`);
+            
+            const triggers = settingsManager.getCustomTriggers(normalizedLevelName);
+            console.log(`DEBUG: Found ${triggers ? triggers.length : 0} custom triggers for level "${normalizedLevelName}"`);
+            
+            if (!triggers || triggers.length === 0) {
+                console.log(`DEBUG: No custom triggers found for level "${normalizedLevelName}"`);
+                return;
+            }
+
+            const currentTime = Date.now();
+            const timeSpent = currentTime - levelStartTime;
+            console.log(`DEBUG: Current build count: ${buildCompletionCount}, time spent: ${timeSpent}ms`);
+
+            for (let i = 0; i < triggers.length; i++) {
+                const trigger = triggers[i];
+                const triggerKey = `${trigger.triggerType}-${trigger.triggerValue}-${i}`;
+                
+                console.log(`DEBUG: Checking trigger ${i}: ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+                
+                // Skip if already triggered
+                if (triggeredActions.has(triggerKey)) {
+                    console.log(`DEBUG: Trigger ${i} already fired, skipping`);
+                    continue;
+                }
+
+                let shouldTrigger = false;
+
+                // Check trigger conditions
+                if (trigger.triggerType === 'buildNumber' && buildCompletionCount >= trigger.triggerValue) {
+                    shouldTrigger = true;
+                    console.log(`DEBUG: Build number trigger condition met: ${buildCompletionCount} >= ${trigger.triggerValue}`);
+                } else if (trigger.triggerType === 'timeSpent' && timeSpent >= trigger.triggerValue) {
+                    shouldTrigger = true;
+                    console.log(`DEBUG: Time spent trigger condition met: ${timeSpent}ms >= ${trigger.triggerValue}ms`);
+                }
+
+                if (shouldTrigger) {
+                    console.log(`DEBUG: Custom trigger fired - ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+                    triggeredActions.add(triggerKey);
+                    await executeTriggerAction(trigger, dependencies);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking custom triggers:', error);
+        }
+    }
+
+    async function executeTriggerAction(trigger, dependencies) {
+        const { performClick, scrollUp, scrollDown, updateStatus, updateCurrentFunction, captureScreenRegion, redBlobDetectorDetect } = dependencies;
+        
+        try {
+            switch (trigger.action) {
+                case 'clickAround':
+                    updateCurrentFunction('customTrigger-clickAround');
+                    updateStatus(`Custom trigger: Click Around for ${trigger.actionParams}ms`, 'info');
+                    await executeClickAround(trigger.actionParams, dependencies);
+                    break;
+                    
+                case 'scrollUp':
+                    updateCurrentFunction('customTrigger-scrollUp');
+                    updateStatus(`Custom trigger: Scroll Up ${trigger.actionParams}px`, 'info');
+                    const scrollUpX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                    const scrollUpY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                    await scrollUpWithDistance(scrollUpX, scrollUpY, trigger.actionParams || 200);
+                    break;
+                    
+                case 'scrollDown':
+                    updateCurrentFunction('customTrigger-scrollDown');
+                    updateStatus(`Custom trigger: Scroll Down ${trigger.actionParams}px`, 'info');
+                    const scrollDownX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                    const scrollDownY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                    await scrollDown(scrollDownX, scrollDownY, trigger.actionParams || 200);
+                    break;
+                    
+                default:
+                    console.log(`DEBUG: Unknown trigger action: ${trigger.action}`);
+            }
+        } catch (error) {
+            console.error('Error executing trigger action:', error);
+        }
+    }
+
+    // Execute click around action
+    async function executeClickAround(durationMs, dependencies) {
+        const { performClick, updateStatus, updateCurrentFunction } = dependencies;
+        const startTime = Date.now();
+        const endTime = startTime + (durationMs || 5000);
+        
+        console.log(`DEBUG: Starting click around for ${durationMs}ms`);
+        
+        while (Date.now() < endTime && getIsAutomationRunning()) {
+            // Random click within the iPhone mirroring region
+            const randomX = iphoneMirroringRegion.x + Math.random() * iphoneMirroringRegion.width;
+            const randomY = iphoneMirroringRegion.y + Math.random() * iphoneMirroringRegion.height;
+            
+            await performClick(randomX, randomY);
+            
+            // Small delay between clicks
+            await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+        }
+        
+        console.log(`DEBUG: Click around completed`);
     }
 
     function selectEffectiveDirectionOnce(levelName) {
@@ -172,16 +286,16 @@ function startAutomation(dependencies) {
                 buildCompletionCount++;
                 console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult}`);
                 
+                // Get current level name to check settings
+                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+                
                 // Send build completion signal (first_build or second_build)
                 const buildNumber = buildCompletionCount === 1 ? 'first_build' : 'second_build';
                 if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
                     console.log(`🔨 Sending ${buildNumber} signal (build completed)`);
                     dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
                 }
-                
-                // Get current level name to check settings
-                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
-                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
                 // Use the once-selected effective direction for this level
                 const eff = selectEffectiveDirectionOnce(settingsLevelName);
                 const levelSettings = (() => {
@@ -401,16 +515,16 @@ function startAutomation(dependencies) {
                 buildCompletionCount++;
                 console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult} after red blob click`);
                 
+                // Get current level name to check settings
+                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+                
                 // Send build completion signal (first_build or second_build)
                 const buildNumber = buildCompletionCount === 1 ? 'first_build' : 'second_build';
                 if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
                     console.log(`🔨 Sending ${buildNumber} signal (build completed)`);
                     dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
                 }
-                
-                // Get current level name to check settings
-                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
-                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
                 const resolveDirectionMode = () => {
                     const mode = settingsManager.getDirectionMode ? settingsManager.getDirectionMode() : 'random';
                     const savedDir = (settingsManager.getLevelSettings(settingsLevelName).scrollDirection) || 'up';
@@ -735,6 +849,11 @@ function startAutomation(dependencies) {
         // Reset the build completion count for the new level
         buildCompletionCount = 0;
         redBlobRetryCount.clear(); // Reset retry counters for new level
+        
+        // Reset custom trigger tracking for new level
+        levelStartTime = Date.now();
+        triggeredActions.clear();
+        
         console.log('DEBUG: Reset buildCompletionCount to 0 for new level.');
         
         // Final 2-second wait before exiting function
@@ -750,7 +869,16 @@ function startAutomation(dependencies) {
     async function runFinishLevelProtocol() {
         updateCurrentFunction('runFinishLevelProtocol'); // Update current function display
         
+        // Get current level name once for the entire function
+        const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+        const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+        
         while (getIsAutomationRunning()) {
+            // Check time-based custom triggers periodically
+            if (settingsLevelName && settingsLevelName !== 'Unknown Level' && settingsLevelName !== '') {
+                await checkCustomTriggers(settingsLevelName);
+            }
+            
             // Check connection health before each iteration
             if (dependencies.checkConnectionHealth && !dependencies.checkConnectionHealth()) {
                 console.warn('CONNECTION HEALTH CHECK FAILED: Triggering reconnection');
@@ -783,8 +911,6 @@ function startAutomation(dependencies) {
             }
             
             // Get scroll direction using the once-selected effective direction for this level
-            const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
-            const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
             const eff = selectEffectiveDirectionOnce(settingsLevelName);
             const scrollDirection = eff.dir;
             console.log(`DEBUG: runFinishLevelProtocol - Level "${settingsLevelName}" scroll direction: ${scrollDirection}`);

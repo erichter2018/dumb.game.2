@@ -690,7 +690,7 @@ function calculateLevelComparison(actualTime, levelName, direction = 'up') {
     return { arrow, timeDelta, cssClass };
 }
 
-function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
+function calculateLevelComparisons(actualTime, levelName, direction = 'up', previousBestTime = null) {
     // Get historical average for this level
     const stats = historicalStats.loadStats();
     const levelStats = stats.levels[levelName];
@@ -715,9 +715,12 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
     // Calculate average
     const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
     
-    // Find best time - use allTimeBestTimeUp/Down if available, otherwise fall back to min of completions
+    // Find best time for delta calculation - use previous best if provided, otherwise current best
     let best;
-    if (levelStats.allTimeBestTimeUp && direction === 'up') {
+    if (previousBestTime !== null) {
+        // Use previous best time for delta calculation (when a new best was just achieved)
+        best = previousBestTime;
+    } else if (levelStats.allTimeBestTimeUp && direction === 'up') {
         best = levelStats.allTimeBestTimeUp;
     } else if (levelStats.allTimeBestTimeDown && direction === 'down') {
         best = levelStats.allTimeBestTimeDown;
@@ -736,7 +739,13 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
         // Within 5 seconds - blue
         avgArrow = '↔';
         avgCssClass = 'stage-level-blue';
-        avgTimeDelta = `${(avgDiffMs / 1000).toFixed(1)}s`;
+        const deltaSeconds = (avgDiffMs / 1000).toFixed(1);
+        // Show milliseconds if delta rounds to ±0.0s
+        if (deltaSeconds === '0.0' || deltaSeconds === '-0.0') {
+            avgTimeDelta = `${avgDiffMs >= 0 ? '+' : ''}${Math.round(avgDiffMs)}ms`;
+        } else {
+            avgTimeDelta = `${deltaSeconds}s`;
+        }
     } else if (avgDiffMs > 0) {
         // Slower than average - red
         avgArrow = '↑';
@@ -756,28 +765,33 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
     let bestCssClass = '';
     let bestTimeDelta = '';
     
-    if (Math.abs(bestDiffMs) < 1000) {
-        // Within 1 second - blue
+    if (bestDiffMs <= 0) {
+        // Equal to or better than best time - gold (new best time)
+        bestArrow = '↓';
+        bestCssClass = 'stage-level-gold';
+        const deltaSeconds = (bestDiffMs / 1000).toFixed(1);
+        // Show milliseconds if delta rounds to ±0.0s
+        if (deltaSeconds === '0.0' || deltaSeconds === '-0.0') {
+            bestTimeDelta = `${bestDiffMs >= 0 ? '+' : ''}${Math.round(bestDiffMs)}ms`;
+        } else {
+            bestTimeDelta = `${deltaSeconds}s`;
+        }
+    } else if (bestDiffMs <= 1000) {
+        // Within 1 second slower - blue
         bestArrow = '↔';
         bestCssClass = 'stage-level-blue';
-        bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
-    } else if (bestDiffMs > 0) {
-        // Slower than best - red
+        const deltaSeconds = (bestDiffMs / 1000).toFixed(1);
+        // Show milliseconds if delta rounds to ±0.0s
+        if (deltaSeconds === '0.0' || deltaSeconds === '-0.0') {
+            bestTimeDelta = `+${Math.round(bestDiffMs)}ms`;
+        } else {
+            bestTimeDelta = `+${deltaSeconds}s`;
+        }
+    } else {
+        // More than 1 second slower - red
         bestArrow = '↑';
         bestCssClass = 'stage-level-red';
         bestTimeDelta = `+${(bestDiffMs / 1000).toFixed(1)}s`;
-    } else {
-        // Faster than best - check if it's even 0.1s faster for gold
-        if (bestDiffMs <= -100) { // 0.1 second or more faster
-            bestArrow = '↓';
-            bestCssClass = 'stage-level-gold';
-            bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
-        } else {
-            // Less than 0.1s faster - green
-            bestArrow = '↓';
-            bestCssClass = 'stage-level-green';
-            bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
-        }
     }
     
     return {
@@ -815,8 +829,9 @@ function addLevelToCurrentStage(levelName, durationMs, effectiveDirection = null
     const direction = storedDirection || effectiveDirection || levelSettings.scrollDirection || 'up';
     console.log(`LEVEL ADD: Using direction: ${direction} (storedDirection: ${storedDirection}, effectiveDirection: ${effectiveDirection}, savedDirection: ${levelSettings.scrollDirection})`);
     
+    let previousBestTime = null;
     if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
-        historicalStats.recordLevelCompletion(nameForStats, durationMs, direction);
+        previousBestTime = historicalStats.recordLevelCompletion(nameForStats, durationMs, direction);
         console.log(`[MAIN] About to record level in daily stats: "${nameForStats}" (${durationMs}ms)`);
         dailyStats.recordLevelCompletion(durationMs);
         console.log(`LEVEL ADD: Recorded in historical stats: "${nameForStats}" (${durationMs}ms, direction: ${direction})`);
@@ -826,7 +841,7 @@ function addLevelToCurrentStage(levelName, durationMs, effectiveDirection = null
     
     // Calculate both average and best comparisons (after recording so we use updated stats)
     console.log(`DEBUG: Calculating comparisons for "${nameForStats}" (${durationMs}ms, direction: ${direction})`);
-    const comparisons = calculateLevelComparisons(durationMs, nameForStats, direction);
+    const comparisons = calculateLevelComparisons(durationMs, nameForStats, direction, previousBestTime);
     console.log(`DEBUG: Comparison results:`, comparisons);
     
     const levelInfo = {
@@ -911,8 +926,8 @@ function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection
             console.log(`DEBUG: Adding level "${levelName}" to current stage "${currentStage.name}"`);
             addLevelToCurrentStage(levelName, durationMs, effectiveDirection);
             
-            // If this is a partial stage, attempt deduction
-            if (currentStage.isPartial) {
+            // If this is a partial stage, attempt deduction (guard if stage was cleared during add)
+            if (currentStage && currentStage.isPartial) {
                 const deduced = attemptStageDeduction();
                 if (deduced) {
                     console.log(`DEBUG: Stage successfully deduced as "${currentStage.name}"`);
@@ -938,23 +953,24 @@ function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection
             const levelSettings = settingsManager.getLevelSettings(nameForStats);
             const direction = levelSettings.scrollDirection || 'up';
             
+            let previousBestTime = null;
             if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
-                historicalStats.recordLevelCompletion(nameForStats, durationMs, direction);
+                previousBestTime = historicalStats.recordLevelCompletion(nameForStats, durationMs, direction);
                 // NOTE: Do NOT record in dailyStats here - this is a late completion for previous stage
                 // The level was already counted in daily stats when it actually finished
                 console.log(`[MAIN-PREV] Late completion for previous stage (NOT recording in daily stats): "${nameForStats}" (${durationMs}ms)`);
             }
             
-            // Calculate comparison with historical average
-            const comparison = calculateLevelComparison(durationMs, nameForStats, direction);
-            console.log(`DEBUG: Level comparison for "${nameForStats}": ${comparison.arrow} ${comparison.timeDelta} (${comparison.cssClass})`);
+            // Calculate both average and best comparisons (using previousBestTime for accurate delta)
+            const comparisons = calculateLevelComparisons(durationMs, nameForStats, direction, previousBestTime);
+            console.log(`DEBUG: Level comparisons for "${nameForStats}": avg: ${comparisons.average.arrow} ${comparisons.average.timeDelta}, best: ${comparisons.best.arrow} ${comparisons.best.timeDelta}`);
             
             // Add to previous stage's levels array
             previousStage.levels.push({
                 name: levelName,
                 durationMs: durationMs,
                 completedAt: Date.now(),
-                comparison: comparison, // Save comparison info
+                comparisons: comparisons, // Save both average and best comparison info
                 direction: direction // Save direction for proper comparison calculation
             });
             console.log(`DEBUG: Previous stage "${previousStage.name}" now has ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
@@ -1713,6 +1729,73 @@ ipcMain.handle('reset-level-to-defaults', async (event, levelName) => {
   }
 });
 
+// Custom triggers IPC handlers
+ipcMain.handle('get-custom-triggers', async (event, levelName) => {
+  return settingsManager.getCustomTriggers(levelName);
+});
+
+ipcMain.handle('add-custom-trigger', async (event, levelName, trigger) => {
+  try {
+    settingsManager.addCustomTrigger(levelName, trigger);
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding custom trigger:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-custom-trigger', async (event, levelName, index, trigger) => {
+  try {
+    settingsManager.updateCustomTrigger(levelName, index, trigger);
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating custom trigger:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remove-custom-trigger', async (event, levelName, index) => {
+  try {
+    settingsManager.removeCustomTrigger(levelName, index);
+    return { success: true };
+  } catch (error) {
+    console.error('Error removing custom trigger:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// New levels statistics page handlers
+
+ipcMain.handle('delete-level', async (event, levelName) => {
+  try {
+    // Delete the level from historical stats
+    const historicalStats = require('./lib/historicalStats');
+    const result = historicalStats.deleteLevel(levelName);
+    
+    if (result.success) {
+      // Also remove from settings if it exists
+      settingsManager.deleteLevel(levelName);
+      settingsManager.saveSettings();
+      
+      console.log(`Successfully deleted level: ${levelName}`);
+      return { success: true };
+    } else {
+      return { success: false, error: result.error };
+    }
+  } catch (error) {
+    console.error('Error deleting level:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-trigger-types', async () => {
+  return settingsManager.getTriggerTypes();
+});
+
+ipcMain.handle('get-trigger-actions', async () => {
+  return settingsManager.getTriggerActions();
+});
+
 ipcMain.handle('recalculate-all-time-bests', async (event) => {
   try {
     const result = historicalStats.recalculateAllTimeBests();
@@ -2191,6 +2274,10 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     console.log('DEBUG: Activating iPhone Mirroring app.');
     await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
     await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after activation
+    
+    // Reset custom trigger state for new level
+    finishBuildAutomation.resetCustomTriggerState();
+    
     await finishLevelAutomation.startAutomation(automationDependencies);
   } else {
     await finishLevelAutomation.stopAutomation(automationDependencies);

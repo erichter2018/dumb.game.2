@@ -1469,7 +1469,18 @@ async function updatePreviousStageDetailsCompact(previousStage) {
                     const bestColor = comparisons.best.cssClass;
                     
                     // Create blended color combinations (same as current stage)
-                    if (avgColor === 'stage-level-green' && bestColor === 'stage-level-green') {
+                    // Gold combinations (new best time)
+                    if (bestColor === 'stage-level-gold') {
+                        if (avgColor === 'stage-level-green') {
+                            blendedColor = 'stage-level-green-gold';
+                        } else if (avgColor === 'stage-level-blue') {
+                            blendedColor = 'stage-level-blue-gold';
+                        } else if (avgColor === 'stage-level-red') {
+                            blendedColor = 'stage-level-red-gold';
+                        } else {
+                            blendedColor = 'stage-level-gold-gold';
+                        }
+                    } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-green') {
                         blendedColor = 'stage-level-green-green';
                     } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-blue') {
                         blendedColor = 'stage-level-green-blue';
@@ -1620,7 +1631,13 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
         // Within 5 seconds - blue
         avgArrow = '↔';
         avgCssClass = 'stage-level-blue';
-        avgTimeDelta = `${(avgDiffMs / 1000).toFixed(1)}s`;
+        const deltaSeconds = (avgDiffMs / 1000).toFixed(1);
+        // Show milliseconds if delta rounds to ±0.0s
+        if (deltaSeconds === '0.0' || deltaSeconds === '-0.0') {
+            avgTimeDelta = `${avgDiffMs >= 0 ? '+' : ''}${Math.round(avgDiffMs)}ms`;
+        } else {
+            avgTimeDelta = `${deltaSeconds}s`;
+        }
     } else if (avgDiffMs > 0) {
         // Slower than average - red
         avgArrow = '↑';
@@ -1640,21 +1657,33 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
     let bestCssClass = '';
     let bestTimeDelta = '';
     
-    if (Math.abs(bestDiffMs) < 1000) {
-        // Within 1 second - blue
+    if (bestDiffMs <= 0) {
+        // Equal to or better than best time - gold (new best time)
+        bestArrow = '↓';
+        bestCssClass = 'stage-level-gold';
+        const deltaSeconds = (bestDiffMs / 1000).toFixed(1);
+        // Show milliseconds if delta rounds to ±0.0s
+        if (deltaSeconds === '0.0' || deltaSeconds === '-0.0') {
+            bestTimeDelta = `${bestDiffMs >= 0 ? '+' : ''}${Math.round(bestDiffMs)}ms`;
+        } else {
+            bestTimeDelta = `${deltaSeconds}s`;
+        }
+    } else if (bestDiffMs <= 1000) {
+        // Within 1 second slower - blue
         bestArrow = '↔';
         bestCssClass = 'stage-level-blue';
-        bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
-    } else if (bestDiffMs > 0) {
-        // Slower than best - red
+        const deltaSeconds = (bestDiffMs / 1000).toFixed(1);
+        // Show milliseconds if delta rounds to ±0.0s
+        if (deltaSeconds === '0.0' || deltaSeconds === '-0.0') {
+            bestTimeDelta = `+${Math.round(bestDiffMs)}ms`;
+        } else {
+            bestTimeDelta = `+${deltaSeconds}s`;
+        }
+    } else {
+        // More than 1 second slower - red
         bestArrow = '↑';
         bestCssClass = 'stage-level-red';
         bestTimeDelta = `+${(bestDiffMs / 1000).toFixed(1)}s`;
-    } else {
-        // Faster than best - green
-        bestArrow = '↓';
-        bestCssClass = 'stage-level-green';
-        bestTimeDelta = `${(bestDiffMs / 1000).toFixed(1)}s`;
     }
     
     return {
@@ -1870,7 +1899,18 @@ async function updateCurrentStageDetails(currentStage) {
                         const bestColor = comparisons.best.cssClass;
                         
                         // Create blended color combinations
-                        if (avgColor === 'stage-level-green' && bestColor === 'stage-level-green') {
+                        // Gold combinations (new best time)
+                        if (bestColor === 'stage-level-gold') {
+                            if (avgColor === 'stage-level-green') {
+                                blendedColor = 'stage-level-green-gold';
+                            } else if (avgColor === 'stage-level-blue') {
+                                blendedColor = 'stage-level-blue-gold';
+                            } else if (avgColor === 'stage-level-red') {
+                                blendedColor = 'stage-level-red-gold';
+                            } else {
+                                blendedColor = 'stage-level-gold-gold';
+                            }
+                        } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-green') {
                             blendedColor = 'stage-level-green-green';
                         } else if (avgColor === 'stage-level-green' && bestColor === 'stage-level-blue') {
                             blendedColor = 'stage-level-green-blue';
@@ -1984,7 +2024,7 @@ async function openStatisticsModal() {
     
     // Populate initial data
     populateStagesView();
-    populateLevelsView();
+    await populateLevelsView();
 }
 
 async function loadStatisticsData() {
@@ -2011,8 +2051,6 @@ function setupStatisticsModalListeners() {
     const stageSort = document.getElementById('stageSort');
     const levelSort = document.getElementById('levelSort');
     const ignoreExtremes = document.getElementById('ignoreExtremes');
-    const ignoreExtremesLevels = document.getElementById('ignoreExtremesLevels');
-    
     // Close modal
     closeBtn.onclick = () => modal.style.display = 'none';
     modal.onclick = (e) => {
@@ -2025,9 +2063,14 @@ function setupStatisticsModalListeners() {
     
     // Sort changes
     stageSort.onchange = () => populateStagesView();
-    levelSort.onchange = () => populateLevelsView();
+    levelSort.onchange = async () => await populateLevelsView();
     ignoreExtremes.onchange = () => populateStagesView();
-    ignoreExtremesLevels.onchange = () => populateLevelsView();
+    
+    // Show mismatched directions checkbox
+    const showMismatchedDirections = document.getElementById('showMismatchedDirections');
+    if (showMismatchedDirections) {
+        showMismatchedDirections.onchange = async () => await populateLevelsView();
+    }
     
     // Table header click sorting
     setupTableSorting();
@@ -2071,7 +2114,7 @@ function setupTableSorting() {
         console.log('DEBUG: Found levels table, setting up sorting');
         const levelHeaders = levelsTable.querySelectorAll('th.sortable');
         levelHeaders.forEach(header => {
-            header.onclick = () => {
+            header.onclick = async () => {
                 const sortBy = header.getAttribute('data-sort');
                 
                 // Toggle direction if same column, otherwise reset to ascending
@@ -2087,7 +2130,7 @@ function setupTableSorting() {
                 
                 // Update dropdown and repopulate
                 document.getElementById('levelSort').value = sortBy;
-                populateLevelsView();
+                await populateLevelsView();
             };
         });
     }
@@ -2255,53 +2298,19 @@ function populateStagesView() {
     updateSortIndicators('stages', sortingState.stages.column, sortingState.stages.direction);
 }
 
-function populateLevelsView() {
+async function populateLevelsView() {
     const tbody = document.getElementById('levelsTableBody');
     const sortBy = document.getElementById('levelSort').value;
-    const ignoreExtremes = document.getElementById('ignoreExtremesLevels').checked;
+    const showMismatched = document.getElementById('showMismatchedDirections').checked;
     
     // Get all levels from statistics
     const allLevels = [];
-    Object.entries(statisticsData.levels).forEach(([levelName, levelStats]) => {
-        // Combine completions from both directions
-        const allCompletions = [
-            ...(levelStats.completionsUp || []),
-            ...(levelStats.completionsDown || [])
-        ];
-        
-        const filteredDurations = ignoreExtremes ? filterExtremes(allCompletions) : allCompletions;
-        
-        // Get last completion with direction (check both arrays)
-        let lastDuration = 0;
-        let lastDirection = null;
-        
-        // Determine which direction has the most recent completion
-        const upCount = levelStats.completionsUp ? levelStats.completionsUp.length : 0;
-        const downCount = levelStats.completionsDown ? levelStats.completionsDown.length : 0;
-        
-        if (upCount > 0 && downCount > 0) {
-            // Both exist - assume most recent is the last one added overall (use lastDirection from stats)
-            lastDirection = levelStats.lastDirection || null;
-            lastDuration = levelStats.lastTime || 0;
-        } else if (upCount > 0) {
-            lastDuration = levelStats.completionsUp[upCount - 1];
-            lastDirection = 'up';
-        } else if (downCount > 0) {
-            lastDuration = levelStats.completionsDown[downCount - 1];
-            lastDirection = 'down';
-        }
-        
-        // Get best (min) completion with direction
-        const minDuration = filteredDurations.length > 0 ? Math.min(...filteredDurations) : 0;
-        let minDirection = null;
-        if (minDuration > 0) {
-            // Check which array contains the best time
-            if (levelStats.completionsUp && levelStats.completionsUp.includes(minDuration)) {
-                minDirection = 'up';
-            } else if (levelStats.completionsDown && levelStats.completionsDown.includes(minDuration)) {
-                minDirection = 'down';
-            }
-        }
+    
+    // Process levels and get saved directions
+    for (const [levelName, levelStats] of Object.entries(statisticsData.levels)) {
+        const upCompletions = levelStats.completionsUp || [];
+        const downCompletions = levelStats.completionsDown || [];
+        const allCompletions = [...upCompletions, ...downCompletions];
         
         // Find positions where this level appears
         const positions = [];
@@ -2310,33 +2319,54 @@ function populateLevelsView() {
                 stage.levels.forEach((level, index) => {
                     const actualLevelName = level.originalName || level.name;
                     if (actualLevelName === levelName) {
-                        positions.push(index + 1); // Convert 0-based to 1-based
+                        positions.push(index + 1);
                     }
                 });
             });
         }
         
-        // Remove duplicates and sort
         const uniquePositions = [...new Set(positions)].sort((a, b) => a - b);
         const positionsText = uniquePositions.length > 0 ? uniquePositions.join(',') : '—';
+        
+        // Get saved direction from settings, or default to the direction with more completions
+        let savedDirection = await getSavedDirectionForLevel(levelName);
+        console.log(`DEBUG: Level "${levelName}" - savedDirection from settings: "${savedDirection}"`);
+        
+        // If no saved direction is set, default to the direction with more completions
+        if (savedDirection === 'none') {
+            if (upCompletions.length > downCompletions.length) {
+                savedDirection = 'up';
+            } else if (downCompletions.length > upCompletions.length) {
+                savedDirection = 'down';
+            } else if (upCompletions.length > 0) {
+                // If equal, prefer 'up' if there are any completions
+                savedDirection = 'up';
+            } else {
+                savedDirection = 'up'; // Default to 'up' even if no completions
+            }
+        }
         
         allLevels.push({
             name: levelName,
             positions: uniquePositions,
             positionsText: positionsText,
-            completions: allCompletions.length,
-            last: lastDuration,
-            lastDirection: lastDirection,
-            average: filteredDurations.length > 0 ? Math.round(filteredDurations.reduce((a, b) => a + b, 0) / filteredDurations.length) : 0,
-            min: minDuration,
-            minDirection: minDirection,
-            max: filteredDurations.length > 0 ? Math.max(...filteredDurations) : 0,
-            trend: calculateTrend(allCompletions)
+            upCompletions: upCompletions,
+            downCompletions: downCompletions,
+            allCompletions: allCompletions,
+            savedDirection: savedDirection,
+            upStats: calculateDirectionStats(upCompletions, false),
+            downStats: calculateDirectionStats(downCompletions, false),
+            combinedStats: calculateDirectionStats(allCompletions, false)
         });
-    });
+    }
+    
+    // Filter levels based on mismatched directions if checkbox is checked
+    const filteredLevels = showMismatched 
+        ? allLevels.filter(level => isDirectionMismatched(level))
+        : allLevels;
     
     // Sort levels
-    allLevels.sort((a, b) => {
+    filteredLevels.sort((a, b) => {
         let result = 0;
         const currentSort = sortingState.levels.column;
         
@@ -2345,66 +2375,68 @@ function populateLevelsView() {
                 result = a.name.localeCompare(b.name);
                 break;
             case 'positions': 
-                // Sort by first position, handle empty positions
                 const aPos = a.positions.length > 0 ? a.positions[0] : 999;
                 const bPos = b.positions.length > 0 ? b.positions[0] : 999;
                 result = aPos - bPos;
                 break;
-            case 'last':
             case 'average': 
-            case 'min':
-            case 'max':
-                // Handle time-based sorting (0 values go to end)
-                const aVal = a[currentSort] || 0;
-                const bVal = b[currentSort] || 0;
-                if (aVal === 0 && bVal === 0) result = 0;
-                else if (aVal === 0) result = 1;
-                else if (bVal === 0) result = -1;
-                else result = aVal - bVal;
+                result = (a.combinedStats.average || 0) - (b.combinedStats.average || 0);
                 break;
             case 'count': 
-                result = a.completions - b.completions;
+                result = a.allCompletions.length - b.allCompletions.length;
                 break;
-            case 'trend':
-                // Sort by trend direction: down < neutral < up
-                const trendOrder = { 'down': 0, 'neutral': 1, 'up': 2 };
-                console.log(`DEBUG: Sorting levels trend - a: ${a.trend.direction}, b: ${b.trend.direction}`);
-                result = trendOrder[a.trend.direction] - trendOrder[b.trend.direction];
+            case 'savedDirection':
+                const directionOrder = { 'up': 0, 'down': 1, 'none': 2 };
+                result = directionOrder[a.savedDirection] - directionOrder[b.savedDirection];
+                break;
+            case 'meta':
+                // Sort by meta direction: up < down < same
+                const metaOrder = { 'up': 0, 'down': 1, 'same': 2, 'none': 3 };
+                const aMeta = getMetaDirection(a);
+                const bMeta = getMetaDirection(b);
+                result = metaOrder[aMeta] - metaOrder[bMeta];
                 break;
             default: 
                 result = a.name.localeCompare(b.name);
         }
         
-        // Apply direction
         return sortingState.levels.direction === 'desc' ? -result : result;
     });
     
-    // Populate table
-    tbody.innerHTML = allLevels.map(level => {
-        // Format last time with direction indicator
-        let lastTimeDisplay = level.last ? formatDuration(level.last) : '<span class="no-data">—</span>';
-        if (level.last && level.lastDirection) {
-            const directionIndicator = level.lastDirection === 'up' ? 'u' : 'd';
-            lastTimeDisplay += `<sup style="font-size: 0.7em; opacity: 0.6; margin-left: 2px;">${directionIndicator}</sup> `;
-        }
-        
-        // Format min (best) time with direction indicator
-        let minTimeDisplay = level.min ? formatDuration(level.min) : '<span class="no-data">—</span>';
-        if (level.min && level.minDirection) {
-            const directionIndicator = level.minDirection === 'up' ? 'u' : 'd';
-            minTimeDisplay += `<sup style="font-size: 0.7em; opacity: 0.6; margin-left: 2px;">${directionIndicator}</sup> `;
-        }
+    // Populate table with new two-line layout
+    tbody.innerHTML = filteredLevels.map((level, index) => {
+        const levelId = `level-${level.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        const isEven = index % 2 === 0;
+        const levelClass = isEven ? 'level-row even-level' : 'level-row odd-level';
+        const directionClass = isEven ? 'direction-row even-level' : 'direction-row odd-level';
         
         return `
-        <tr>
-            <td>${level.name}</td>
-            <td>${level.positionsText}</td>
-            <td>${level.completions || '<span class="no-data">0</span>'}</td>
-                <td>${lastTimeDisplay}</td>
-            <td>${level.average ? formatDuration(level.average) : '<span class="no-data">—</span>'}</td>
-                <td>${minTimeDisplay}</td>
-            <td>${level.max ? formatDuration(level.max) : '<span class="no-data">—</span>'}</td>
-            <td class="trend-${level.trend.direction}">${level.trend.text}</td>
+        <tr class="${levelClass}" data-level="${level.name}">
+            <td rowspan="2" class="level-name-cell">
+                <span class="level-name" onclick="openSettingsForLevel('${level.name}')">${level.name}</span>
+                <button class="delete-btn" onclick="deleteLevel('${level.name}')" title="Delete level">×</button>
+            </td>
+            <td rowspan="2">${level.positionsText}</td>
+            <td class="direction-label up">UP<br><small>${level.upStats.completions} comp</small></td>
+            <td>${formatDirectionStats(level.upStats, 'up')}</td>
+            <td>${formatDirectionStats(level.upStats, 'average')}</td>
+            <td>${formatDirectionStats(level.upStats, 'best')}</td>
+            <td>${formatDirectionStats(level.upStats, 'worst')}</td>
+            <td class="meta-info">${calculateMetaInfo(level)}</td>
+            <td rowspan="2" class="direction-selector">
+                <button class="direction-btn up ${level.savedDirection === 'up' ? 'active' : ''}" 
+                        onclick="setSavedDirection('${level.name}', 'up')">Up</button>
+                <button class="direction-btn down ${level.savedDirection === 'down' ? 'active' : ''}" 
+                        onclick="setSavedDirection('${level.name}', 'down')">Down</button>
+            </td>
+        </tr>
+        <tr class="${directionClass}">
+            <td class="direction-label down">DOWN<br><small>${level.downStats.completions} comp</small></td>
+            <td>${formatDirectionStats(level.downStats, 'last')}</td>
+            <td>${formatDirectionStats(level.downStats, 'average')}</td>
+            <td>${formatDirectionStats(level.downStats, 'best')}</td>
+            <td>${formatDirectionStats(level.downStats, 'worst')}</td>
+            <td class="meta-info">—</td>
         </tr>
         `;
     }).join('');
@@ -2414,6 +2446,276 @@ function populateLevelsView() {
     
     // Update sort indicators
     updateSortIndicators('levels', sortingState.levels.column, sortingState.levels.direction);
+}
+
+function isDirectionMismatched(level) {
+    const metaDirection = getMetaDirection(level);
+    const savedDirection = level.savedDirection;
+    
+    // If meta direction is 'none' or 'same', consider it not mismatched
+    if (metaDirection === 'none' || metaDirection === 'same') {
+        return false;
+    }
+    
+    // Check if meta and saved directions are different
+    return metaDirection !== savedDirection;
+}
+
+function calculateDirectionStats(completions, ignoreExtremes) {
+    if (completions.length === 0) {
+        return {
+            completions: 0,
+            last: 0,
+            average: 0,
+            best: 0,
+            worst: 0,
+            trend: { direction: 'neutral', text: '—' }
+        };
+    }
+    
+    const filteredDurations = ignoreExtremes ? filterExtremes(completions) : completions;
+    
+    return {
+        completions: completions.length,
+        last: completions[completions.length - 1] || 0,
+        average: filteredDurations.length > 0 ? Math.round(filteredDurations.reduce((a, b) => a + b, 0) / filteredDurations.length) : 0,
+        best: filteredDurations.length > 0 ? Math.min(...filteredDurations) : 0,
+        worst: filteredDurations.length > 0 ? Math.max(...filteredDurations) : 0,
+        trend: calculateTrend(completions)
+    };
+}
+
+function formatDirectionStats(stats, type) {
+    if (stats.completions === 0) {
+        return '<span class="no-data">—</span>';
+    }
+    
+    let value = 0;
+    switch (type) {
+        case 'up':
+        case 'last':
+            value = stats.last;
+            break;
+        case 'average':
+            value = stats.average;
+            break;
+        case 'best':
+            value = stats.best;
+            break;
+        case 'worst':
+            value = stats.worst;
+            break;
+    }
+    
+    return value > 0 ? formatDuration(value) : '<span class="no-data">—</span>';
+}
+
+function calculateMetaInfo(level) {
+    const upBest = level.upStats.best;
+    const downBest = level.downStats.best;
+    const upAverage = level.upStats.average;
+    const downAverage = level.downStats.average;
+    
+    // If no completions in either direction
+    if (upBest === 0 && downBest === 0) {
+        return '<span class="no-data">—</span>';
+    }
+    
+    // If only one direction has completions
+    if (upBest === 0) {
+        return '<span class="meta-best-direction down">↓ DOWN</span>';
+    }
+    if (downBest === 0) {
+        return '<span class="meta-best-direction up">↑ UP</span>';
+    }
+    
+    // Calculate the difference between best times
+    const bestTimeDiff = Math.abs(upBest - downBest);
+    const threeSeconds = 3000; // 3 seconds in milliseconds
+    
+    // If best times are within 3 seconds, consider average times
+    if (bestTimeDiff <= threeSeconds) {
+        if (upAverage < downAverage) {
+            return '<span class="meta-best-direction up">↑ UP</span>';
+        } else if (downAverage < upAverage) {
+            return '<span class="meta-best-direction down">↓ DOWN</span>';
+        } else {
+            return '<span class="meta-best-direction equal">= SAME</span>';
+        }
+    }
+    
+    // Best times are more than 3 seconds apart, use best times
+    if (upBest < downBest) {
+        return '<span class="meta-best-direction up">↑ UP</span>';
+    } else if (downBest < upBest) {
+        return '<span class="meta-best-direction down">↓ DOWN</span>';
+    } else {
+        return '<span class="meta-best-direction equal">= SAME</span>';
+    }
+}
+
+function getMetaDirection(level) {
+    const upBest = level.upStats.best;
+    const downBest = level.downStats.best;
+    const upAverage = level.upStats.average;
+    const downAverage = level.downStats.average;
+    
+    // If no completions in either direction
+    if (upBest === 0 && downBest === 0) {
+        return 'none';
+    }
+    
+    // If only one direction has completions
+    if (upBest === 0) {
+        return 'down';
+    }
+    if (downBest === 0) {
+        return 'up';
+    }
+    
+    // Calculate the difference between best times
+    const bestTimeDiff = Math.abs(upBest - downBest);
+    const threeSeconds = 3000; // 3 seconds in milliseconds
+    
+    // If best times are within 3 seconds, consider average times
+    if (bestTimeDiff <= threeSeconds) {
+        if (upAverage < downAverage) {
+            return 'up';
+        } else if (downAverage < upAverage) {
+            return 'down';
+        } else {
+            return 'same';
+        }
+    }
+    
+    // Best times are more than 3 seconds apart, use best times
+    if (upBest < downBest) {
+        return 'up';
+    } else if (downBest < upBest) {
+        return 'down';
+    } else {
+        return 'same';
+    }
+}
+
+async function getSavedDirectionForLevel(levelName) {
+    // Get the scroll direction from the level's settings (same as saved direction)
+    try {
+        console.log(`DEBUG: getSavedDirectionForLevel called for "${levelName}"`);
+        const settings = await ipcRenderer.invoke('get-level-settings', levelName.toLowerCase());
+        const scrollDirection = settings.scrollDirection || 'up';
+        console.log(`DEBUG: getSavedDirectionForLevel returned "${scrollDirection}" for "${levelName}"`);
+        return scrollDirection;
+    } catch (error) {
+        console.error(`Error getting saved direction for ${levelName}:`, error);
+        return 'up';
+    }
+}
+
+async function openSettingsForLevel(levelName) {
+    // Open settings modal with the level pre-populated
+    console.log(`Opening settings for level: ${levelName}`);
+    
+    // Get the settings modal and level selector
+    const settingsModal = document.getElementById('settingsModal');
+    const levelSelect = document.getElementById('levelSelect');
+    
+    // Set the level in the selector
+    levelSelect.value = levelName.toLowerCase();
+    
+    // Load settings for this level
+    await loadSettingsForLevel(levelName.toLowerCase());
+    
+    // Show the modal
+    settingsModal.style.display = 'flex';
+}
+
+async function setSavedDirection(levelName, direction) {
+    // Set the scroll direction for a level (only 'up' or 'down' allowed)
+    if (direction !== 'up' && direction !== 'down') {
+        console.error(`Invalid direction: ${direction}. Only 'up' or 'down' allowed.`);
+        return;
+    }
+    
+    console.log(`Setting scroll direction for ${levelName} to ${direction}`);
+    
+    try {
+        // Update the scroll direction in the settings
+        console.log(`DEBUG: Calling IPC with levelName: "${levelName.toLowerCase()}", direction: "${direction}"`);
+        const result = await ipcRenderer.invoke('save-level-settings', levelName.toLowerCase(), { scrollDirection: direction });
+        console.log(`DEBUG: IPC result:`, result);
+        
+        if (result.success) {
+            // Update the UI immediately
+            updateDirectionButtons(levelName, direction);
+            
+            // Don't refresh the entire table, just update the button states
+            console.log(`UI updated for ${levelName} - ${direction} button should now be active`);
+            
+            console.log(`Successfully set scroll direction for ${levelName} to ${direction}`);
+        } else {
+            console.error(`Failed to save direction: ${result.error}`);
+            alert(`Error saving direction: ${result.error}`);
+        }
+    } catch (error) {
+        console.error(`Error setting scroll direction for ${levelName}:`, error);
+        alert(`Error setting scroll direction: ${error.message}`);
+    }
+}
+
+function updateDirectionButtons(levelName, direction) {
+    // Update the direction buttons for a specific level
+    const levelRow = document.querySelector(`tr[data-level="${levelName}"]`);
+    if (levelRow) {
+        const directionSelector = levelRow.querySelector('.direction-selector');
+        if (directionSelector) {
+            // Remove active class from all buttons
+            directionSelector.querySelectorAll('.direction-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to the selected direction
+            const selectedBtn = directionSelector.querySelector(`.direction-btn.${direction}`);
+            if (selectedBtn) {
+                selectedBtn.classList.add('active');
+                console.log(`DEBUG: Set ${direction} button as active for level ${levelName}`);
+            } else {
+                console.error(`DEBUG: Could not find button with class .direction-btn.${direction} for level ${levelName}`);
+            }
+        } else {
+            console.error(`DEBUG: Could not find direction selector for level ${levelName}`);
+        }
+    } else {
+        console.error(`DEBUG: Could not find level row for ${levelName}`);
+    }
+}
+
+async function deleteLevel(levelName) {
+    // Delete a level with confirmation
+    if (confirm(`Are you sure you want to delete the level "${levelName}"? This action cannot be undone.`)) {
+        console.log(`Deleting level: ${levelName}`);
+        
+        try {
+            // Call the main process to delete the level (keep original case for historical stats)
+            const result = await ipcRenderer.invoke('delete-level', levelName);
+            
+            if (result.success) {
+                console.log(`Successfully deleted level: ${levelName}`);
+                
+                // Refresh the statistics view
+                await populateLevelsView();
+                
+                // Show success message
+                alert(`Level "${levelName}" has been deleted successfully.`);
+            } else {
+                console.error(`Failed to delete level: ${result.error}`);
+                alert(`Error deleting level: ${result.error}`);
+            }
+        } catch (error) {
+            console.error(`Error deleting level ${levelName}:`, error);
+            alert(`Error deleting level: ${error.message}`);
+        }
+    }
 }
 
 function filterExtremes(data) {
@@ -2567,12 +2869,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (levelInfo) levelInfo.classList.add('compact');
         const stageInfo = document.getElementById('currentStageInfo');
         if (stageInfo) stageInfo.classList.add('pill');
-        // Keep system-status visible since it now includes daily stats
-        const systemStatus = document.querySelector('.system-status');
-        if (systemStatus) systemStatus.style.display = 'block';
-    } catch (e) { console.warn('Header compact styling failed to init', e); }
+    // Keep system-status visible since it now includes daily stats
+    const systemStatus = document.querySelector('.system-status');
+    if (systemStatus) systemStatus.style.display = 'block';
+} catch (e) { console.warn('Header compact styling failed to init', e); }
 
-    console.log('DEBUG: DOMContentLoaded handler finished.');
+// Initialize level actions display (including custom triggers)
+await updateLevelActionsDisplay();
+
+console.log('DEBUG: DOMContentLoaded handler finished.');
 });
 
 // Settings Modal Implementation
@@ -3094,6 +3399,9 @@ async function loadSettingsForLevel(levelName) {
     document.getElementById('secondBuildClickOffScrollDistance').parentElement.style.display = 
         settings.secondBuildAction.action === 'click_off_and_scroll' ? 'block' : 'none';
     
+    // Load custom triggers
+    await loadCustomTriggersForLevel(levelName);
+    
     // Store original settings for change detection
     originalSettings = getCurrentFormSettings();
     
@@ -3104,15 +3412,217 @@ async function loadSettingsForLevel(levelName) {
     saveBtn.style.cursor = 'not-allowed';
 }
 
+// Load custom triggers for a level in settings
+async function loadCustomTriggersForLevel(levelName) {
+    try {
+        const triggers = await ipcRenderer.invoke('get-custom-triggers', levelName);
+        const triggerTypes = await ipcRenderer.invoke('get-trigger-types');
+        const triggerActions = await ipcRenderer.invoke('get-trigger-actions');
+        
+        const triggersList = document.getElementById('triggersList');
+        triggersList.innerHTML = '';
+        
+        triggers.forEach((trigger, index) => {
+            addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions);
+        });
+        
+        // Setup add trigger button
+        const addTriggerBtn = document.getElementById('addTriggerSettingsBtn');
+        addTriggerBtn.onclick = () => addNewTriggerSettings(triggerTypes, triggerActions);
+        
+    } catch (error) {
+        console.error('Error loading custom triggers for level:', error);
+    }
+}
+
+function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
+    const triggersList = document.getElementById('triggersList');
+    
+    const triggerDiv = document.createElement('div');
+    triggerDiv.className = 'trigger-settings-item';
+    triggerDiv.innerHTML = `
+        <div class="trigger-basic-settings">
+            <select class="trigger-settings-type" data-index="${index}" data-field="triggerType">
+                ${triggerTypes.map(type => 
+                    `<option value="${type.value}" ${trigger.triggerType === type.value ? 'selected' : ''}>${type.label}</option>`
+                ).join('')}
+            </select>
+            <input type="number" class="trigger-settings-value" data-index="${index}" data-field="triggerValue" 
+                   value="${trigger.triggerValue || ''}" placeholder="Value" min="1">
+            <select class="trigger-settings-action" data-index="${index}" data-field="action">
+                ${triggerActions.map(action => 
+                    `<option value="${action.value}" ${trigger.action === action.value ? 'selected' : ''}>${action.label}</option>`
+                ).join('')}
+            </select>
+            <input type="number" class="trigger-settings-params" data-index="${index}" data-field="actionParams" 
+                   value="${trigger.actionParams || ''}" placeholder="Duration" min="1">
+            <button class="remove-trigger-settings-btn" data-index="${index}">×</button>
+        </div>
+        <div class="trigger-clickaround-options" id="triggerClickaroundOptions${index}" style="display: none;">
+            <h5>Click Around Options</h5>
+            <div class="clickaround-settings-grid">
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="triggerExcludeRedBlobs${index}" ${trigger.clickaroundOptions?.excludeRedBlobs ? 'checked' : ''}>
+                        Exclude Red Blobs
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label for="triggerClickaroundChunks${index}">Number of Chunks:</label>
+                    <input type="number" id="triggerClickaroundChunks${index}" min="1" max="10" step="1" 
+                           value="${trigger.clickaroundOptions?.clickaroundChunks || 3}">
+                </div>
+                <div class="setting-item">
+                    <label for="triggerScrollUpDistance${index}">Scroll Up Distance (px):</label>
+                    <input type="number" id="triggerScrollUpDistance${index}" min="50" max="500" step="10" 
+                           value="${trigger.clickaroundOptions?.scrollUpDistance || 200}">
+                </div>
+                <div class="setting-item">
+                    <label for="triggerScrollUpCount${index}">Scroll Up Count:</label>
+                    <input type="number" id="triggerScrollUpCount${index}" min="1" max="10" step="1" 
+                           value="${trigger.clickaroundOptions?.scrollUpCount || 5}">
+                </div>
+                <div class="setting-item">
+                    <label for="triggerInitialScrollDown${index}">Initial Scroll Down (px):</label>
+                    <input type="number" id="triggerInitialScrollDown${index}" min="50" max="500" step="10" 
+                           value="${trigger.clickaroundOptions?.initialScrollDown || 150}">
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="triggerScrollToBottomAtEnd${index}" ${trigger.clickaroundOptions?.scrollToBottomAtEnd ? 'checked' : ''}>
+                        Scroll to Bottom at End
+                    </label>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    triggersList.appendChild(triggerDiv);
+    
+    // Add event listeners
+    const selects = triggerDiv.querySelectorAll('select');
+    const inputs = triggerDiv.querySelectorAll('input[type="number"]');
+    const checkboxes = triggerDiv.querySelectorAll('input[type="checkbox"]');
+    const removeBtn = triggerDiv.querySelector('.remove-trigger-settings-btn');
+    const actionSelect = triggerDiv.querySelector('.trigger-settings-action');
+    
+    [...selects, ...inputs, ...checkboxes].forEach(element => {
+        element.addEventListener('change', () => updateTriggerSettings(index));
+    });
+    
+    // Special handler for action select to show/hide clickaround options
+    actionSelect.addEventListener('change', () => {
+        const clickaroundOptions = triggerDiv.querySelector(`#triggerClickaroundOptions${index}`);
+        if (actionSelect.value === 'clickAround') {
+            clickaroundOptions.style.display = 'block';
+        } else {
+            clickaroundOptions.style.display = 'none';
+        }
+        updateTriggerSettings(index);
+    });
+    
+    // Show clickaround options if action is already clickAround
+    if (trigger.action === 'clickAround') {
+        const clickaroundOptions = triggerDiv.querySelector(`#triggerClickaroundOptions${index}`);
+        clickaroundOptions.style.display = 'block';
+    }
+    
+    removeBtn.addEventListener('click', () => removeTriggerSettings(index));
+}
+
+async function addNewTriggerSettings(triggerTypes, triggerActions) {
+    const newTrigger = {
+        triggerType: 'buildNumber',
+        triggerValue: 1,
+        action: 'clickAround',
+        actionParams: 5000
+    };
+    
+    const triggersList = document.getElementById('triggersList');
+    const index = triggersList.children.length;
+    addTriggerSettingsItem(newTrigger, index, triggerTypes, triggerActions);
+    
+    // Mark settings as changed
+    markSettingsAsChanged();
+}
+
+async function updateTriggerSettings(index) {
+    // Mark settings as changed
+    markSettingsAsChanged();
+}
+
+async function removeTriggerSettings(index) {
+    const triggersList = document.getElementById('triggersList');
+    const triggerItem = triggersList.children[index];
+    if (triggerItem) {
+        triggerItem.remove();
+        
+        // Re-index remaining items
+        Array.from(triggersList.children).forEach((item, newIndex) => {
+            const selects = item.querySelectorAll('select');
+            const inputs = item.querySelectorAll('input[type="number"]');
+            const removeBtn = item.querySelector('.remove-trigger-settings-btn');
+            
+            [...selects, ...inputs, removeBtn].forEach(element => {
+                element.setAttribute('data-index', newIndex);
+            });
+        });
+        
+        // Mark settings as changed
+        markSettingsAsChanged();
+    }
+}
+
+function markSettingsAsChanged() {
+    const saveBtn = document.getElementById('saveSettingsBtn');
+    saveBtn.disabled = false;
+    saveBtn.style.opacity = '1';
+    saveBtn.style.cursor = 'pointer';
+}
+
+function getCustomTriggersFromForm() {
+    const triggersList = document.getElementById('triggersList');
+    const triggers = [];
+    
+    Array.from(triggersList.children).forEach((triggerItem, index) => {
+        const trigger = {
+            triggerType: triggerItem.querySelector('.trigger-settings-type').value,
+            triggerValue: parseInt(triggerItem.querySelector('.trigger-settings-value').value) || 1,
+            action: triggerItem.querySelector('.trigger-settings-action').value,
+            actionParams: parseInt(triggerItem.querySelector('.trigger-settings-params').value) || 5000
+        };
+        
+        // Add clickaround options if action is clickAround
+        if (trigger.action === 'clickAround') {
+            trigger.clickaroundOptions = {
+                excludeRedBlobs: triggerItem.querySelector(`#triggerExcludeRedBlobs${index}`)?.checked || false,
+                clickaroundChunks: parseInt(triggerItem.querySelector(`#triggerClickaroundChunks${index}`)?.value) || 3,
+                scrollUpDistance: parseInt(triggerItem.querySelector(`#triggerScrollUpDistance${index}`)?.value) || 200,
+                scrollUpCount: parseInt(triggerItem.querySelector(`#triggerScrollUpCount${index}`)?.value) || 5,
+                initialScrollDown: parseInt(triggerItem.querySelector(`#triggerInitialScrollDown${index}`)?.value) || 150,
+                scrollToBottomAtEnd: triggerItem.querySelector(`#triggerScrollToBottomAtEnd${index}`)?.checked || false
+            };
+        }
+        
+        triggers.push(trigger);
+    });
+    
+    return triggers;
+}
+
 async function saveCurrentSettings() {
     const settings = getCurrentFormSettings();
     const currentDirection = settings.scrollDirection;
+    
+    // Get custom triggers from the settings form
+    const customTriggers = getCustomTriggersFromForm();
     
     // Separate global settings from direction-specific settings
     const globalSettings = {
         doResearch: settings.doResearch,
         scrollDirection: settings.scrollDirection,
-        blueBoxClickHoldDuration: settings.blueBoxClickHoldDuration
+        blueBoxClickHoldDuration: settings.blueBoxClickHoldDuration,
+        customTriggers: customTriggers
     };
     
     const directionSpecificSettings = {
@@ -3263,6 +3773,7 @@ function updateLevelActionsDisplayWithSettings(settings) {
 
 // Main function to load settings and update display
 async function updateLevelActionsDisplay() {
+    console.log('DEBUG: updateLevelActionsDisplay called');
     const currentLevel = await ipcRenderer.invoke('get-current-level-name');
     
     // If no level, show default settings
@@ -3287,7 +3798,71 @@ async function updateLevelActionsDisplay() {
     
     // Set scroll direction label (will be overridden by effective-direction event if random mode applies)
     document.getElementById('scrollDirValue').textContent = settings.scrollDirection === 'up' ? 'Up ↑' : 'Down ↓';
+    
+    // Update custom triggers display
+    await updateCustomTriggersDisplay();
 }
+
+// Custom Triggers Management - Integrated into Level Progress
+async function updateCustomTriggersDisplay() {
+    const currentLevel = await ipcRenderer.invoke('get-current-level-name');
+    const customTriggersIntegrated = document.getElementById('customTriggersIntegrated');
+    const customTriggersValue = document.getElementById('customTriggersValue');
+    const triggersListIntegrated = document.getElementById('triggersListIntegrated');
+    
+    // Check if we have a valid level
+    const hasValidLevel = currentLevel && currentLevel !== 'Unknown Level' && currentLevel !== '';
+    
+    if (!hasValidLevel) {
+        customTriggersIntegrated.style.display = 'none';
+        return;
+    }
+    
+    try {
+        const triggers = await ipcRenderer.invoke('get-custom-triggers', currentLevel.toLowerCase());
+        
+        if (triggers && triggers.length > 0) {
+            customTriggersIntegrated.style.display = 'block';
+            customTriggersValue.textContent = `${triggers.length} configured`;
+            
+            // Clear and populate triggers list
+            triggersListIntegrated.innerHTML = '';
+            triggers.forEach((trigger, index) => {
+                addTriggerItemIntegrated(trigger, index);
+            });
+        } else {
+            customTriggersIntegrated.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('Error loading custom triggers:', error);
+        customTriggersIntegrated.style.display = 'none';
+    }
+}
+
+function addTriggerItemIntegrated(trigger, index) {
+    const triggersListIntegrated = document.getElementById('triggersListIntegrated');
+    
+    const triggerDiv = document.createElement('div');
+    triggerDiv.className = 'trigger-item-integrated';
+    
+    const triggerTypeLabel = trigger.triggerType === 'buildNumber' ? 'Build' : 'Time';
+    const actionLabel = trigger.action.charAt(0).toUpperCase() + trigger.action.slice(1).replace(/([A-Z])/g, ' $1');
+    const paramsLabel = trigger.action === 'clickAround' ? `${trigger.actionParams}ms` : 
+                       trigger.action === 'wait' ? `${trigger.actionParams}ms` :
+                       trigger.action.includes('scroll') ? `${trigger.actionParams}px` : 
+                       trigger.actionParams;
+    
+    triggerDiv.innerHTML = `
+        <span class="trigger-type">${triggerTypeLabel}</span>
+        <span class="trigger-value">${trigger.triggerValue}</span>
+        <span class="trigger-action">${actionLabel}</span>
+        <span class="trigger-params">${paramsLabel}</span>
+    `;
+    
+    triggersListIntegrated.appendChild(triggerDiv);
+}
+
 
 // Listen for level name changes to update actions display
 ipcRenderer.on('update-current-level-name', async () => {

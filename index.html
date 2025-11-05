@@ -136,6 +136,18 @@
                         <span class="action-label">Scroll Dir:</span>
                         <span class="action-value" id="scrollDirValue">—</span>
                     </div>
+                    
+                    <!-- Custom Triggers integrated into level progress -->
+                    <div class="action-divider"></div>
+                    <div class="custom-triggers-integrated" id="customTriggersIntegrated" style="display: none;">
+                        <div class="action-item">
+                            <span class="action-label">Custom Triggers:</span>
+                            <span class="action-value" id="customTriggersValue">None</span>
+                        </div>
+                        <div class="triggers-list-integrated" id="triggersListIntegrated">
+                            <!-- Triggers will be dynamically added here -->
+                        </div>
+                    </div>
                 </div>
                 <div class="stage-info-wrapper">
                     <!-- Current Stage Levels Detail -->
@@ -337,7 +349,7 @@
                 <div id="levelsView" class="statistics-view">
                     <div class="statistics-controls">
                         <div class="statistics-options">
-                            <label><input type="checkbox" id="ignoreExtremesLevels" checked> Ignore extremes (top/bottom 10%)</label>
+                            <label><input type="checkbox" id="showMismatchedDirections"> Show mismatched meta/saved</label>
                         </div>
                         <div class="statistics-sort">
                             <label>Sort by:</label>
@@ -346,21 +358,23 @@
                                 <option value="positions">Position</option>
                                 <option value="average">Average Time</option>
                                 <option value="count">Completions</option>
+                                <option value="savedDirection">Saved Direction</option>
                             </select>
                         </div>
                     </div>
                     <div class="statistics-table-container">
-                        <table id="levelsTable" class="statistics-table">
+                        <table id="levelsTable" class="statistics-table levels-table-new">
                             <thead>
                                 <tr>
-                                    <th class="sortable" data-sort="name">Level Name</th>
-                                    <th class="sortable" data-sort="positions" style="width: 80px;">Pos</th>
-                                    <th class="sortable" data-sort="count" style="width: 60px;">Comp</th>
-                                    <th class="sortable" data-sort="last">Last Time</th>
-                                    <th class="sortable" data-sort="average">Average</th>
-                                    <th class="sortable" data-sort="min">Min</th>
-                                    <th class="sortable" data-sort="max">Max</th>
-                                    <th class="sortable" data-sort="trend" style="width: 60px;">Trend</th>
+                                    <th class="sortable" data-sort="name" style="width: 200px;">Level Name</th>
+                                    <th class="sortable" data-sort="positions" style="width: 60px;">Pos</th>
+                                    <th style="width: 60px;">Direction</th>
+                                    <th class="sortable" data-sort="last" style="width: 100px;">Last Time</th>
+                                    <th class="sortable" data-sort="average" style="width: 100px;">Average</th>
+                                    <th class="sortable" data-sort="min" style="width: 100px;">Best</th>
+                                    <th class="sortable" data-sort="max" style="width: 100px;">Worst</th>
+                                    <th class="sortable" data-sort="meta" style="width: 80px;">Meta</th>
+                                    <th style="width: 120px;">Saved Direction</th>
                                 </tr>
                             </thead>
                             <tbody id="levelsTableBody">
@@ -588,6 +602,19 @@
                                 Scroll to Bottom After Second Build
                             </label>
                             <span class="setting-help">Scroll to bottom after build completes</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Custom Triggers</h3>
+                        <div class="setting-item">
+                            <p class="setting-help">Add custom triggers that fire based on build number or time spent in level</p>
+                        </div>
+                        <div class="custom-triggers-settings" id="customTriggersSettings">
+                            <div class="triggers-list" id="triggersList">
+                                <!-- Triggers will be dynamically added here -->
+                            </div>
+                            <button id="addTriggerSettingsBtn" class="btn btn-primary">+ Add Trigger</button>
                         </div>
                     </div>
 

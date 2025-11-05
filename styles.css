@@ -1052,6 +1052,13 @@ kbd {
     font-weight: 700 !important;
 }
 
+.stage-level-red-gold {
+    border-color: #dc3545 !important;
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.35) 0%, rgba(255, 215, 0, 0.4) 100%) !important;
+    color: #ffd700 !important;
+    font-weight: 700 !important;
+}
+
 .stage-level-gold-gold {
     border-color: #ffd700 !important;
     background: rgba(255, 215, 0, 0.5) !important;
@@ -1410,6 +1417,230 @@ kbd {
     font-style: italic;
 }
 
+/* New Levels Table Styles */
+.levels-table-new {
+    font-size: 12px;
+}
+
+.levels-table-new .level-name {
+    font-weight: 600;
+    color: #2c3e50;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+}
+
+.levels-table-new .level-name:hover {
+    color: #3498db;
+    text-decoration-color: #3498db;
+}
+
+.levels-table-new .level-row {
+    border-bottom: 2px solid #e9ecef;
+}
+
+.levels-table-new .level-row:last-child {
+    border-bottom: none;
+}
+
+/* Alternating backgrounds for whole levels */
+.levels-table-new .even-level {
+    background: white;
+}
+
+.levels-table-new .odd-level {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.levels-table-new .direction-row {
+    background: transparent;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.levels-table-new .direction-row:last-child {
+    border-bottom: 2px solid #e9ecef;
+}
+
+.levels-table-new .direction-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #6c757d;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+    min-width: 20px;
+    text-align: center;
+}
+
+.levels-table-new .direction-label.up {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.levels-table-new .direction-label small {
+    font-size: 9px;
+    opacity: 0.7;
+    font-weight: normal;
+}
+
+.levels-table-new .meta-info {
+    text-align: center;
+    font-weight: 600;
+}
+
+.levels-table-new .meta-best-direction {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.levels-table-new .meta-best-direction.up {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.levels-table-new .meta-best-direction.down {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.levels-table-new .meta-best-direction.equal {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.levels-table-new .direction-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.levels-table-new .direction-stat {
+    font-size: 11px;
+    color: #495057;
+}
+
+.levels-table-new .direction-stat .label {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.levels-table-new .direction-stat .value {
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.levels-table-new .direction-selector {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.levels-table-new .direction-btn {
+    padding: 4px 8px;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+    color: #6c757d;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    min-width: 30px;
+    text-align: center;
+    position: relative;
+}
+
+.levels-table-new .direction-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.levels-table-new .direction-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.levels-table-new .direction-btn.up.active {
+    background: #1976d2;
+    border-color: #1976d2;
+}
+
+.levels-table-new .direction-btn.down.active {
+    background: #2e7d32;
+    border-color: #2e7d32;
+}
+
+.levels-table-new .direction-btn.none.active {
+    background: #6c757d;
+    border-color: #6c757d;
+}
+
+.levels-table-new .direction-btn:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+}
+
+.levels-table-new .delete-btn {
+    padding: 2px 6px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    margin-left: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.levels-table-new .level-row:hover .delete-btn {
+    opacity: 1;
+}
+
+.levels-table-new .delete-btn:hover {
+    background: #c82333;
+    opacity: 1;
+}
+
+/* Context Menu */
+.context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10001;
+    min-width: 150px;
+    padding: 4px 0;
+}
+
+.context-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #495057;
+    transition: background 0.2s ease;
+}
+
+.context-menu-item:hover {
+    background: #f8f9fa;
+}
+
+.context-menu-item.danger {
+    color: #dc3545;
+}
+
+.context-menu-item.danger:hover {
+    background: #f8d7da;
+}
+
 /* Settings Modal */
 .settings-modal {
     position: fixed;
@@ -1734,6 +1965,267 @@ kbd {
     height: 1px;
     background: rgba(79, 195, 247, 0.2);
     margin: 8px 0;
+}
+
+/* Custom Triggers Display */
+.custom-triggers-display {
+    margin-top: 15px;
+    padding: 12px;
+    background: rgba(30, 35, 50, 0.6);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.custom-triggers-display h4 {
+    margin: 0 0 10px 0;
+    color: #4fc3f7;
+    font-size: 0.95em;
+    font-weight: 600;
+}
+
+.triggers-container {
+    margin-bottom: 12px;
+}
+
+.trigger-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trigger-item select,
+.trigger-item input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: white;
+    padding: 4px 8px;
+    font-size: 0.85em;
+}
+
+.trigger-item select:focus,
+.trigger-item input:focus {
+    outline: none;
+    border-color: #4fc3f7;
+}
+
+.trigger-type {
+    min-width: 120px;
+}
+
+.trigger-value {
+    width: 80px;
+}
+
+.trigger-action {
+    min-width: 100px;
+}
+
+.trigger-params {
+    width: 80px;
+}
+
+.remove-trigger-btn {
+    background: #dc3545;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    padding: 4px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    margin-left: auto;
+}
+
+.remove-trigger-btn:hover {
+    background: #c82333;
+}
+
+.add-trigger-btn {
+    background: #28a745;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    padding: 8px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+    width: 100%;
+}
+
+.add-trigger-btn:hover {
+    background: #218838;
+}
+
+/* Custom Triggers in Settings */
+.custom-triggers-settings {
+    margin-top: 15px;
+}
+
+.triggers-list {
+    margin-bottom: 15px;
+}
+
+.trigger-settings-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.trigger-settings-item select,
+.trigger-settings-item input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: white;
+    padding: 6px 10px;
+    font-size: 0.9em;
+    min-width: 120px;
+}
+
+.trigger-settings-item select:focus,
+.trigger-settings-item input:focus {
+    outline: none;
+    border-color: #4fc3f7;
+}
+
+.trigger-settings-type {
+    min-width: 140px;
+}
+
+.trigger-settings-value {
+    width: 100px;
+}
+
+.trigger-settings-action {
+    min-width: 120px;
+}
+
+.trigger-settings-params {
+    width: 100px;
+}
+
+.remove-trigger-settings-btn {
+    background: #dc3545;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    padding: 6px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+    margin-left: auto;
+}
+
+.remove-trigger-settings-btn:hover {
+    background: #c82333;
+}
+
+/* Trigger Settings Layout */
+.trigger-basic-settings {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.trigger-clickaround-options {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+.trigger-clickaround-options h5 {
+    margin: 0 0 10px 0;
+    color: #4fc3f7;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.clickaround-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.clickaround-settings-grid .setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.clickaround-settings-grid .setting-item label {
+    font-size: 0.85em;
+    color: #9ca3af;
+}
+
+.clickaround-settings-grid .setting-item input[type="number"],
+.clickaround-settings-grid .setting-item input[type="checkbox"] {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: white;
+    padding: 4px 8px;
+    font-size: 0.85em;
+}
+
+.clickaround-settings-grid .setting-item input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+}
+
+/* Integrated Custom Triggers in Level Progress */
+.custom-triggers-integrated {
+    margin-top: 5px;
+}
+
+.triggers-list-integrated {
+    margin-top: 8px;
+    margin-left: 20px;
+}
+
+.trigger-item-integrated {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 0.8em;
+    color: #9ca3af;
+}
+
+.trigger-item-integrated .trigger-type {
+    color: #4fc3f7;
+    font-weight: 500;
+    min-width: 80px;
+}
+
+.trigger-item-integrated .trigger-value {
+    color: #e0e6ed;
+    font-weight: 500;
+    min-width: 40px;
+}
+
+.trigger-item-integrated .trigger-action {
+    color: #28a745;
+    font-weight: 500;
+    min-width: 80px;
+}
+
+.trigger-item-integrated .trigger-params {
+    color: #ffc107;
+    font-weight: 500;
+    min-width: 60px;
 }
 
 /* Disabled button styles */

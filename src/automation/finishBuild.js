@@ -2,6 +2,149 @@ const blueBoxDetector = require('../detection/blueBoxDetector');
 const redBlobDetector = require('../detection/redBlobDetector');
 const settingsManager = require('../../lib/settingsManager');
 
+// Global variables for custom triggers
+let levelStartTime = Date.now(); // Track when level started
+let triggeredActions = new Set(); // Track which triggers have already fired
+
+// Function to reset custom trigger state for new level
+function resetCustomTriggerState() {
+    levelStartTime = Date.now();
+    triggeredActions.clear();
+    console.log('DEBUG: Custom trigger state reset for new level');
+}
+
+// Custom trigger detection and execution during build
+async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTime, direction, dependencies) {
+    try {
+        // Normalize level name to match how it's stored in settings
+        const normalizedLevelName = levelName ? levelName.toLowerCase().trim() : '';
+        console.log(`DEBUG: checkCustomTriggersDuringBuild called for level: "${levelName}" -> normalized: "${normalizedLevelName}", build: ${buildNumber}, elapsed: ${elapsedTime}ms, direction: ${direction}`);
+        
+        const triggers = settingsManager.getCustomTriggers(normalizedLevelName, direction);
+        console.log(`DEBUG: Found ${triggers ? triggers.length : 0} custom triggers for level "${normalizedLevelName}" (${direction} direction)`);
+        
+        if (!triggers || triggers.length === 0) {
+            console.log(`DEBUG: No custom triggers found for level "${normalizedLevelName}"`);
+            return;
+        }
+
+        for (let i = 0; i < triggers.length; i++) {
+            const trigger = triggers[i];
+            const triggerKey = `${trigger.triggerType}-${trigger.triggerValue}-${i}`;
+            
+            console.log(`DEBUG: Checking trigger ${i}: ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+            
+            // Skip if already triggered
+            if (triggeredActions.has(triggerKey)) {
+                console.log(`DEBUG: Trigger ${i} already fired, skipping`);
+                continue;
+            }
+
+            let shouldTrigger = false;
+
+            // Check trigger conditions
+            if (trigger.triggerType === 'buildNumber' && buildNumber >= trigger.triggerValue) {
+                shouldTrigger = true;
+                console.log(`DEBUG: Build number trigger condition met: ${buildNumber} >= ${trigger.triggerValue}`);
+            } else if (trigger.triggerType === 'timeSpent' && elapsedTime >= trigger.triggerValue) {
+                shouldTrigger = true;
+                console.log(`DEBUG: Time spent trigger condition met: ${elapsedTime}ms >= ${trigger.triggerValue}ms`);
+            }
+
+            if (shouldTrigger) {
+                console.log(`DEBUG: Custom trigger fired during build - ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+                triggeredActions.add(triggerKey);
+                await executeTriggerActionDuringBuild(trigger, dependencies);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking custom triggers during build:', error);
+    }
+}
+
+async function executeTriggerActionDuringBuild(trigger, dependencies) {
+    const { performClick, scrollUp, scrollDown, updateStatus, updateCurrentFunction, captureScreenRegion, redBlobDetectorDetect, scrollUpWithDistance, iphoneMirroringRegion } = dependencies;
+
+    try {
+        switch (trigger.action) {
+            case 'clickAround':
+                updateCurrentFunction('customTrigger-clickAround');
+                updateStatus(`Custom trigger: Click Around for ${trigger.actionParams}ms`, 'info');
+                await executeClickAroundDuringBuild(trigger.actionParams, trigger.clickaroundOptions, dependencies);
+                break;
+
+            case 'scrollUp':
+                updateCurrentFunction('customTrigger-scrollUp');
+                updateStatus(`Custom trigger: Scroll Up ${trigger.actionParams}px`, 'info');
+                const scrollUpX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                const scrollUpY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                await scrollUpWithDistance(scrollUpX, scrollUpY, trigger.actionParams || 200);
+                break;
+
+            case 'scrollDown':
+                updateCurrentFunction('customTrigger-scrollDown');
+                updateStatus(`Custom trigger: Scroll Down ${trigger.actionParams}px`, 'info');
+                const scrollDownX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                const scrollDownY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                await scrollDown(scrollDownX, scrollDownY, trigger.actionParams || 200);
+                break;
+
+            default:
+                console.log(`DEBUG: Unknown trigger action: ${trigger.action}`);
+        }
+    } catch (error) {
+        console.error('Error executing trigger action during build:', error);
+    }
+}
+
+async function executeClickAroundDuringBuild(durationMs, clickaroundOptions, dependencies) {
+    const { performClick, updateStatus, captureScreenRegion, redBlobDetectorDetect, iphoneMirroringRegion } = dependencies;
+    
+    const startTime = Date.now();
+    const endTime = startTime + durationMs;
+    
+    const options = clickaroundOptions || {
+        excludeRedBlobs: true,
+        clickaroundChunks: 3,
+        scrollUpDistance: 200,
+        scrollUpCount: 5,
+        initialScrollDown: 150,
+        scrollToBottomAtEnd: false
+    };
+    
+    console.log(`DEBUG: Starting clickAround during build for ${durationMs}ms with options:`, options);
+    
+    while (Date.now() < endTime && getIsAutomationRunning()) {
+        // Capture screen and detect red blobs
+        const fullScreenDataUrl = await captureScreenRegion();
+        const redBlobs = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
+        
+        // Filter out excluded blobs
+        const clickableBlobs = redBlobs.filter(blob => {
+            if (options.excludeRedBlobs && (blob.name === 'exit level' || blob.name === 'research')) {
+                return false;
+            }
+            return true;
+        });
+        
+        if (clickableBlobs.length > 0) {
+            // Pick a random blob to click
+            const randomBlob = clickableBlobs[Math.floor(Math.random() * clickableBlobs.length)];
+            const clickX = randomBlob.x + randomBlob.width / 2;
+            const clickY = randomBlob.y + randomBlob.height / 2;
+            
+            console.log(`DEBUG: Clicking around at (${clickX}, ${clickY}) during build`);
+            await performClick(clickX, clickY);
+        }
+        
+        // Small delay between clicks
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log(`DEBUG: ClickAround during build completed`);
+}
+
+
 /*
 Protocol for Finish Build Automation (Simplified):
 1.  Call a function to check blue build box until one is found, retrying every 2 seconds.
@@ -377,6 +520,12 @@ async function runBuildProtocol(dependencies) {
                 return 'timeout';
             }
             
+            // Check custom triggers during the build process (do this every cycle, independent of build actions)
+            // Get current direction from level settings
+            const currentDirection = levelSettings.scrollDirection || 'up';
+            console.log(`DEBUG: Checking custom triggers during build #${buildNumber} at ${elapsedTime}ms`);
+            await checkCustomTriggersDuringBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, dependencies);
+            
             // Only check for action if one is configured and hasn't been executed yet
             // If triggerTimeMs is null, execute immediately; otherwise wait for the trigger time
             if (!actionExecuted && currentBuildAction.action !== 'nothing' && (actionTriggerTime === null || elapsedTime >= actionTriggerTime)) {
@@ -577,4 +726,4 @@ async function runBuildProtocol(dependencies) {
     }
 }
 
-module.exports = { runBuildProtocol, resetAutomationState, findAndGetBlueBoxClickCoordinates, stopAutomation };
+module.exports = { runBuildProtocol, resetAutomationState, findAndGetBlueBoxClickCoordinates, stopAutomation, resetCustomTriggerState };
