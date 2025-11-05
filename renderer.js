@@ -133,12 +133,18 @@ startLiveViewBtn.addEventListener('click', async () => {
     // This button will be hidden by default as live view auto-starts.
     // If it's ever visible and clicked, it should re-start the live view.
     try {
+        console.log('DEBUG: Start Live View button clicked. Requesting live view start...');
         updateStatus('Starting live view...', 'info');
-        await ipcRenderer.invoke('start-live-view');
-        isCapturing = true;
-        startLiveViewBtn.style.display = 'none';
-        stopLiveViewBtn.style.display = 'block';
-        updateStatus('Live view started', 'success');
+        const started = await ipcRenderer.invoke('start-live-view');
+        if (started) {
+            isCapturing = true;
+            startLiveViewBtn.style.display = 'none';
+            stopLiveViewBtn.style.display = 'block';
+            updateStatus('Live view started', 'success');
+        } else {
+            updateStatus('Live view already running', 'warn');
+            console.log('DEBUG: Live view start request returned false (already running).');
+        }
     } catch (error) {
         updateStatus(`Failed to start live view: ${error.message}`, 'error');
     }
@@ -146,6 +152,7 @@ startLiveViewBtn.addEventListener('click', async () => {
 
 stopLiveViewBtn.addEventListener('click', async () => {
     try {
+        console.log('DEBUG: Stop Live View button clicked.');
         updateStatus('Stopping live view...', 'info');
         await ipcRenderer.invoke('stop-live-view');
         isCapturing = false;
@@ -778,7 +785,7 @@ ipcRenderer.on('shortcut-stop', async () => {
 // IPC listener for current function updates
 ipcRenderer.on('update-current-function', (event, functionName) => {
     if (currentFunctionDisplay) {
-        currentFunctionDisplay.textContent = functionName ? `Function: ${functionName}` : 'Idle';
+        currentFunctionDisplay.textContent = functionName ? functionName : 'Idle';
     }
 });
 
@@ -3805,7 +3812,7 @@ async function updateLevelActionsDisplay() {
 }
 
 // Custom Triggers Management - Integrated into Level Progress
-async function updateCustomTriggersDisplay() {
+async function updateCustomTriggersDisplay(direction = null) {
     const currentLevel = await ipcRenderer.invoke('get-current-level-name');
     const customTriggersIntegrated = document.getElementById('customTriggersIntegrated');
     const customTriggersValue = document.getElementById('customTriggersValue');
@@ -3820,7 +3827,8 @@ async function updateCustomTriggersDisplay() {
     }
     
     try {
-        const triggers = await ipcRenderer.invoke('get-custom-triggers', currentLevel.toLowerCase());
+        // If no direction specified, get it from settings (will default to saved direction)
+        const triggers = await ipcRenderer.invoke('get-custom-triggers', currentLevel.toLowerCase(), direction);
         
         if (triggers && triggers.length > 0) {
             customTriggersIntegrated.style.display = 'block';
@@ -3892,6 +3900,9 @@ ipcRenderer.on('effective-direction', async (event, mode, dir, randomApplied) =>
                 _isDirectionUpdate: true  // Mark as direction update to prevent clearing checkmarks
             };
             await updateLevelActionsDisplayWithSettings(effectiveSettings);
+            
+            // Update custom triggers display for the effective direction
+            await updateCustomTriggersDisplay(dir);
         }
     } catch (e) {
         console.error('Error updating effective direction:', e);

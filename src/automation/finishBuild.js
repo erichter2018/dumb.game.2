@@ -22,6 +22,8 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
         
         const triggers = settingsManager.getCustomTriggers(normalizedLevelName, direction);
         console.log(`DEBUG: Found ${triggers ? triggers.length : 0} custom triggers for level "${normalizedLevelName}" (${direction} direction)`);
+        console.log(`DEBUG: Triggers array:`, JSON.stringify(triggers));
+        console.log(`DEBUG: Triggers is array?`, Array.isArray(triggers));
         
         if (!triggers || triggers.length === 0) {
             console.log(`DEBUG: No custom triggers found for level "${normalizedLevelName}"`);
@@ -42,10 +44,10 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
 
             let shouldTrigger = false;
 
-            // Check trigger conditions
-            if (trigger.triggerType === 'buildNumber' && buildNumber >= trigger.triggerValue) {
+            // Check trigger conditions (use loose equality to handle string/number mismatch)
+            if (trigger.triggerType === 'buildNumber' && buildNumber == trigger.triggerValue) {
                 shouldTrigger = true;
-                console.log(`DEBUG: Build number trigger condition met: ${buildNumber} >= ${trigger.triggerValue}`);
+                console.log(`DEBUG: Build number trigger condition met: ${buildNumber} == ${trigger.triggerValue}`);
             } else if (trigger.triggerType === 'timeSpent' && elapsedTime >= trigger.triggerValue) {
                 shouldTrigger = true;
                 console.log(`DEBUG: Time spent trigger condition met: ${elapsedTime}ms >= ${trigger.triggerValue}ms`);
@@ -405,7 +407,6 @@ async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
 async function runBuildProtocol(dependencies) {
     const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance, updateCurrentFunction, originalRedBlobCoords, getCurrentLevelName, confirmedBlueBuildBox } = dependencies;
 
-    updateCurrentFunction('runBuildProtocol'); // Update current function display
     const startTime = Date.now();
     
     // Get level-specific settings (use the settings-compatible name)
@@ -413,6 +414,8 @@ async function runBuildProtocol(dependencies) {
     const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
     const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
     const buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+    
+    updateCurrentFunction(`runBuildProtocol ${buildNumber}`); // Update current function display with build number
     
     // Mark that finishBuild is being run for this level (after getting the build number)
     if (dependencies.markFinishBuildRunForCurrentLevel) {
@@ -452,7 +455,7 @@ async function runBuildProtocol(dependencies) {
             const elapsedTime = Date.now() - startTime;
             const minutes = Math.floor(elapsedTime / 60000);
             const seconds = Math.floor((elapsedTime % 60000) / 1000);
-            updateCurrentFunction(`runBuildProtocol (${minutes}m ${seconds}s)`);
+            updateCurrentFunction(`runBuildProtocol ${buildNumber} (${minutes}m ${seconds}s)`);
         }, 1000); // Update every second
 
         // Step 1: Use confirmed blue box from prepBuild if available, otherwise detect

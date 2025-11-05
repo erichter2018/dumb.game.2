@@ -1048,7 +1048,7 @@
     },
     "big drive thru": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 6500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -1630,7 +1630,7 @@
     },
     "waffle stand": {
       "doResearch": false,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 3000,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -1655,10 +1655,10 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "nothing",
+          "action": "scroll_up_1x",
           "waitTimeMs": null
         },
-        "scrollToBottomAfterFirstBuild": true,
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
@@ -1995,7 +1995,7 @@
           "clickaroundOptions": {
             "excludeRedBlobs": true,
             "clickaroundChunks": 1,
-            "scrollUpDistance": 100,
+            "scrollUpDistance": 0,
             "scrollUpCount": 0,
             "initialScrollDown": 0,
             "scrollToBottomAtEnd": false
@@ -2008,7 +2008,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "customTriggers": []
     },
     "curry wurst stand": {
       "doResearch": false,
@@ -2220,7 +2221,7 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "scroll_down_1x",
+          "action": "nothing",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
@@ -2248,7 +2249,10 @@
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": true,
-        "perfectStartingPosition": "nothing",
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
         "firstBuildAction": {
           "action": "click_off_and_scroll",
           "triggerTimeMs": 12000,
@@ -2257,7 +2261,7 @@
         },
         "secondBuildAction": {
           "action": "clickaround",
-          "triggerTimeMs": 60000,
+          "triggerTimeMs": 40000,
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": false,
@@ -2267,7 +2271,8 @@
             "initialScrollDown": 0,
             "scrollToBottomAtEnd": false
           }
-        }
+        },
+        "optimized": true
       },
       "directionDown": {
         "perfectStartingPosition": "nothing",
@@ -2299,7 +2304,8 @@
             "scrollToBottomAtEnd": false
           }
         }
-      }
+      },
+      "customTriggers": []
     },
     "burrito king": {
       "doResearch": true,

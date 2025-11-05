@@ -186,10 +186,20 @@ function updateCurrentLevelName(levelName) {
             currentLevelName = originalLevelName;
             console.log(`DEBUG: Stage start - database lookup failed, using OCR result: "${currentLevelName}"`);
         }
+        
+        // Reset custom trigger state for the new level
+        if (finishBuildAutomation && finishBuildAutomation.resetCustomTriggerState) {
+            finishBuildAutomation.resetCustomTriggerState();
+        }
     } else {
         // Regular level - keep original name and increment counter for new levels
         currentLevelName = originalLevelName;
         console.log(`DEBUG: Regular level name set: "${currentLevelName}"`);
+        
+        // Reset custom trigger state for the new level
+        if (finishBuildAutomation && finishBuildAutomation.resetCustomTriggerState) {
+            finishBuildAutomation.resetCustomTriggerState();
+        }
         
         // Check if we should start a partial stage (named level starting with no active stage)
         if (!stageTrackingEnabled || !currentStage) {
@@ -1730,13 +1740,23 @@ ipcMain.handle('reset-level-to-defaults', async (event, levelName) => {
 });
 
 // Custom triggers IPC handlers
-ipcMain.handle('get-custom-triggers', async (event, levelName) => {
-  return settingsManager.getCustomTriggers(levelName);
+ipcMain.handle('get-custom-triggers', async (event, levelName, direction) => {
+  // If no direction specified, get it from level settings
+  if (!direction) {
+    const levelSettings = settingsManager.getLevelSettings(levelName);
+    direction = levelSettings.scrollDirection || 'up';
+  }
+  return settingsManager.getCustomTriggers(levelName, direction);
 });
 
-ipcMain.handle('add-custom-trigger', async (event, levelName, trigger) => {
+ipcMain.handle('add-custom-trigger', async (event, levelName, trigger, direction) => {
   try {
-    settingsManager.addCustomTrigger(levelName, trigger);
+    // If no direction specified, get it from level settings
+    if (!direction) {
+      const levelSettings = settingsManager.getLevelSettings(levelName);
+      direction = levelSettings.scrollDirection || 'up';
+    }
+    settingsManager.addCustomTrigger(levelName, trigger, direction);
     return { success: true };
   } catch (error) {
     console.error('Error adding custom trigger:', error);
@@ -2459,8 +2479,12 @@ ipcMain.handle('toggle-click-around', async (event, isRunning, exclude_red_blobs
 
 // Helper function to start the capture interval
 async function startCaptureInterval(interval = 500) {
-  if (isCapturing) return false;
+  if (isCapturing) {
+    console.log('DEBUG: startCaptureInterval called while capture already active. Skipping.');
+    return false;
+  }
 
+  console.log(`DEBUG: startCaptureInterval starting with interval ${interval}ms.`);
   isCapturing = true;
   captureInterval = setInterval(async () => {
     try {
@@ -2491,10 +2515,14 @@ ipcMain.handle('start-live-view', async (event, interval = 500) => {
 });
 
 ipcMain.handle('stop-live-view', async () => {
+  console.log('DEBUG: stop-live-view handler invoked.');
   isCapturing = false;
   if (captureInterval) {
     clearInterval(captureInterval);
     captureInterval = null;
+    console.log('DEBUG: Capture interval cleared.');
+  } else {
+    console.log('DEBUG: stop-live-view called but no capture interval was active.');
   }
   return true;
 });
