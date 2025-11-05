@@ -3088,13 +3088,15 @@ async function initializeSettingsModal() {
                 // Don't save, just continue with switching
             } else if (result === 'save') {
                 // Extract only direction-specific settings (exclude global settings)
+                const customTriggersForOldDir = getCustomTriggersFromForm();
                 const directionSpecificSettings = {
                     optimized: currentSettings.optimized,
                     perfectStartingPosition: currentSettings.perfectStartingPosition,
                     scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
                     scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
                     firstBuildAction: currentSettings.firstBuildAction,
-                    secondBuildAction: currentSettings.secondBuildAction
+                    secondBuildAction: currentSettings.secondBuildAction,
+                    customTriggers: customTriggersForOldDir
                 };
                 await ipcRenderer.invoke('renderer-log', `DIR: saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
                 // Save changes from old direction before switching
@@ -3102,13 +3104,15 @@ async function initializeSettingsModal() {
             }
         } else {
             // No unsaved changes, just auto-save current state
+            const customTriggersForOldDir = getCustomTriggersFromForm();
             const directionSpecificSettings = {
                 optimized: currentSettings.optimized,
                 perfectStartingPosition: currentSettings.perfectStartingPosition,
                 scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
                 scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
                 firstBuildAction: currentSettings.firstBuildAction,
-                secondBuildAction: currentSettings.secondBuildAction
+                secondBuildAction: currentSettings.secondBuildAction,
+                customTriggers: customTriggersForOldDir
             };
             await ipcRenderer.invoke('renderer-log', `DIR: auto-saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
             await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
@@ -3221,6 +3225,10 @@ async function initializeSettingsModal() {
             settings.secondBuildAction.action === 'clickaround' ? 'block' : 'none';
         document.getElementById('secondBuildClickOffScrollDistance').parentElement.style.display = 
             settings.secondBuildAction.action === 'click_off_and_scroll' ? 'block' : 'none';
+        
+        // Load custom triggers for the new direction
+        await ipcRenderer.invoke('renderer-log', `DIR: loading custom triggers for ${newDirection}`);
+        await loadCustomTriggersForLevel(currentEditingLevel, newDirection);
         
         // originalSettings was already set at the beginning
         // Disable save button since we just loaded saved settings
@@ -3421,9 +3429,9 @@ async function loadSettingsForLevel(levelName) {
 }
 
 // Load custom triggers for a level in settings
-async function loadCustomTriggersForLevel(levelName) {
+async function loadCustomTriggersForLevel(levelName, direction = null) {
     try {
-        const triggers = await ipcRenderer.invoke('get-custom-triggers', levelName);
+        const triggers = await ipcRenderer.invoke('get-custom-triggers', levelName, direction);
         const triggerTypes = await ipcRenderer.invoke('get-trigger-types');
         const triggerActions = await ipcRenderer.invoke('get-trigger-actions');
         
@@ -3448,6 +3456,21 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
     
     const triggerDiv = document.createElement('div');
     triggerDiv.className = 'trigger-settings-item';
+    
+    // Determine the correct input field based on trigger type
+    const triggerType = trigger.triggerType || 'buildNumber';
+    let valueInput = '';
+    if (triggerType === 'buildNumber') {
+        valueInput = `<input type="number" class="trigger-settings-value" data-index="${index}" data-field="triggerValue" 
+                   value="${trigger.triggerValue || ''}" placeholder="Build #" min="3" max="12" step="1">`;
+    } else if (triggerType === 'timeSpent') {
+        valueInput = `<input type="number" class="trigger-settings-value" data-index="${index}" data-field="triggerValue" 
+                   value="${trigger.triggerValue || ''}" placeholder="Time (ms)" min="1000" step="1000">`;
+    } else if (triggerType === 'buildName') {
+        valueInput = `<input type="text" class="trigger-settings-value" data-index="${index}" data-field="triggerValue" 
+                   value="${trigger.triggerValue || ''}" placeholder="Build name">`;
+    }
+    
     triggerDiv.innerHTML = `
         <div class="trigger-basic-settings">
             <select class="trigger-settings-type" data-index="${index}" data-field="triggerType">
@@ -3455,8 +3478,9 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
                     `<option value="${type.value}" ${trigger.triggerType === type.value ? 'selected' : ''}>${type.label}</option>`
                 ).join('')}
             </select>
-            <input type="number" class="trigger-settings-value" data-index="${index}" data-field="triggerValue" 
-                   value="${trigger.triggerValue || ''}" placeholder="Value" min="1">
+            <span class="trigger-value-container" data-index="${index}">
+                ${valueInput}
+            </span>
             <select class="trigger-settings-action" data-index="${index}" data-field="action">
                 ${triggerActions.map(action => 
                     `<option value="${action.value}" ${trigger.action === action.value ? 'selected' : ''}>${action.label}</option>`
@@ -3477,23 +3501,23 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
                 </div>
                 <div class="setting-item">
                     <label for="triggerClickaroundChunks${index}">Number of Chunks:</label>
-                    <input type="number" id="triggerClickaroundChunks${index}" min="1" max="10" step="1" 
-                           value="${trigger.clickaroundOptions?.clickaroundChunks || 3}">
+                    <input type="number" id="triggerClickaroundChunks${index}" min="0" max="10" step="1" 
+                           value="${trigger.clickaroundOptions?.clickaroundChunks ?? 3}">
                 </div>
                 <div class="setting-item">
                     <label for="triggerScrollUpDistance${index}">Scroll Up Distance (px):</label>
-                    <input type="number" id="triggerScrollUpDistance${index}" min="50" max="500" step="10" 
-                           value="${trigger.clickaroundOptions?.scrollUpDistance || 200}">
+                    <input type="number" id="triggerScrollUpDistance${index}" min="0" max="500" step="10" 
+                           value="${trigger.clickaroundOptions?.scrollUpDistance ?? 200}">
                 </div>
                 <div class="setting-item">
                     <label for="triggerScrollUpCount${index}">Scroll Up Count:</label>
-                    <input type="number" id="triggerScrollUpCount${index}" min="1" max="10" step="1" 
-                           value="${trigger.clickaroundOptions?.scrollUpCount || 5}">
+                    <input type="number" id="triggerScrollUpCount${index}" min="0" max="10" step="1" 
+                           value="${trigger.clickaroundOptions?.scrollUpCount ?? 5}">
                 </div>
                 <div class="setting-item">
                     <label for="triggerInitialScrollDown${index}">Initial Scroll Down (px):</label>
-                    <input type="number" id="triggerInitialScrollDown${index}" min="50" max="500" step="10" 
-                           value="${trigger.clickaroundOptions?.initialScrollDown || 150}">
+                    <input type="number" id="triggerInitialScrollDown${index}" min="0" max="500" step="10" 
+                           value="${trigger.clickaroundOptions?.initialScrollDown ?? 150}">
                 </div>
                 <div class="setting-item">
                     <label>
@@ -3509,13 +3533,43 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
     
     // Add event listeners
     const selects = triggerDiv.querySelectorAll('select');
-    const inputs = triggerDiv.querySelectorAll('input[type="number"]');
+    const inputs = triggerDiv.querySelectorAll('input[type="number"], input[type="text"]');
     const checkboxes = triggerDiv.querySelectorAll('input[type="checkbox"]');
     const removeBtn = triggerDiv.querySelector('.remove-trigger-settings-btn');
     const actionSelect = triggerDiv.querySelector('.trigger-settings-action');
+    const typeSelect = triggerDiv.querySelector('.trigger-settings-type');
     
     [...selects, ...inputs, ...checkboxes].forEach(element => {
         element.addEventListener('change', () => updateTriggerSettings(index));
+    });
+    
+    // Special handler for trigger type select to update value field
+    typeSelect.addEventListener('change', () => {
+        const valueContainer = triggerDiv.querySelector('.trigger-value-container');
+        
+        // Clear the field when changing trigger type
+        let newValueInput = '';
+        if (typeSelect.value === 'buildNumber') {
+            newValueInput = `<input type="number" class="trigger-settings-value" data-index="${index}" data-field="triggerValue" 
+                       value="" placeholder="Build #" min="3" max="12" step="1">`;
+        } else if (typeSelect.value === 'timeSpent') {
+            newValueInput = `<input type="number" class="trigger-settings-value" data-index="${index}" data-field="triggerValue" 
+                       value="" placeholder="Time (ms)" min="1000" step="1000">`;
+        } else if (typeSelect.value === 'buildName') {
+            newValueInput = `<input type="text" class="trigger-settings-value" data-index="${index}" data-field="triggerValue" 
+                       value="" placeholder="Build name">`;
+        }
+        
+        valueContainer.innerHTML = newValueInput;
+        
+        // Re-add event listener to new input
+        const newInput = valueContainer.querySelector('.trigger-settings-value');
+        if (newInput) {
+            newInput.addEventListener('change', () => updateTriggerSettings(index));
+            newInput.addEventListener('input', () => updateTriggerSettings(index));
+        }
+        
+        updateTriggerSettings(index);
     });
     
     // Special handler for action select to show/hide clickaround options
@@ -3541,7 +3595,7 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
 async function addNewTriggerSettings(triggerTypes, triggerActions) {
     const newTrigger = {
         triggerType: 'buildNumber',
-        triggerValue: 1,
+        triggerValue: 3, // Default to 3 (min for buildNumber)
         action: 'clickAround',
         actionParams: 5000
     };
@@ -3592,23 +3646,44 @@ function getCustomTriggersFromForm() {
     const triggersList = document.getElementById('triggersList');
     const triggers = [];
     
-    Array.from(triggersList.children).forEach((triggerItem, index) => {
+    Array.from(triggersList.children).forEach((triggerItem) => {
+        // Get the actual index from the data-index attribute (not the forEach index)
+        const actualIndex = triggerItem.querySelector('.trigger-settings-type')?.getAttribute('data-index');
+        
+        const triggerType = triggerItem.querySelector('.trigger-settings-type').value;
+        const triggerValueRaw = triggerItem.querySelector('.trigger-settings-value').value;
+        
+        // Parse value based on trigger type
+        let triggerValue;
+        if (triggerType === 'buildName') {
+            triggerValue = triggerValueRaw; // Keep as string for build names
+        } else {
+            triggerValue = parseInt(triggerValueRaw) || (triggerType === 'buildNumber' ? 3 : 1000);
+        }
+        
         const trigger = {
-            triggerType: triggerItem.querySelector('.trigger-settings-type').value,
-            triggerValue: parseInt(triggerItem.querySelector('.trigger-settings-value').value) || 1,
+            triggerType: triggerType,
+            triggerValue: triggerValue,
             action: triggerItem.querySelector('.trigger-settings-action').value,
             actionParams: parseInt(triggerItem.querySelector('.trigger-settings-params').value) || 5000
         };
         
         // Add clickaround options if action is clickAround
         if (trigger.action === 'clickAround') {
+            const excludeRedBlobsEl = document.getElementById(`triggerExcludeRedBlobs${actualIndex}`);
+            const clickaroundChunksEl = document.getElementById(`triggerClickaroundChunks${actualIndex}`);
+            const scrollUpDistanceEl = document.getElementById(`triggerScrollUpDistance${actualIndex}`);
+            const scrollUpCountEl = document.getElementById(`triggerScrollUpCount${actualIndex}`);
+            const initialScrollDownEl = document.getElementById(`triggerInitialScrollDown${actualIndex}`);
+            const scrollToBottomAtEndEl = document.getElementById(`triggerScrollToBottomAtEnd${actualIndex}`);
+            
             trigger.clickaroundOptions = {
-                excludeRedBlobs: triggerItem.querySelector(`#triggerExcludeRedBlobs${index}`)?.checked || false,
-                clickaroundChunks: parseInt(triggerItem.querySelector(`#triggerClickaroundChunks${index}`)?.value) || 3,
-                scrollUpDistance: parseInt(triggerItem.querySelector(`#triggerScrollUpDistance${index}`)?.value) || 200,
-                scrollUpCount: parseInt(triggerItem.querySelector(`#triggerScrollUpCount${index}`)?.value) || 5,
-                initialScrollDown: parseInt(triggerItem.querySelector(`#triggerInitialScrollDown${index}`)?.value) || 150,
-                scrollToBottomAtEnd: triggerItem.querySelector(`#triggerScrollToBottomAtEnd${index}`)?.checked || false
+                excludeRedBlobs: excludeRedBlobsEl?.checked ?? false,
+                clickaroundChunks: clickaroundChunksEl ? parseInt(clickaroundChunksEl.value) : 3,
+                scrollUpDistance: scrollUpDistanceEl ? parseInt(scrollUpDistanceEl.value) : 200,
+                scrollUpCount: scrollUpCountEl ? parseInt(scrollUpCountEl.value) : 5,
+                initialScrollDown: initialScrollDownEl ? parseInt(initialScrollDownEl.value) : 150,
+                scrollToBottomAtEnd: scrollToBottomAtEndEl?.checked ?? false
             };
         }
         
@@ -3629,8 +3704,7 @@ async function saveCurrentSettings() {
     const globalSettings = {
         doResearch: settings.doResearch,
         scrollDirection: settings.scrollDirection,
-        blueBoxClickHoldDuration: settings.blueBoxClickHoldDuration,
-        customTriggers: customTriggers
+        blueBoxClickHoldDuration: settings.blueBoxClickHoldDuration
     };
     
     const directionSpecificSettings = {
@@ -3639,7 +3713,8 @@ async function saveCurrentSettings() {
         scrollToBottomAfterFirstBuild: settings.scrollToBottomAfterFirstBuild,
         scrollToBottomAfterSecondBuild: settings.scrollToBottomAfterSecondBuild,
         firstBuildAction: settings.firstBuildAction,
-        secondBuildAction: settings.secondBuildAction
+        secondBuildAction: settings.secondBuildAction,
+        customTriggers: customTriggers  // Custom triggers are direction-specific
     };
     
     // Save global settings

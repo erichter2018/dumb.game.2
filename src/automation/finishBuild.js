@@ -1,24 +1,27 @@
 const blueBoxDetector = require('../detection/blueBoxDetector');
 const redBlobDetector = require('../detection/redBlobDetector');
 const settingsManager = require('../../lib/settingsManager');
+const { captureBuildName } = require('../../utils/ocr');
 
 // Global variables for custom triggers
 let levelStartTime = Date.now(); // Track when level started
-let triggeredActions = new Set(); // Track which triggers have already fired
+let triggeredActions = new Set(); // Track which triggers have already fired during this level
 
 // Function to reset custom trigger state for new level
+// This ensures each trigger only fires ONCE per level, even if the condition is met multiple times
+// Example: If "Tomato" build appears in build 1 and build 5, the trigger only fires on build 1
 function resetCustomTriggerState() {
     levelStartTime = Date.now();
     triggeredActions.clear();
-    console.log('DEBUG: Custom trigger state reset for new level');
+    console.log('DEBUG: Custom trigger state reset for new level - all triggers can fire again');
 }
 
 // Custom trigger detection and execution during build
-async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTime, direction, dependencies) {
+async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTime, direction, buildName, dependencies) {
     try {
         // Normalize level name to match how it's stored in settings
         const normalizedLevelName = levelName ? levelName.toLowerCase().trim() : '';
-        console.log(`DEBUG: checkCustomTriggersDuringBuild called for level: "${levelName}" -> normalized: "${normalizedLevelName}", build: ${buildNumber}, elapsed: ${elapsedTime}ms, direction: ${direction}`);
+        console.log(`DEBUG: checkCustomTriggersDuringBuild called for level: "${levelName}" -> normalized: "${normalizedLevelName}", build: ${buildNumber}, elapsed: ${elapsedTime}ms, direction: ${direction}, buildName: "${buildName}"`);
         
         const triggers = settingsManager.getCustomTriggers(normalizedLevelName, direction);
         console.log(`DEBUG: Found ${triggers ? triggers.length : 0} custom triggers for level "${normalizedLevelName}" (${direction} direction)`);
@@ -36,9 +39,9 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
             
             console.log(`DEBUG: Checking trigger ${i}: ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
             
-            // Skip if already triggered
+            // Skip if already triggered during this level (triggers only fire ONCE per level)
             if (triggeredActions.has(triggerKey)) {
-                console.log(`DEBUG: Trigger ${i} already fired, skipping`);
+                console.log(`DEBUG: Trigger ${i} (${trigger.triggerType}:${trigger.triggerValue}) already fired this level, skipping`);
                 continue;
             }
 
@@ -51,11 +54,20 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
             } else if (trigger.triggerType === 'timeSpent' && elapsedTime >= trigger.triggerValue) {
                 shouldTrigger = true;
                 console.log(`DEBUG: Time spent trigger condition met: ${elapsedTime}ms >= ${trigger.triggerValue}ms`);
+            } else if (trigger.triggerType === 'buildName' && buildName) {
+                // Case-insensitive "contains" match
+                const normalizedBuildName = buildName.toLowerCase();
+                const normalizedTriggerValue = String(trigger.triggerValue).toLowerCase();
+                if (normalizedBuildName.includes(normalizedTriggerValue)) {
+                    shouldTrigger = true;
+                    console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
+                }
             }
 
             if (shouldTrigger) {
-                console.log(`DEBUG: Custom trigger fired during build - ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
-                triggeredActions.add(triggerKey);
+                console.log(`DEBUG: Custom trigger FIRING (first time this level) - ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+                triggeredActions.add(triggerKey); // Mark as fired for the rest of this level
+                console.log(`DEBUG: Trigger marked as fired, will not fire again until next level`);
                 await executeTriggerActionDuringBuild(trigger, dependencies);
             }
         }
@@ -100,7 +112,7 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
 }
 
 async function executeClickAroundDuringBuild(durationMs, clickaroundOptions, dependencies) {
-    const { performClick, updateStatus, captureScreenRegion, redBlobDetectorDetect, iphoneMirroringRegion } = dependencies;
+    const { performClick, updateStatus, captureScreenRegion, redBlobDetectorDetect, iphoneMirroringRegion, getIsAutomationRunning } = dependencies;
     
     const startTime = Date.now();
     const endTime = startTime + durationMs;
@@ -405,7 +417,7 @@ async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
 }
 
 async function runBuildProtocol(dependencies) {
-    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance, updateCurrentFunction, originalRedBlobCoords, getCurrentLevelName, confirmedBlueBuildBox } = dependencies;
+    const { updateStatus, getIsAutomationRunning, scrollToBottom, scrollSwipeDistance, updateCurrentFunction, originalRedBlobCoords, getCurrentLevelName, confirmedBlueBuildBox, captureScreenRegion } = dependencies;
 
     const startTime = Date.now();
     
@@ -414,6 +426,9 @@ async function runBuildProtocol(dependencies) {
     const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
     const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
     const buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+    
+    // Variable to store build name (will be captured via OCR)
+    let buildName = '';
     
     updateCurrentFunction(`runBuildProtocol ${buildNumber}`); // Update current function display with build number
     
@@ -455,7 +470,8 @@ async function runBuildProtocol(dependencies) {
             const elapsedTime = Date.now() - startTime;
             const minutes = Math.floor(elapsedTime / 60000);
             const seconds = Math.floor((elapsedTime % 60000) / 1000);
-            updateCurrentFunction(`runBuildProtocol ${buildNumber} (${minutes}m ${seconds}s)`);
+            const nameDisplay = buildName ? ` ${buildName}` : '';
+            updateCurrentFunction(`runBuildProtocol ${buildNumber}${nameDisplay} (${minutes}m ${seconds}s)`);
         }, 1000); // Update every second
 
         // Step 1: Use confirmed blue box from prepBuild if available, otherwise detect
@@ -492,6 +508,18 @@ async function runBuildProtocol(dependencies) {
         updateStatus(`Initial build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${initialDetectedBox.state})`, 'info');
         console.log(`DEBUG: Initial build box found: ${JSON.stringify(omitImageFromLog(initialDetectedBox))}`);
 
+        // Capture build name via OCR
+        if (captureScreenRegion) {
+            updateStatus('Capturing build name via OCR...', 'info');
+            buildName = await captureBuildName(initialDetectedBox, captureScreenRegion);
+            if (buildName) {
+                console.log(`DEBUG: Build name captured successfully: "${buildName}"`);
+                updateCurrentFunction(`runBuildProtocol ${buildNumber} ${buildName}`);
+            } else {
+                console.log('DEBUG: Failed to capture build name, continuing without it');
+            }
+        }
+
         // Step 2: Start a loop
         let isFirstLoopIteration = true; // Flag to skip detection on first iteration when we have confirmed box
         let actionExecuted = false; // Flag to ensure action is executed only once
@@ -527,7 +555,7 @@ async function runBuildProtocol(dependencies) {
             // Get current direction from level settings
             const currentDirection = levelSettings.scrollDirection || 'up';
             console.log(`DEBUG: Checking custom triggers during build #${buildNumber} at ${elapsedTime}ms`);
-            await checkCustomTriggersDuringBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, dependencies);
+            await checkCustomTriggersDuringBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
             
             // Only check for action if one is configured and hasn't been executed yet
             // If triggerTimeMs is null, execute immediately; otherwise wait for the trigger time
