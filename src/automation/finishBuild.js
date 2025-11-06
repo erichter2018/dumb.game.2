@@ -322,7 +322,7 @@ async function findAndGetBlueBoxClickCoordinates(imageDataUrl, captureRegion) {
 }
 
 async function holdBlueBox(coords, duration, dependencies, levelName) {
-    const { clickDown, clickUp, setIsHoldingBlueBox, setlastBlueBoxClickCoords, updateStatus, clickAndHold, getIsAutomationRunning } = dependencies;
+    const { clickDown, clickUp, setIsHoldingBlueBox, setlastBlueBoxClickCoords, updateStatus, clickAndHold, getIsAutomationRunning, captureScreenRegion, detectBlueBoxes, iphoneMirroringRegion } = dependencies;
     
     if (!coords || coords.x === null || coords.y === null) {
         console.error('ERROR: Attempted to hold blue box with null or invalid coordinates.', coords);
@@ -345,12 +345,38 @@ async function holdBlueBox(coords, duration, dependencies, levelName) {
     setlastBlueBoxClickCoords(coords); // Store coords to be able to release on interruption
     setIsHoldingBlueBox(true); // Indicate that a click-hold is active
     
-    console.log(`DEBUG: Attempting to click down at (${coords.x}, ${coords.y}) for holdBlueBox.`); // New log
-    // Use the interruptible clickAndHold from main.js
-    await clickAndHold(coords.x, coords.y, actualDuration, getIsAutomationRunning);
+    // Create callback to check if build is complete (grey_max) during hold
+    const checkBuildComplete = async () => {
+        if (!captureScreenRegion || !detectBlueBoxes) {
+            return false; // Can't check without detection functions
+        }
+        
+        try {
+            const screenCapture = await captureScreenRegion();
+            const blueBoxes = await detectBlueBoxes(screenCapture, iphoneMirroringRegion);
+            const maxBuild = blueBoxes.find(box => box.state === 'grey_max');
+            if (maxBuild) {
+                console.log(`DEBUG: Build reached MAX during hold, stopping hold early`);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('DEBUG: Error checking build completion during hold:', error);
+            return false;
+        }
+    };
     
+    console.log(`DEBUG: Attempting to click down at (${coords.x}, ${coords.y}) for holdBlueBox.`);
+    // Use the interruptible clickAndHold from main.js with early exit callback
+    const holdResult = await clickAndHold(coords.x, coords.y, actualDuration, getIsAutomationRunning, checkBuildComplete);
+    
+    if (holdResult.stoppedEarly) {
+        console.log('DEBUG: Click-hold stopped early (build completed)');
+    }
     console.log('DEBUG: Releasing click-hold at ' + (coords ? `(${coords.x}, ${coords.y})` : 'null') + '.');
     setIsHoldingBlueBox(false); // Indicate that click-hold is no longer active
+    
+    return holdResult; // Return result so caller knows if hold stopped early
 }
 
 async function checkResearchBlob(dependencies, levelName) {
@@ -851,7 +877,41 @@ async function runBuildProtocol(dependencies) {
             }
 
             // Step 3: Call a function to hold down in the middle of the current blue box for duration from settings
-            await holdBlueBox(blueBoxCoords, 5000, dependencies, settingsLevelName);
+            const holdResult = await holdBlueBox(blueBoxCoords, 5000, dependencies, settingsLevelName);
+
+            // If hold stopped early (build completed), exit immediately without re-checking
+            // We already detected grey_max during the hold callback, no need to verify again
+            if (holdResult && holdResult.stoppedEarly) {
+                console.log('DEBUG: Hold stopped early due to grey_max detection - EXITING IMMEDIATELY (no re-check needed)');
+                
+                // Mark this build as successfully completed
+                if (dependencies.markBuildAsCompleted) {
+                    dependencies.markBuildAsCompleted();
+                }
+                
+                // Calculate elapsed time for this build
+                const elapsedTime = Date.now() - startTime;
+                
+                // Get the ACTUAL effective direction being used
+                const currentDirection = (dependencies.getEffectiveDirection ? dependencies.getEffectiveDirection() : null) 
+                    || (dependencies.getEffectiveDirectionForLevel ? dependencies.getEffectiveDirectionForLevel() : null)
+                    || levelSettings.scrollDirection 
+                    || 'up';
+                
+                // Check for custom triggers that fire AFTER build completes
+                console.log(`DEBUG: Checking AFTER-build triggers for build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
+                await checkCustomTriggersAfterBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
+                
+                // Perform the "click off" action
+                if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
+                    updateStatus('Performing final "click off" action.', 'info');
+                    await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                } else {
+                    console.warn('WARNING: CLICK_OFF coordinates or performClick not available in dependencies.');
+                }
+
+                return 'max_build_achieved'; // Return immediately - don't continue loop
+            }
 
             // Step 4: Call another function to check research blob (respects level settings)
             const researchBlobFound = await checkResearchBlob(dependencies, settingsLevelName);

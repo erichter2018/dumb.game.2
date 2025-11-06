@@ -1315,7 +1315,7 @@ async function clickUp(x, y) {
   }
 }
 
-async function clickAndHold(x, y, duration, getIsAutomationRunning) {
+async function clickAndHold(x, y, duration, getIsAutomationRunning, shouldStopHolding = null) {
   try {
     // Move mouse to position and press down using robotjs
     robot.moveMouse(x, y);
@@ -1324,19 +1324,28 @@ async function clickAndHold(x, y, duration, getIsAutomationRunning) {
 
     const startTime = Date.now();
     let heldDuration = 0;
-    const checkInterval = 100; // Check every 100ms
+    const checkInterval = 250; // Check every 250ms for build completion (Old: 500ms)
 
     // Hold the mouse button down for the specified duration
     while (heldDuration < duration && getIsAutomationRunning()) {
       await new Promise(resolve => setTimeout(resolve, Math.min(checkInterval, duration - heldDuration)));
       heldDuration = Date.now() - startTime;
+      
+      // Check if we should stop holding early (e.g., build completed)
+      if (shouldStopHolding) {
+        const shouldStop = await shouldStopHolding();
+        if (shouldStop) {
+          console.log(`DEBUG: clickAndHold stopping early after ${heldDuration}ms (build completed)`);
+          break;
+        }
+      }
     }
 
     // Always release the mouse button
     await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before mouse up
     robot.mouseToggle('up', 'left');
     
-    return { success: true };
+    return { success: true, stoppedEarly: heldDuration < duration };
   } catch (error) {
     console.error(`Error in robotjs clickAndHold at (${x}, ${y}):`, error);
     // Ensure mouse button is released even on error

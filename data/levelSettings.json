@@ -133,7 +133,8 @@
             "scrollToBottomAtEnd": false
           }
         }
-      }
+      },
+      "minBuildCount": 2
     },
     "food truck": {
       "doResearch": true,
@@ -401,7 +402,7 @@
           }
         }
       },
-      "minBuildCount": 12
+      "minBuildCount": 10
     },
     "hot dog stand": {
       "doResearch": false,
@@ -468,7 +469,8 @@
             "scrollToBottomAtEnd": false
           }
         }
-      }
+      },
+      "minBuildCount": 1
     },
     "news stand": {
       "doResearch": false,
@@ -1178,7 +1180,8 @@
             "scrollToBottomAtEnd": false
           }
         }
-      ]
+      ],
+      "minBuildCount": 10
     },
     "sushi bar": {
       "doResearch": true,
@@ -1604,7 +1607,7 @@
     },
     "ramen truck": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 3500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -1639,7 +1642,8 @@
             "scrollToBottomAtEnd": false
           }
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
@@ -1647,7 +1651,7 @@
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
-        "scrollToBottomAfterSecondBuild": true,
+        "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "clickaround",
           "triggerTimeMs": 1000,
@@ -1667,7 +1671,8 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
       "minBuildCount": 3
     },
@@ -2111,7 +2116,7 @@
     },
     "apple juice bar": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 6500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -2146,7 +2151,8 @@
             "scrollToBottomAtEnd": false
           }
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
@@ -2157,7 +2163,7 @@
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "clickaround",
-          "triggerTimeMs": null,
+          "triggerTimeMs": 8000,
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": true,
@@ -2174,7 +2180,8 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
       "customTriggers": []
     },
@@ -2185,7 +2192,10 @@
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": true,
-        "perfectStartingPosition": "scroll_down_2x",
+        "perfectStartingPosition": {
+          "action": "scroll_down_1x",
+          "waitTimeMs": null
+        },
         "firstBuildAction": {
           "action": "clickaround",
           "triggerTimeMs": 20000,
@@ -2200,18 +2210,44 @@
           }
         },
         "secondBuildAction": {
-          "action": "clickaround",
+          "action": "nothing",
           "triggerTimeMs": 6000,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": false,
-            "clickaroundChunks": 1,
-            "scrollUpDistance": 0,
-            "scrollUpCount": 0,
-            "initialScrollDown": 0,
-            "scrollToBottomAtEnd": false
+          "clickaroundOptions": {}
+        },
+        "optimized": true,
+        "customTriggers": [
+          {
+            "timing": "during",
+            "triggerType": "buildName",
+            "triggerValue": "Oyster",
+            "action": "clickAround",
+            "actionParams": 5000,
+            "clickaroundOptions": {
+              "excludeRedBlobs": false,
+              "clickaroundChunks": 1,
+              "scrollUpDistance": 0,
+              "scrollUpCount": 0,
+              "initialScrollDown": 0,
+              "scrollToBottomAtEnd": false
+            }
+          },
+          {
+            "timing": "during",
+            "triggerType": "buildName",
+            "triggerValue": "Lobster",
+            "action": "clickAround",
+            "actionParams": 5000,
+            "clickaroundOptions": {
+              "excludeRedBlobs": false,
+              "clickaroundChunks": 1,
+              "scrollUpDistance": 0,
+              "scrollUpCount": 0,
+              "initialScrollDown": 0,
+              "scrollToBottomAtEnd": false
+            }
           }
-        }
+        ]
       },
       "directionDown": {
         "perfectStartingPosition": "nothing",
@@ -2330,16 +2366,23 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "nothing",
+          "action": "scroll_up_1x",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
-          "action": "click_off_and_scroll",
+          "action": "clickaround",
           "triggerTimeMs": 12000,
           "clickOffAndScrollDistance": 500,
-          "clickaroundOptions": {}
+          "clickaroundOptions": {
+            "excludeRedBlobs": true,
+            "clickaroundChunks": 2,
+            "scrollUpDistance": 0,
+            "scrollUpCount": 0,
+            "initialScrollDown": 0,
+            "scrollToBottomAtEnd": false
+          }
         },
         "secondBuildAction": {
           "action": "clickaround",

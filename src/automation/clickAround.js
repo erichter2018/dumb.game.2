@@ -217,20 +217,26 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
       // Check pause state once per screen instead of every 5 rows
       if (!await checkPauseState()) return;
 
-      // Scroll down (350 pixels hardcoded between chunks)
-      const scrollDownBetweenChunks = 350;
-      updateStatus(`Click Around: Completed screen ${scrollCount + 1}/${maxScrolls}. Scrolling down by ${scrollDownBetweenChunks} pixels.`, 'info');
-      await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, scrollDownBetweenChunks);
-      
-      // Capture bottom image for next iteration's comparison
-      try {
-        previousBottomImage = await captureBottomRegion(captureScreenRegion, iphoneMirroringRegion);
-        console.log(`DEBUG: ClickAround captured bottom image for next iteration comparison.`);
-      } catch (error) {
-        console.error(`DEBUG: ClickAround failed to capture bottom image: ${error.message}`);
-      }
-      
       scrollCount++;
+      
+      // Only scroll down if there are more chunks to process
+      if (scrollCount < maxScrolls) {
+        // Scroll down (350 pixels hardcoded between chunks)
+        const scrollDownBetweenChunks = 350;
+        updateStatus(`Click Around: Completed screen ${scrollCount}/${maxScrolls}. Scrolling down by ${scrollDownBetweenChunks} pixels to next chunk.`, 'info');
+        await scrollDown(regionX + regionWidth / 2, regionY + regionHeight / 2, scrollDownBetweenChunks);
+        
+        // Capture bottom image for next iteration's comparison
+        try {
+          previousBottomImage = await captureBottomRegion(captureScreenRegion, iphoneMirroringRegion);
+          console.log(`DEBUG: ClickAround captured bottom image for next iteration comparison.`);
+        } catch (error) {
+          console.error(`DEBUG: ClickAround failed to capture bottom image: ${error.message}`);
+        }
+      } else {
+        updateStatus(`Click Around: Completed final screen ${scrollCount}/${maxScrolls}. No more chunks to process.`, 'info');
+        console.log(`DEBUG: ClickAround completed final chunk - no scroll down needed`);
+      }
     }
 
     if (scrollCount >= maxScrolls) {

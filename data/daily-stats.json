@@ -1800,8 +1800,8 @@
       "avgStageTime": 710881
     },
     "2025-11-06": {
-      "levelsCompleted": 101,
-      "stagesCompleted": 19,
+      "levelsCompleted": 148,
+      "stagesCompleted": 25,
       "levelTimes": [
         47573,
         120708,
@@ -1875,7 +1875,39 @@
         20328,
         28536,
         48738,
-        107091
+        107091,
+        76758,
+        20865,
+        32346,
+        46018,
+        73333,
+        107231,
+        96158,
+        20034,
+        30732,
+        116130,
+        87983,
+        22229,
+        31098,
+        50848,
+        142342,
+        19556,
+        30421,
+        41540,
+        122412,
+        105270,
+        166586,
+        24027,
+        31620,
+        41018,
+        74943,
+        88008,
+        20199,
+        30121,
+        48656,
+        83672,
+        112469,
+        90415
       ],
       "stageTimes": [
         653282,
@@ -1885,20 +1917,20 @@
         634399,
         631313
       ],
-      "minLevelTime": 19756,
+      "minLevelTime": 19556,
       "maxLevelTime": 198245,
-      "avgLevelTime": 68841,
+      "avgLevelTime": 67718,
       "minStageTime": 631313,
       "maxStageTime": 826715,
       "avgStageTime": 702116
     }
   },
   "lastKnownLevel": {
-    "stageName": "Cairo",
-    "stageNumber": 53,
-    "levelName": "Kebab Shop",
-    "levelPosition": 4,
-    "timestamp": "2025-11-06T08:42:03.934Z"
+    "stageName": "Gothenburg",
+    "stageNumber": 59,
+    "levelName": "Dessert Co",
+    "levelPosition": 6,
+    "timestamp": "2025-11-06T10:30:56.814Z"
   },
-  "lastSaveDate": "2025-11-06T08:42:03.934Z"
+  "lastSaveDate": "2025-11-06T10:30:56.814Z"
 }
