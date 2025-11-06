@@ -1800,8 +1800,8 @@
       "avgStageTime": 710881
     },
     "2025-11-06": {
-      "levelsCompleted": 93,
-      "stagesCompleted": 18,
+      "levelsCompleted": 101,
+      "stagesCompleted": 19,
       "levelTimes": [
         47573,
         120708,
@@ -1870,7 +1870,12 @@
         19756,
         30668,
         49596,
-        71184
+        71184,
+        109893,
+        20328,
+        28536,
+        48738,
+        107091
       ],
       "stageTimes": [
         653282,
@@ -1882,18 +1887,18 @@
       ],
       "minLevelTime": 19756,
       "maxLevelTime": 198245,
-      "avgLevelTime": 69276,
+      "avgLevelTime": 68841,
       "minStageTime": 631313,
       "maxStageTime": 826715,
       "avgStageTime": 702116
     }
   },
   "lastKnownLevel": {
-    "stageName": "Birmingham",
-    "stageNumber": 52,
-    "levelName": "Cafe Napolita",
+    "stageName": "Cairo",
+    "stageNumber": 53,
+    "levelName": "Kebab Shop",
     "levelPosition": 4,
-    "timestamp": "2025-11-06T08:26:39.057Z"
+    "timestamp": "2025-11-06T08:42:03.934Z"
   },
-  "lastSaveDate": "2025-11-06T08:26:39.057Z"
+  "lastSaveDate": "2025-11-06T08:42:03.934Z"
 }

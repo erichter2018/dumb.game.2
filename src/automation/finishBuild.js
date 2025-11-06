@@ -585,16 +585,26 @@ async function runBuildProtocol(dependencies) {
         updateStatus(`Initial build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${initialDetectedBox.state})`, 'info');
         console.log(`DEBUG: Initial build box found: ${JSON.stringify(omitImageFromLog(initialDetectedBox))}`);
 
-        // Capture build name via OCR
+        // Capture build name via OCR asynchronously (don't block build start)
         if (captureScreenRegion) {
-            updateStatus('Capturing build name via OCR...', 'info');
-            buildName = await captureBuildName(initialDetectedBox, captureScreenRegion);
-            if (buildName) {
-                console.log(`DEBUG: Build name captured successfully: "${buildName}"`);
-                updateCurrentFunction(`runBuildProtocol ${buildDisplay} ${buildName}`);
-            } else {
-                console.log('DEBUG: Failed to capture build name, continuing without it');
-            }
+            updateStatus('Capturing build name via OCR (async)...', 'info');
+            // Start OCR but don't await - it will update buildName when ready
+            captureBuildName(initialDetectedBox, captureScreenRegion).then(name => {
+                if (name) {
+                    buildName = name; // Update the variable when ready
+                    console.log(`DEBUG: Build name captured asynchronously: "${buildName}"`);
+                    // Update display with the build name
+                    const nameDisplay = buildName ? ` ${buildName}` : '';
+                    const elapsedTime = Date.now() - startTime;
+                    const minutes = Math.floor(elapsedTime / 60000);
+                    const seconds = Math.floor((elapsedTime % 60000) / 1000);
+                    updateCurrentFunction(`runBuildProtocol ${buildDisplay}${nameDisplay} (${minutes}m ${seconds}s)`);
+                } else {
+                    console.log('DEBUG: Failed to capture build name asynchronously, continuing without it');
+                }
+            }).catch(err => {
+                console.error('DEBUG: Error capturing build name:', err);
+            });
         }
 
         // Step 2: Start a loop

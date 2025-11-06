@@ -26,7 +26,7 @@
       ]
     },
     "Ice Cream Truck": {
-      "averageDuration": 49904,
+      "averageDuration": 49798,
       "totalCompletions": 10,
       "bestTime": 45890,
       "worstTime": 53466,
@@ -36,11 +36,11 @@
       "allTimeBestTimeUp": 45890,
       "allTimeBestTimeDown": 49571,
       "completionsUp": [
-        49792,
         45890,
         45896,
         49728,
-        51993
+        51993,
+        48738
       ],
       "completionsDown": [
         50698,
@@ -101,21 +101,21 @@
       ]
     },
     "Tapas Bar": {
-      "averageDuration": 90081,
+      "averageDuration": 91432,
       "totalCompletions": 10,
       "bestTime": 78771,
-      "worstTime": 96889,
+      "worstTime": 109893,
       "lastTime": 78771,
       "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 88821,
       "allTimeBestTimeDown": 78771,
       "completionsUp": [
-        96386,
         96648,
         95329,
         88821,
-        96115
+        96115,
+        109893
       ],
       "completionsDown": [
         96889,
@@ -264,15 +264,15 @@
       "completionsDown": []
     },
     "Floral Stand": {
-      "averageDuration": 30218,
+      "averageDuration": 30054,
       "totalCompletions": 10,
-      "bestTime": 29106,
+      "bestTime": 28536,
       "worstTime": 31726,
-      "lastTime": 31001,
+      "lastTime": 28536,
       "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 29126,
-      "allTimeBestTimeDown": 29106,
+      "allTimeBestTimeDown": 28536,
       "completionsUp": [
         30332,
         29126,
@@ -281,11 +281,11 @@
         31726
       ],
       "completionsDown": [
-        30176,
         29106,
         30845,
         30275,
-        31001
+        31001,
+        28536
       ]
     },
     "Cheese Shop": {
@@ -558,15 +558,15 @@
       ]
     },
     "Italiano": {
-      "averageDuration": 325362,
+      "averageDuration": 320272,
       "totalCompletions": 10,
-      "bestTime": 289061,
+      "bestTime": 277486,
       "worstTime": 388453,
-      "lastTime": 289061,
+      "lastTime": 277486,
       "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 303940,
-      "allTimeBestTimeDown": 289061,
+      "allTimeBestTimeDown": 277486,
       "completionsUp": [
         388453,
         310741,
@@ -575,11 +575,11 @@
         305965
       ],
       "completionsDown": [
-        328391,
         307432,
         327331,
         325130,
-        289061
+        289061,
+        277486
       ]
     },
     "Baklava Shop": {
@@ -608,21 +608,21 @@
       ]
     },
     "Kebab Shop": {
-      "averageDuration": 107684,
+      "averageDuration": 107266,
       "totalCompletions": 10,
       "bestTime": 95667,
       "worstTime": 114559,
       "lastTime": 100821,
       "bestDirection": "down",
       "lastDirection": "down",
-      "allTimeBestTimeUp": 110890,
+      "allTimeBestTimeUp": 107091,
       "allTimeBestTimeDown": 95667,
       "completionsUp": [
-        111271,
         111517,
         112991,
         110890,
-        113963
+        113963,
+        107091
       ],
       "completionsDown": [
         103383,
@@ -942,15 +942,15 @@
       ]
     },
     "Ice Cream Stand": {
-      "averageDuration": 20806,
+      "averageDuration": 20759,
       "totalCompletions": 10,
-      "bestTime": 20592,
+      "bestTime": 20328,
       "worstTime": 21225,
-      "lastTime": 21225,
-      "bestDirection": "up",
+      "lastTime": 20328,
+      "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 20592,
-      "allTimeBestTimeDown": 20719,
+      "allTimeBestTimeDown": 20328,
       "completionsUp": [
         20778,
         20750,
@@ -959,11 +959,11 @@
         20592
       ],
       "completionsDown": [
-        20802,
         20782,
         20735,
         20719,
-        21225
+        21225,
+        20328
       ]
     },
     "Hot Dog Stand": {
@@ -1884,7 +1884,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-11-06T08:26:39.047Z",
+    "lastUpdated": "2025-11-06T08:42:03.928Z",
     "totalLevelsTracked": 44,
     "totalStagesTracked": 60,
     "lastCompletedStage": {

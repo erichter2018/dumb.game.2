@@ -1060,7 +1060,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 4
     },
     "big drive thru": {
       "doResearch": true,
@@ -1874,7 +1875,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 10
     },
     "baklava shop": {
       "doResearch": true,
