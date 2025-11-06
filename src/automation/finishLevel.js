@@ -178,8 +178,9 @@ function startAutomation(dependencies) {
         }
         return { dir: currentLevelEffectiveDirection, randomApplied: currentLevelRandomApplied };
     }
-    const MAX_RED_BLOB_CLICK_ATTEMPTS = 3; // Define max retry attempts for red blob clicks
-    const MAX_BLUE_BOX_CONFIRM_ATTEMPTS = 1; // New: Max retry attempts for confirming blue box
+    const MAX_RED_BLOB_CLICK_ATTEMPTS = 6; // Define max retry attempts for red blob clicks
+    const MAX_BLUE_BOX_CONFIRM_ATTEMPTS = 1; // Testing: 1 attempt only with 50ms delay
+    const BLUE_BOX_DETECTION_DELAY_MS = 50; // Old: 300ms | New: 50ms - Faster polling
     const MAX_DETECTION_ATTEMPTS_PER_SCROLL_POSITION = 2; // New: Max detection attempts before a single scroll up
     // New flag to control finishBuildAutomation when called from finishLevel
     let isFinishBuildRunningInternal = false;
@@ -212,8 +213,8 @@ function startAutomation(dependencies) {
                 if (!getIsAutomationRunning()) return null;
                 await new Promise(resolve => setTimeout(resolve, 100)); // Small delay after click
 
-                // Add 200ms delay before re-detection to ensure blue build has time to disappear if unstable
-                await new Promise(resolve => setTimeout(resolve, 200));
+                // Add delay before re-detection to ensure blue build has time to disappear if unstable
+                await new Promise(resolve => setTimeout(resolve, BLUE_BOX_DETECTION_DELAY_MS));
 
                 // Re-detect to confirm it's still there after clicking
                 const fullScreenDataUrlAfterClick = await captureScreenRegion();
@@ -229,12 +230,12 @@ function startAutomation(dependencies) {
                 } else {
                     updateStatus('Blue build box disappeared after click. Retrying...', 'warn');
                     console.log('DEBUG: Blue build box disappeared after click. Retrying...');
-                    await new Promise(resolve => setTimeout(resolve, 100)); // Longer delay before next retry
+                    await new Promise(resolve => setTimeout(resolve, BLUE_BOX_DETECTION_DELAY_MS)); // Delay before next retry
                 }
             } else {
                 updateStatus('No blue build box detected. Retrying...', 'warn');
                 console.log('DEBUG: No blue build box detected. Retrying...');
-                await new Promise(resolve => setTimeout(resolve, 100)); // Longer delay before next retry
+                await new Promise(resolve => setTimeout(resolve, BLUE_BOX_DETECTION_DELAY_MS)); // Delay before next retry
             }
         }
         return confirmedBlueBuildBox;
@@ -246,8 +247,8 @@ function startAutomation(dependencies) {
         console.log('DEBUG: Executing prepBuild function...', 'info');
         if (!getIsAutomationRunning()) return 'stopped';
 
-        // Add delay before detection to ensure blue build has time to appear (matches retry delay)
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Add delay before detection to ensure blue build has time to appear
+        await new Promise(resolve => setTimeout(resolve, BLUE_BOX_DETECTION_DELAY_MS));
         let blueBuildBoxConfirmed = await confirmAndClickBlueBuildBox(dependencies); // Try to confirm and click blue box first
         if (!getIsAutomationRunning()) return 'stopped';
 
@@ -392,24 +393,12 @@ function startAutomation(dependencies) {
             // Log before click attempt
             console.log(`DEBUG: Initiating red blob click attempt ${i+1}/${MAX_RED_BLOB_CLICK_ATTEMPTS}.`);
 
-            if (i === 0) { // First retry attempt (double-click)
-                console.log(`DEBUG: Double clicking red blob (attempt ${i+1}) at X:${Math.round(clickX)}, Y:${Math.round(clickY)}.`);
-                await performClick(Math.round(clickX), Math.round(clickY)); // First click of double click
-                if (!getIsAutomationRunning()) return 'stopped';
-                console.log('DEBUG: First click of double click performed. Waiting 200ms.');
-                await new Promise(resolve => setTimeout(resolve, 200));
-                if (!getIsAutomationRunning()) return 'stopped';
-                await performClick(Math.round(clickX), Math.round(clickY)); // Second click of double click
-                if (!getIsAutomationRunning()) return 'stopped';
-                console.log('DEBUG: Second click of double click performed. Waiting 500ms.');
-                await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay after double click for blue build stabilization
-            } else { // Subsequent retry attempts (single click)
-                console.log(`DEBUG: Single clicking red blob (attempt ${i+1}) at X:${Math.round(clickX)}, Y:${Math.round(clickY)}.`);
-                await performClick(Math.round(clickX), Math.round(clickY));
-                if (!getIsAutomationRunning()) return 'stopped';
-                console.log('DEBUG: Single click performed. Waiting 500ms.');
-                await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay after click for blue build stabilization
-            }
+            // Single click on all attempts
+            console.log(`DEBUG: Single clicking red blob (attempt ${i+1}) at X:${Math.round(clickX)}, Y:${Math.round(clickY)}.`);
+            await performClick(Math.round(clickX), Math.round(clickY));
+            if (!getIsAutomationRunning()) return 'stopped';
+            console.log(`DEBUG: Single click performed. Waiting ${BLUE_BOX_DETECTION_DELAY_MS}ms.`);
+            await new Promise(resolve => setTimeout(resolve, BLUE_BOX_DETECTION_DELAY_MS)); // Delay after click for blue build stabilization
             // Log after click attempt
             console.log(`DEBUG: Red blob click attempt ${i+1} completed. Checking for blue box.`);
 

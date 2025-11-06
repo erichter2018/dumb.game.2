@@ -339,7 +339,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 7
     },
     "restaurant": {
       "doResearch": true,
@@ -562,7 +563,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 3
     },
     "pizzeria": {
       "doResearch": true,
@@ -1115,13 +1117,14 @@
         "optimized": true,
         "customTriggers": [
           {
+            "timing": "during",
             "triggerType": "buildName",
             "triggerValue": "Special Burger",
             "action": "clickAround",
             "actionParams": 5000,
             "clickaroundOptions": {
               "excludeRedBlobs": false,
-              "clickaroundChunks": 0,
+              "clickaroundChunks": 1,
               "scrollUpDistance": 0,
               "scrollUpCount": 0,
               "initialScrollDown": 0,
@@ -1282,7 +1285,8 @@
             "scrollToBottomAtEnd": false
           }
         }
-      }
+      },
+      "minBuildCount": 9
     },
     "street nuts": {
       "doResearch": false,
@@ -1425,7 +1429,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 6
     },
     "fish and chips shop": {
       "doResearch": true,
@@ -1663,7 +1668,7 @@
         },
         "optimized": true
       },
-      "minBuildCount": 4
+      "minBuildCount": 3
     },
     "waffle stand": {
       "doResearch": false,
@@ -1759,7 +1764,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 4
     },
     "dessert co": {
       "doResearch": true,
@@ -2264,8 +2270,8 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "nothing",
-          "waitTimeMs": null
+          "action": "wait",
+          "waitTimeMs": 1000
         },
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2281,13 +2287,15 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
-      "customTriggers": []
+      "customTriggers": [],
+      "minBuildCount": 4
     },
     "the fresh kitchen": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 6500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -2315,38 +2323,37 @@
             "scrollToBottomAtEnd": false
           }
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
       "directionDown": {
-        "perfectStartingPosition": "nothing",
-        "scrollToBottomAfterFirstBuild": true,
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
-          "action": "nothing",
-          "triggerTimeMs": null,
+          "action": "click_off_and_scroll",
+          "triggerTimeMs": 12000,
+          "clickOffAndScrollDistance": 500,
+          "clickaroundOptions": {}
+        },
+        "secondBuildAction": {
+          "action": "clickaround",
+          "triggerTimeMs": 40000,
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
+            "excludeRedBlobs": false,
+            "clickaroundChunks": 2,
+            "scrollUpDistance": 250,
+            "scrollUpCount": 3,
+            "initialScrollDown": 0,
             "scrollToBottomAtEnd": false
           }
         },
-        "secondBuildAction": {
-          "action": "nothing",
-          "triggerTimeMs": null,
-          "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
-        }
+        "optimized": true,
+        "customTriggers": []
       },
       "customTriggers": []
     },
@@ -2395,7 +2402,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 4
     },
     "drive thru take out": {
       "doResearch": true,

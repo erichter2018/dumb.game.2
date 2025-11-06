@@ -2349,6 +2349,8 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     getBuildNumberForCurrentLevel: getBuildNumberForCurrentLevel,
     markFinishBuildRunForCurrentLevel: markFinishBuildRunForCurrentLevel,
     markBuildAsCompleted: markBuildAsCompleted,
+    hasBuildActionBeenExecuted: hasBuildActionBeenExecuted,
+    markBuildActionAsExecuted: markBuildActionAsExecuted,
     saveMinimumBuildCount: saveMinimumBuildCount,
     getMinimumBuildCount: getMinimumBuildCount,
     // New: Image comparison functions for scroll top detection

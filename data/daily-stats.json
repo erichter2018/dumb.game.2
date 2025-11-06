@@ -1800,8 +1800,8 @@
       "avgStageTime": 710881
     },
     "2025-11-06": {
-      "levelsCompleted": 61,
-      "stagesCompleted": 14,
+      "levelsCompleted": 93,
+      "stagesCompleted": 18,
       "levelTimes": [
         47573,
         120708,
@@ -1848,7 +1848,29 @@
         101936,
         20284,
         30329,
-        51993
+        51993,
+        113963,
+        84503,
+        23198,
+        32756,
+        53172,
+        101922,
+        122173,
+        198245,
+        20989,
+        31726,
+        50251,
+        88617,
+        92835,
+        85725,
+        25202,
+        38035,
+        75211,
+        100029,
+        19756,
+        30668,
+        49596,
+        71184
       ],
       "stageTimes": [
         653282,
@@ -1858,20 +1880,20 @@
         634399,
         631313
       ],
-      "minLevelTime": 20284,
-      "maxLevelTime": 185813,
-      "avgLevelTime": 69588,
+      "minLevelTime": 19756,
+      "maxLevelTime": 198245,
+      "avgLevelTime": 69276,
       "minStageTime": 631313,
       "maxStageTime": 826715,
       "avgStageTime": 702116
     }
   },
   "lastKnownLevel": {
-    "stageName": "Nassau",
-    "stageNumber": 48,
-    "levelName": "Ice Cream Truck",
-    "levelPosition": 3,
-    "timestamp": "2025-11-06T06:55:27.092Z"
+    "stageName": "Birmingham",
+    "stageNumber": 52,
+    "levelName": "Cafe Napolita",
+    "levelPosition": 4,
+    "timestamp": "2025-11-06T08:26:39.057Z"
   },
-  "lastSaveDate": "2025-11-06T06:55:27.092Z"
+  "lastSaveDate": "2025-11-06T08:26:39.057Z"
 }

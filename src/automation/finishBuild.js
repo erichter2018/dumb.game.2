@@ -604,6 +604,8 @@ async function runBuildProtocol(dependencies) {
             ? dependencies.hasBuildActionBeenExecuted(currentLevelName, buildNumber) 
             : false;
         
+        console.log(`DEBUG: Build action execution check - Level: "${currentLevelName}", Build: ${buildNumber}, Action: "${currentBuildAction.action}", Already executed: ${actionAlreadyExecuted}`);
+        
         if (actionAlreadyExecuted && currentBuildAction.action !== 'nothing') {
             console.log(`DEBUG: Build action for "${currentLevelName}" build #${buildNumber} was already executed, will not run again`);
         }
@@ -650,8 +652,11 @@ async function runBuildProtocol(dependencies) {
             // If triggerTimeMs is null, execute immediately; otherwise wait for the trigger time
             if (!actionAlreadyExecuted && currentBuildAction.action !== 'nothing' && (actionTriggerTime === null || elapsedTime >= actionTriggerTime)) {
                 // Mark as executed globally (persists across build interruptions)
+                console.log(`DEBUG: About to mark build action as executed - Level: "${currentLevelName}", Build: ${buildNumber}`);
                 if (dependencies.markBuildActionAsExecuted) {
                     dependencies.markBuildActionAsExecuted(currentLevelName, buildNumber);
+                } else {
+                    console.warn('WARNING: markBuildActionAsExecuted function not available in dependencies!');
                 }
                 
                 if (actionTriggerTime === null) {
