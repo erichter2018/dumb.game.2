@@ -613,12 +613,19 @@ function startAutomation(dependencies) {
     }
 
     async function exitAndStartNewLevel(exitDependencies) {
-        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, setFinishedLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName } = exitDependencies;
+        const { performClick, updateStatus, CLICK_AREAS, getIsAutomationRunning, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, resetClickAroundCallCounter, captureLevelName, updateCurrentLevelName, setFinishedLevelName, captureScreenRegion, scrollDown, scrollToBottom, scrollSwipeDistance, scrollToBottomIterations, getCurrentLevelName, getBuildNumberForCurrentLevel, saveMinimumBuildCount } = exitDependencies;
 
         // Store the current level name as the finished level name
         const currentLevel = getCurrentLevelName();
         setFinishedLevelName(currentLevel);
         console.log(`DEBUG: Stored finished level name: "${currentLevel}"`);
+        
+        // Save the minimum build count for this level
+        // getBuildNumberForCurrentLevel returns the NEXT build number, so current completed builds = that - 1
+        const totalBuilds = getBuildNumberForCurrentLevel() - 1;
+        if (totalBuilds > 0) {
+            saveMinimumBuildCount(currentLevel, totalBuilds);
+        }
 
         // Note: Don't clear level name here - let it update naturally when OCR detects the new level
         // This prevents the UI from briefly showing "Unknown Level" during the transition

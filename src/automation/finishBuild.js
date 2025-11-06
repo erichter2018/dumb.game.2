@@ -35,9 +35,16 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
 
         for (let i = 0; i < triggers.length; i++) {
             const trigger = triggers[i];
+            const triggerTiming = trigger.timing || 'during'; // Default to 'during' for backward compatibility
             const triggerKey = `${trigger.triggerType}-${trigger.triggerValue}-${i}`;
             
-            console.log(`DEBUG: Checking trigger ${i}: ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+            console.log(`DEBUG: Checking trigger ${i}: ${triggerTiming} ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+            
+            // Only check "during" triggers in this function
+            if (triggerTiming !== 'during') {
+                console.log(`DEBUG: Trigger ${i} is an AFTER trigger, skipping for now`);
+                continue;
+            }
             
             // Skip if already triggered during this level (triggers only fire ONCE per level)
             if (triggeredActions.has(triggerKey)) {
@@ -73,6 +80,71 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
         }
     } catch (error) {
         console.error('Error checking custom triggers during build:', error);
+    }
+}
+
+// Custom trigger detection and execution AFTER build completes
+async function checkCustomTriggersAfterBuild(levelName, buildNumber, elapsedTime, direction, buildName, dependencies) {
+    try {
+        // Normalize level name to match how it's stored in settings
+        const normalizedLevelName = levelName ? levelName.toLowerCase().trim() : '';
+        console.log(`DEBUG: checkCustomTriggersAfterBuild called for level: "${levelName}" -> normalized: "${normalizedLevelName}", build: ${buildNumber}, elapsed: ${elapsedTime}ms, direction: ${direction}, buildName: "${buildName}"`);
+        
+        const triggers = settingsManager.getCustomTriggers(normalizedLevelName, direction);
+        console.log(`DEBUG: Found ${triggers ? triggers.length : 0} custom triggers for level "${normalizedLevelName}" (${direction} direction) - checking AFTER triggers`);
+        
+        if (!triggers || triggers.length === 0) {
+            console.log(`DEBUG: No custom triggers found for level "${normalizedLevelName}"`);
+            return;
+        }
+
+        for (let i = 0; i < triggers.length; i++) {
+            const trigger = triggers[i];
+            const triggerTiming = trigger.timing || 'during'; // Default to 'during' for backward compatibility
+            const triggerKey = `${trigger.triggerType}-${trigger.triggerValue}-${i}`;
+            
+            console.log(`DEBUG: Checking trigger ${i}: ${triggerTiming} ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+            
+            // Only check "after" triggers in this function
+            if (triggerTiming !== 'after') {
+                console.log(`DEBUG: Trigger ${i} is a DURING trigger, skipping`);
+                continue;
+            }
+            
+            // Skip if already triggered during this level (triggers only fire ONCE per level)
+            if (triggeredActions.has(triggerKey)) {
+                console.log(`DEBUG: Trigger ${i} (${trigger.triggerType}:${trigger.triggerValue}) already fired this level, skipping`);
+                continue;
+            }
+
+            let shouldTrigger = false;
+
+            // Check trigger conditions (use loose equality to handle string/number mismatch)
+            if (trigger.triggerType === 'buildNumber' && buildNumber == trigger.triggerValue) {
+                shouldTrigger = true;
+                console.log(`DEBUG: Build number trigger condition met: ${buildNumber} == ${trigger.triggerValue}`);
+            } else if (trigger.triggerType === 'timeSpent' && elapsedTime >= trigger.triggerValue) {
+                shouldTrigger = true;
+                console.log(`DEBUG: Time spent trigger condition met: ${elapsedTime}ms >= ${trigger.triggerValue}ms`);
+            } else if (trigger.triggerType === 'buildName' && buildName) {
+                // Case-insensitive "contains" match
+                const normalizedBuildName = buildName.toLowerCase();
+                const normalizedTriggerValue = String(trigger.triggerValue).toLowerCase();
+                if (normalizedBuildName.includes(normalizedTriggerValue)) {
+                    shouldTrigger = true;
+                    console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
+                }
+            }
+
+            if (shouldTrigger) {
+                console.log(`DEBUG: Custom trigger FIRING AFTER build completes (first time this level) - ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
+                triggeredActions.add(triggerKey); // Mark as fired for the rest of this level
+                console.log(`DEBUG: Trigger marked as fired, will not fire again until next level`);
+                await executeTriggerActionDuringBuild(trigger, dependencies);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking custom triggers after build:', error);
     }
 }
 
@@ -426,11 +498,16 @@ async function runBuildProtocol(dependencies) {
     const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
     const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
     const buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+    const minBuildCount = dependencies.getMinimumBuildCount ? dependencies.getMinimumBuildCount(currentLevelName) : null;
+    console.log(`DEBUG: runBuildProtocol - Level: "${currentLevelName}", buildNumber: ${buildNumber}, minBuildCount: ${minBuildCount}`);
     
     // Variable to store build name (will be captured via OCR)
     let buildName = '';
     
-    updateCurrentFunction(`runBuildProtocol ${buildNumber}`); // Update current function display with build number
+    // Format build number display with "X/Y" if minimum build count is available
+    const buildDisplay = minBuildCount ? `${buildNumber}/${minBuildCount}` : `${buildNumber}`;
+    console.log(`DEBUG: runBuildProtocol - buildDisplay: "${buildDisplay}"`);
+    updateCurrentFunction(`runBuildProtocol ${buildDisplay}`); // Update current function display with build number
     
     // Mark that finishBuild is being run for this level (after getting the build number)
     if (dependencies.markFinishBuildRunForCurrentLevel) {
@@ -466,12 +543,12 @@ async function runBuildProtocol(dependencies) {
 
     try {
         // Set up an interval to update the timer in the UI
-        timerInterval = setInterval(() => {
+        timerInterval =         setInterval(() => {
             const elapsedTime = Date.now() - startTime;
             const minutes = Math.floor(elapsedTime / 60000);
             const seconds = Math.floor((elapsedTime % 60000) / 1000);
             const nameDisplay = buildName ? ` ${buildName}` : '';
-            updateCurrentFunction(`runBuildProtocol ${buildNumber}${nameDisplay} (${minutes}m ${seconds}s)`);
+            updateCurrentFunction(`runBuildProtocol ${buildDisplay}${nameDisplay} (${minutes}m ${seconds}s)`);
         }, 1000); // Update every second
 
         // Step 1: Use confirmed blue box from prepBuild if available, otherwise detect
@@ -514,7 +591,7 @@ async function runBuildProtocol(dependencies) {
             buildName = await captureBuildName(initialDetectedBox, captureScreenRegion);
             if (buildName) {
                 console.log(`DEBUG: Build name captured successfully: "${buildName}"`);
-                updateCurrentFunction(`runBuildProtocol ${buildNumber} ${buildName}`);
+                updateCurrentFunction(`runBuildProtocol ${buildDisplay} ${buildName}`);
             } else {
                 console.log('DEBUG: Failed to capture build name, continuing without it');
             }
@@ -522,7 +599,15 @@ async function runBuildProtocol(dependencies) {
 
         // Step 2: Start a loop
         let isFirstLoopIteration = true; // Flag to skip detection on first iteration when we have confirmed box
-        let actionExecuted = false; // Flag to ensure action is executed only once
+        // Check if build action has already been executed (tracked globally to persist across interruptions)
+        const actionAlreadyExecuted = dependencies.hasBuildActionBeenExecuted 
+            ? dependencies.hasBuildActionBeenExecuted(currentLevelName, buildNumber) 
+            : false;
+        
+        if (actionAlreadyExecuted && currentBuildAction.action !== 'nothing') {
+            console.log(`DEBUG: Build action for "${currentLevelName}" build #${buildNumber} was already executed, will not run again`);
+        }
+        
         while (getIsAutomationRunning()) {
             const currentTime = Date.now();
             
@@ -552,15 +637,23 @@ async function runBuildProtocol(dependencies) {
             }
             
             // Check custom triggers during the build process (do this every cycle, independent of build actions)
-            // Get current direction from level settings
-            const currentDirection = levelSettings.scrollDirection || 'up';
-            console.log(`DEBUG: Checking custom triggers during build #${buildNumber} at ${elapsedTime}ms`);
+            // Get the ACTUAL effective direction being used (not the saved preference)
+            // finishLevel passes getEffectiveDirection, main passes getEffectiveDirectionForLevel
+            const currentDirection = (dependencies.getEffectiveDirection ? dependencies.getEffectiveDirection() : null) 
+                || (dependencies.getEffectiveDirectionForLevel ? dependencies.getEffectiveDirectionForLevel() : null)
+                || levelSettings.scrollDirection 
+                || 'up';
+            console.log(`DEBUG: Checking custom triggers during build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
             await checkCustomTriggersDuringBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
             
             // Only check for action if one is configured and hasn't been executed yet
             // If triggerTimeMs is null, execute immediately; otherwise wait for the trigger time
-            if (!actionExecuted && currentBuildAction.action !== 'nothing' && (actionTriggerTime === null || elapsedTime >= actionTriggerTime)) {
-                actionExecuted = true; // Mark as executed
+            if (!actionAlreadyExecuted && currentBuildAction.action !== 'nothing' && (actionTriggerTime === null || elapsedTime >= actionTriggerTime)) {
+                // Mark as executed globally (persists across build interruptions)
+                if (dependencies.markBuildActionAsExecuted) {
+                    dependencies.markBuildActionAsExecuted(currentLevelName, buildNumber);
+                }
+                
                 if (actionTriggerTime === null) {
                     updateStatus(`Finish Build routine: Executing ${currentBuildAction.action} action immediately`, 'warn');
                     console.log(`DEBUG: Finish Build routine: Executing ${currentBuildAction.action} action immediately`);
@@ -707,6 +800,24 @@ async function runBuildProtocol(dependencies) {
                 consecutiveNoBoxDetections = 0; // Reset counter if MAX build is achieved
                 updateStatus('MAX build achieved. Stopping automation.', 'success');
                 console.log('DEBUG: MAX build achieved. Stopping automation.');
+                
+                // Mark this build as successfully completed
+                if (dependencies.markBuildAsCompleted) {
+                    dependencies.markBuildAsCompleted();
+                }
+                
+                // Calculate elapsed time for this build
+                const elapsedTime = Date.now() - startTime;
+                
+                // Get the ACTUAL effective direction being used (same logic as during-build triggers)
+                const currentDirection = (dependencies.getEffectiveDirection ? dependencies.getEffectiveDirection() : null) 
+                    || (dependencies.getEffectiveDirectionForLevel ? dependencies.getEffectiveDirectionForLevel() : null)
+                    || levelSettings.scrollDirection 
+                    || 'up';
+                
+                // Check for custom triggers that fire AFTER build completes
+                console.log(`DEBUG: Checking AFTER-build triggers for build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
+                await checkCustomTriggersAfterBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
                 
                 // Perform the "click off" action
                 if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {

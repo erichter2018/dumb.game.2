@@ -83,7 +83,8 @@
         },
         "optimized": true
       },
-      "customTriggers": []
+      "customTriggers": [],
+      "minBuildCount": 1
     },
     "food stand": {
       "doResearch": false,
@@ -179,7 +180,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 3
     },
     "cafe": {
       "doResearch": true,
@@ -226,7 +228,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 4
     },
     "fast food": {
       "doResearch": true,
@@ -273,7 +276,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 5
     },
     "drive thru": {
       "doResearch": true,
@@ -395,7 +399,8 @@
             "scrollToBottomAtEnd": false
           }
         }
-      }
+      },
+      "minBuildCount": 12
     },
     "hot dog stand": {
       "doResearch": false,
@@ -509,7 +514,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 2
     },
     "coffee truck": {
       "doResearch": true,
@@ -603,7 +609,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 4
     },
     "n/a": {
       "doResearch": true,
@@ -699,7 +706,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 6
     },
     "diner": {
       "doResearch": true,
@@ -763,7 +771,8 @@
             "scrollToBottomAtEnd": false
           }
         }
-      }
+      },
+      "minBuildCount": 10
     },
     "ice cream stand": {
       "doResearch": false,
@@ -810,7 +819,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 1
     },
     "taco stand": {
       "doResearch": false,
@@ -904,7 +914,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 3
     },
     "mocktail bar": {
       "doResearch": true,
@@ -951,7 +962,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 4
     },
     "joghurt house": {
       "doResearch": true,
@@ -998,7 +1010,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 4
     },
     "tapas bar": {
       "doResearch": true,
@@ -1208,7 +1221,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 5
     },
     "seafood restaurant": {
       "doResearch": true,
@@ -1315,7 +1329,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 1
     },
     "floral stand": {
       "doResearch": false,
@@ -1362,7 +1377,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 2
     },
     "cheese shop": {
       "doResearch": true,
@@ -1456,7 +1472,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 5
     },
     "dango stand": {
       "doResearch": false,
@@ -1499,7 +1516,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 1
     },
     "big ice cream stand": {
       "doResearch": false,
@@ -1575,7 +1593,8 @@
       },
       "directionMode": "random",
       "optimized": true,
-      "savedDirection": "up"
+      "savedDirection": "up",
+      "minBuildCount": 2
     },
     "ramen truck": {
       "doResearch": true,
@@ -1643,7 +1662,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 4
     },
     "waffle stand": {
       "doResearch": false,
@@ -1691,7 +1711,8 @@
         },
         "optimized": true
       },
-      "customTriggers": []
+      "customTriggers": [],
+      "minBuildCount": 2
     },
     "cafe napolita": {
       "doResearch": true,
@@ -1785,7 +1806,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 5
     },
     "italiano": {
       "doResearch": true,
@@ -1918,7 +1940,8 @@
       },
       "directionMode": "random",
       "optimized": true,
-      "savedDirection": "up"
+      "savedDirection": "up",
+      "minBuildCount": 4
     },
     "kebab shop": {
       "doResearch": true,
@@ -1964,7 +1987,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 5
     },
     "mezze bar": {
       "doResearch": true,
@@ -2026,7 +2050,8 @@
         },
         "optimized": true
       },
-      "customTriggers": []
+      "customTriggers": [],
+      "minBuildCount": 11
     },
     "curry wurst stand": {
       "doResearch": false,
@@ -2073,7 +2098,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 2
     },
     "apple juice bar": {
       "doResearch": true,
@@ -2416,7 +2442,8 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 9
     },
     "_global": {
       "directionMode": "random"

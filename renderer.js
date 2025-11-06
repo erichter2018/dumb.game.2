@@ -3432,6 +3432,7 @@ async function loadSettingsForLevel(levelName) {
 async function loadCustomTriggersForLevel(levelName, direction = null) {
     try {
         const triggers = await ipcRenderer.invoke('get-custom-triggers', levelName, direction);
+        console.log('DEBUG: loadCustomTriggersForLevel - Loaded triggers:', JSON.stringify(triggers, null, 2));
         const triggerTypes = await ipcRenderer.invoke('get-trigger-types');
         const triggerActions = await ipcRenderer.invoke('get-trigger-actions');
         
@@ -3439,6 +3440,7 @@ async function loadCustomTriggersForLevel(levelName, direction = null) {
         triggersList.innerHTML = '';
         
         triggers.forEach((trigger, index) => {
+            console.log(`DEBUG: loadCustomTriggersForLevel - Loading trigger ${index}: timing="${trigger.timing || 'during'}" (will default if undefined)`);
             addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions);
         });
         
@@ -3471,8 +3473,15 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
                    value="${trigger.triggerValue || ''}" placeholder="Build name">`;
     }
     
+    const triggerTiming = trigger.timing || 'during';
+    console.log(`DEBUG: addTriggerSettingsItem ${index} - Rendering timing dropdown with value: "${triggerTiming}"`);
+    
     triggerDiv.innerHTML = `
         <div class="trigger-basic-settings">
+            <select class="trigger-settings-timing" data-index="${index}" data-field="timing">
+                <option value="during" ${triggerTiming === 'during' ? 'selected' : ''}>DURING Build</option>
+                <option value="after" ${triggerTiming === 'after' ? 'selected' : ''}>AFTER Build</option>
+            </select>
             <select class="trigger-settings-type" data-index="${index}" data-field="triggerType">
                 ${triggerTypes.map(type => 
                     `<option value="${type.value}" ${trigger.triggerType === type.value ? 'selected' : ''}>${type.label}</option>`
@@ -3594,6 +3603,7 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
 
 async function addNewTriggerSettings(triggerTypes, triggerActions) {
     const newTrigger = {
+        timing: 'during', // Default to 'during'
         triggerType: 'buildNumber',
         triggerValue: 3, // Default to 3 (min for buildNumber)
         action: 'clickAround',
@@ -3650,6 +3660,8 @@ function getCustomTriggersFromForm() {
         // Get the actual index from the data-index attribute (not the forEach index)
         const actualIndex = triggerItem.querySelector('.trigger-settings-type')?.getAttribute('data-index');
         
+        const timingElement = triggerItem.querySelector('.trigger-settings-timing');
+        const timing = timingElement ? timingElement.value : 'during';
         const triggerType = triggerItem.querySelector('.trigger-settings-type').value;
         const triggerValueRaw = triggerItem.querySelector('.trigger-settings-value').value;
         
@@ -3662,11 +3674,14 @@ function getCustomTriggersFromForm() {
         }
         
         const trigger = {
+            timing: timing || 'during', // Default to 'during' if not set
             triggerType: triggerType,
             triggerValue: triggerValue,
             action: triggerItem.querySelector('.trigger-settings-action').value,
             actionParams: parseInt(triggerItem.querySelector('.trigger-settings-params').value) || 5000
         };
+        
+        console.log(`DEBUG: getCustomTriggersFromForm - Trigger ${actualIndex}: timing="${timing}", type="${triggerType}", value="${triggerValue}"`);
         
         // Add clickaround options if action is clickAround
         if (trigger.action === 'clickAround') {
@@ -3699,6 +3714,7 @@ async function saveCurrentSettings() {
     
     // Get custom triggers from the settings form
     const customTriggers = getCustomTriggersFromForm();
+    console.log('DEBUG: saveCurrentSettings - Saving custom triggers:', JSON.stringify(customTriggers, null, 2));
     
     // Separate global settings from direction-specific settings
     const globalSettings = {

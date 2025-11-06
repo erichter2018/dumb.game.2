@@ -48,6 +48,8 @@ let finishedLevelName = ''; // New: Track the name of the level that just finish
 let currentEffectiveDirection = null; // New: Track the effective direction for the current level
 let levelDirections = new Map(); // Store direction used for each level
 let levelBuildCounts = new Map(); // Track build count per level (levelName -> buildCount)
+let levelBuildCompletionStatus = new Map(); // Track if last build completed successfully (levelName -> boolean)
+let levelBuildActionsExecuted = new Map(); // Track which build actions have been executed (levelName-buildNumber -> boolean)
 let previousLevelDurationMs = null; // New: To store the duration of the previous level
 let longestLevelDurationMs = null; // New: To store the longest level duration
 let shortestLevelDurationMs = null; // New: To store the shortest level duration
@@ -238,9 +240,14 @@ function updateCurrentLevelName(levelName) {
     
     console.log(`DEBUG: Current level name updated to: "${currentLevelName}"`);
     
-    // Reset build count for this level when it starts
+    // Reset build count, completion status, and action tracking for this level when it starts
     levelBuildCounts.set(currentLevelName, 0);
-    console.log(`DEBUG: Reset build count to 0 for level: "${currentLevelName}"`);
+    levelBuildCompletionStatus.set(currentLevelName, false);
+    // Clear any tracked build actions for this level (for all build numbers)
+    Array.from(levelBuildActionsExecuted.keys())
+        .filter(key => key.startsWith(`${currentLevelName}-`))
+        .forEach(key => levelBuildActionsExecuted.delete(key));
+    console.log(`DEBUG: Reset build count to 0, completion status to false, and cleared action tracking for level: "${currentLevelName}"`);
     
     // Send to renderer for UI update
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1086,8 +1093,66 @@ function getBuildNumberForCurrentLevel() {
 
 function markFinishBuildRunForCurrentLevel() {
     const currentCount = levelBuildCounts.get(currentLevelName) || 0;
-    levelBuildCounts.set(currentLevelName, currentCount + 1);
-    console.log(`DEBUG: Marked finishBuild run for level: "${currentLevelName}", new count: ${currentCount + 1}`);
+    const lastBuildCompleted = levelBuildCompletionStatus.get(currentLevelName);
+    
+    // Only increment if this is the first build OR the last build completed successfully
+    if (currentCount === 0 || lastBuildCompleted === true) {
+        levelBuildCounts.set(currentLevelName, currentCount + 1);
+        console.log(`DEBUG: Marked finishBuild run for level: "${currentLevelName}", new count: ${currentCount + 1} (last build completed: ${lastBuildCompleted ?? 'N/A - first build'})`);
+    } else {
+        console.log(`DEBUG: NOT incrementing build count for "${currentLevelName}" - last build was interrupted (count stays at ${currentCount})`);
+    }
+    
+    // Reset completion status for this new build attempt
+    levelBuildCompletionStatus.set(currentLevelName, false);
+}
+
+function markBuildAsCompleted() {
+    levelBuildCompletionStatus.set(currentLevelName, true);
+    console.log(`DEBUG: Build marked as COMPLETED for level: "${currentLevelName}"`);
+}
+
+function hasBuildActionBeenExecuted(levelName, buildNumber) {
+    const key = `${levelName}-${buildNumber}`;
+    return levelBuildActionsExecuted.get(key) === true;
+}
+
+function markBuildActionAsExecuted(levelName, buildNumber) {
+    const key = `${levelName}-${buildNumber}`;
+    levelBuildActionsExecuted.set(key, true);
+    console.log(`DEBUG: Build action marked as EXECUTED for "${levelName}" build #${buildNumber}`);
+}
+
+function saveMinimumBuildCount(levelName, buildCount) {
+    // Only save for named levels
+    if (!levelName || levelName === 'Unknown Level' || levelName === 'Unnamed Level') {
+        console.log(`DEBUG: Not saving build count for unnamed level`);
+        return;
+    }
+    
+    // Get current minimum build count
+    const settings = settingsManager.getLevelSettings(levelName);
+    const currentMin = settings.minBuildCount;
+    
+    // Only update if this is a new record (lower count) or first time
+    // Check for null, undefined, or better count
+    if (currentMin == null || buildCount < currentMin) {
+        settingsManager.updateLevelSettings(levelName, { minBuildCount: buildCount });
+        settingsManager.saveSettings();
+        console.log(`DEBUG: Saved new minimum build count for "${levelName}": ${buildCount} (previous: ${currentMin ?? 'none'})`);
+    } else {
+        console.log(`DEBUG: Current build count ${buildCount} is not better than saved minimum ${currentMin} for "${levelName}"`);
+    }
+}
+
+function getMinimumBuildCount(levelName) {
+    if (!levelName || levelName === 'Unknown Level' || levelName === 'Unnamed Level') {
+        return null;
+    }
+    
+    const settings = settingsManager.getLevelSettings(levelName);
+    console.log(`DEBUG: getMinimumBuildCount - Level: "${levelName}", settings.minBuildCount: ${settings.minBuildCount}`);
+    return settings.minBuildCount || null;
 }
 
 function getLevelNameForSettings() {
@@ -2005,6 +2070,11 @@ async function startFinishBuildAutomationLoop() {
     getLevelNameForSettings: getLevelNameForSettings,
     getBuildNumberForCurrentLevel: getBuildNumberForCurrentLevel,
     markFinishBuildRunForCurrentLevel: markFinishBuildRunForCurrentLevel,
+    markBuildAsCompleted: markBuildAsCompleted,
+    hasBuildActionBeenExecuted: hasBuildActionBeenExecuted,
+    markBuildActionAsExecuted: markBuildActionAsExecuted,
+    getMinimumBuildCount: getMinimumBuildCount,
+    getEffectiveDirectionForLevel: () => currentEffectiveDirection,
     // Connection health and reconnection
     updateDetectionTime: updateDetectionTime,
     checkConnectionHealth: checkConnectionHealth,
@@ -2278,6 +2348,9 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     captureLevelName: ocrUtils.captureLevelName,
     getBuildNumberForCurrentLevel: getBuildNumberForCurrentLevel,
     markFinishBuildRunForCurrentLevel: markFinishBuildRunForCurrentLevel,
+    markBuildAsCompleted: markBuildAsCompleted,
+    saveMinimumBuildCount: saveMinimumBuildCount,
+    getMinimumBuildCount: getMinimumBuildCount,
     // New: Image comparison functions for scroll top detection
     compareTopRegions: imageComparison.compareTopRegions,
     captureTopRegion: imageComparison.captureTopRegion,
@@ -2298,8 +2371,14 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     // Reset custom trigger state for new level
     finishBuildAutomation.resetCustomTriggerState();
     
+    // Set the flag to true BEFORE starting the automation
+    isFinishLevelRunning = true;
+    console.log('DEBUG: isFinishLevelRunning set to true');
+    
     await finishLevelAutomation.startAutomation(automationDependencies);
   } else {
+    isFinishLevelRunning = false;
+    console.log('DEBUG: isFinishLevelRunning set to false');
     await finishLevelAutomation.stopAutomation(automationDependencies);
   }
 });
