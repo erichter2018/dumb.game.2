@@ -1800,8 +1800,8 @@
       "avgStageTime": 710881
     },
     "2025-11-06": {
-      "levelsCompleted": 148,
-      "stagesCompleted": 25,
+      "levelsCompleted": 210,
+      "stagesCompleted": 35,
       "levelTimes": [
         47573,
         120708,
@@ -1907,7 +1907,50 @@
         48656,
         83672,
         112469,
-        90415
+        90415,
+        19487,
+        30231,
+        93961,
+        84433,
+        76487,
+        21737,
+        30488,
+        42365,
+        96469,
+        96420,
+        167659,
+        18754,
+        31486,
+        47885,
+        78524,
+        108021,
+        20640,
+        30517,
+        42011,
+        74066,
+        80372,
+        91580,
+        20719,
+        76839,
+        94351,
+        179538,
+        22251,
+        31207,
+        46205,
+        114675,
+        85469,
+        103954,
+        19481,
+        30344,
+        119337,
+        97623,
+        71048,
+        20887,
+        30139,
+        41138,
+        80106,
+        81650,
+        93799
       ],
       "stageTimes": [
         653282,
@@ -1915,22 +1958,46 @@
         699704,
         826715,
         634399,
-        631313
+        631313,
+        840659,
+        544191
       ],
-      "minLevelTime": 19556,
+      "minLevelTime": 18754,
       "maxLevelTime": 198245,
-      "avgLevelTime": 67718,
-      "minStageTime": 631313,
-      "maxStageTime": 826715,
-      "avgStageTime": 702116
+      "avgLevelTime": 67262,
+      "minStageTime": 544191,
+      "maxStageTime": 840659,
+      "avgStageTime": 699693
+    },
+    "2025-11-07": {
+      "levelsCompleted": 11,
+      "stagesCompleted": 1,
+      "levelTimes": [
+        32591,
+        45175,
+        73958,
+        93843,
+        117548,
+        20803,
+        32336,
+        42189,
+        98960
+      ],
+      "stageTimes": [],
+      "minLevelTime": 20803,
+      "maxLevelTime": 117548,
+      "avgLevelTime": 61934,
+      "minStageTime": null,
+      "maxStageTime": null,
+      "avgStageTime": null
     }
   },
   "lastKnownLevel": {
-    "stageName": "Gothenburg",
-    "stageNumber": 59,
-    "levelName": "Dessert Co",
-    "levelPosition": 6,
-    "timestamp": "2025-11-06T10:30:56.814Z"
+    "stageName": "Berlin",
+    "stageNumber": 9,
+    "levelName": "Food Truck",
+    "levelPosition": 3,
+    "timestamp": "2025-11-07T05:03:13.287Z"
   },
-  "lastSaveDate": "2025-11-06T10:30:56.814Z"
+  "lastSaveDate": "2025-11-07T05:06:50.651Z"
 }

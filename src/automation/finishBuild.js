@@ -155,8 +155,41 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
         switch (trigger.action) {
             case 'clickAround':
                 updateCurrentFunction('customTrigger-clickAround');
-                updateStatus(`Custom trigger: Click Around for ${trigger.actionParams}ms`, 'info');
-                await executeClickAroundDuringBuild(trigger.actionParams, trigger.clickaroundOptions, dependencies);
+                updateStatus(`Custom trigger: Click Around with ${trigger.clickaroundOptions?.clickaroundChunks || 1} chunk(s)`, 'info');
+                
+                // Use the REAL clickAround function from clickAround.js (not the simplified version)
+                const clickAroundDependencies = {
+                    updateStatus: dependencies.updateStatus,
+                    detectRedBlobs: dependencies.redBlobDetectorDetect,
+                    performClick: dependencies.performClick,
+                    performBatchedClicks: dependencies.performBatchedClicks || (async (clickArray) => {
+                        console.warn('WARNING: Using performBatchedClicks FALLBACK - this will be much slower!');
+                        if (!Array.isArray(clickArray)) return { success: false, error: 'Invalid click array' };
+                        for (const click of clickArray) {
+                            await dependencies.performClick(click.x, click.y);
+                        }
+                        return { success: true };
+                    }),
+                    iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
+                    updateCurrentFunction: dependencies.updateCurrentFunction,
+                    CLICK_AREAS: dependencies.CLICK_AREAS,
+                    captureScreenRegion: dependencies.captureScreenRegion,
+                    sendDetectionResults: (detections) => {
+                        if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                            dependencies.mainWindow.webContents.send('detection-results', detections);
+                        }
+                    },
+                    getIsClickAroundRunning: () => dependencies.getIsAutomationRunning(),
+                    getIsClickAroundPaused: () => false,
+                    scrollToBottom: dependencies.scrollToBottom,
+                    scrollSwipeDistance: dependencies.scrollSwipeDistance,
+                    scrollToBottomIterations: dependencies.scrollToBottomIterations,
+                    compareBottomRegions: dependencies.compareBottomRegions,
+                    captureBottomRegion: dependencies.captureBottomRegion,
+                };
+                
+                const { clickAround } = require('./clickAround');
+                await clickAround(clickAroundDependencies, trigger.clickaroundOptions?.excludeRedBlobs ?? true, trigger.clickaroundOptions || {});
                 break;
 
             case 'scrollUp':
@@ -183,6 +216,9 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
     }
 }
 
+// DEPRECATED: This simplified clickAround function has been replaced with the real clickAround from clickAround.js
+// Keeping this commented out for reference in case we need to restore it
+/*
 async function executeClickAroundDuringBuild(durationMs, clickaroundOptions, dependencies) {
     const { performClick, updateStatus, captureScreenRegion, redBlobDetectorDetect, iphoneMirroringRegion, getIsAutomationRunning } = dependencies;
     
@@ -229,6 +265,7 @@ async function executeClickAroundDuringBuild(durationMs, clickaroundOptions, dep
     
     console.log(`DEBUG: ClickAround during build completed`);
 }
+*/
 
 
 /*
@@ -354,11 +391,22 @@ async function holdBlueBox(coords, duration, dependencies, levelName) {
         try {
             const screenCapture = await captureScreenRegion();
             const blueBoxes = await detectBlueBoxes(screenCapture, iphoneMirroringRegion);
-            const maxBuild = blueBoxes.find(box => box.state === 'grey_max');
-            if (maxBuild) {
-                console.log(`DEBUG: Build reached MAX during hold, stopping hold early`);
+            
+            // Check if the box at our SPECIFIC coordinates is grey_max
+            // (not just any grey_max box on screen)
+            const PROXIMITY_THRESHOLD = 50; // pixels - box should be near our hold coordinates
+            const boxAtOurCoords = blueBoxes.find(box => {
+                const boxCenterX = box.x + box.width / 2;
+                const boxCenterY = box.y + box.height / 2;
+                const distance = Math.sqrt(Math.pow(boxCenterX - coords.x, 2) + Math.pow(boxCenterY - coords.y, 2));
+                return distance <= PROXIMITY_THRESHOLD;
+            });
+            
+            if (boxAtOurCoords && boxAtOurCoords.state === 'grey_max') {
+                console.log(`DEBUG: Build at our coordinates (${coords.x}, ${coords.y}) reached MAX during hold, stopping hold early`);
                 return true;
             }
+            
             return false;
         } catch (error) {
             console.error('DEBUG: Error checking build completion during hold:', error);
@@ -522,7 +570,25 @@ async function runBuildProtocol(dependencies) {
     // Get level-specific settings (use the settings-compatible name)
     const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : '';
     const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
-    const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+    
+    // Get the ACTUAL effective direction being used (not the saved preference)
+    const effectiveDirection = (dependencies.getEffectiveDirection ? dependencies.getEffectiveDirection() : null) 
+        || (dependencies.getEffectiveDirectionForLevel ? dependencies.getEffectiveDirectionForLevel() : null);
+    
+    // Get global settings and direction-specific settings separately
+    const globalSettings = settingsManager.getLevelSettings(settingsLevelName);
+    const directionSettings = effectiveDirection 
+        ? settingsManager.getDirectionSettings(settingsLevelName, effectiveDirection)
+        : {};
+    
+    // Merge global and direction-specific settings, prioritizing direction-specific for build actions
+    const levelSettings = {
+        ...globalSettings,
+        ...directionSettings
+    };
+    
+    console.log(`DEBUG: Loading settings for "${settingsLevelName}" with effective direction: ${effectiveDirection || 'unknown (using saved preference)'}`);
+    
     const buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
     const minBuildCount = dependencies.getMinimumBuildCount ? dependencies.getMinimumBuildCount(currentLevelName) : null;
     console.log(`DEBUG: runBuildProtocol - Level: "${currentLevelName}", buildNumber: ${buildNumber}, minBuildCount: ${minBuildCount}`);

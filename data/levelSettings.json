@@ -39,7 +39,7 @@
   "levels": {
     "lemonade stand": {
       "doResearch": false,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 2500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -93,52 +93,52 @@
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
-        "perfectStartingPosition": "nothing",
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
         "firstBuildAction": {
           "action": "nothing",
-          "triggerTimeMs": null
+          "triggerTimeMs": null,
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
-          "triggerTimeMs": null
-        }
+          "triggerTimeMs": null,
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
+        },
+        "optimized": true,
+        "customTriggers": []
       },
       "directionDown": {
-        "perfectStartingPosition": "nothing",
-        "scrollToBottomAfterFirstBuild": true,
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
+        "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
-          }
-        }
+          "clickaroundOptions": {}
+        },
+        "optimized": true,
+        "customTriggers": []
       },
       "minBuildCount": 2
     },
     "food truck": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 3500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -189,7 +189,7 @@
       "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
-        "scrollToBottomAfterFirstBuild": false,
+        "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
         "perfectStartingPosition": {
           "action": "scroll_down_1x",
@@ -207,7 +207,8 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
@@ -780,7 +781,7 @@
     },
     "ice cream stand": {
       "doResearch": false,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 2500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -871,11 +872,12 @@
           "clickaroundOptions": {}
         },
         "optimized": true
-      }
+      },
+      "minBuildCount": 2
     },
     "ice cream truck": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 3500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -923,7 +925,7 @@
     },
     "mocktail bar": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -971,7 +973,7 @@
     },
     "joghurt house": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -1087,7 +1089,7 @@
           "triggerTimeMs": 10000,
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
-            "excludeRedBlobs": false,
+            "excludeRedBlobs": true,
             "clickaroundChunks": 1,
             "scrollUpDistance": 100,
             "scrollUpCount": 1,
@@ -1185,7 +1187,7 @@
     },
     "sushi bar": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -1210,8 +1212,8 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "nothing",
-          "waitTimeMs": null
+          "action": "wait",
+          "waitTimeMs": 1500
         },
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -1227,7 +1229,8 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
       "minBuildCount": 5
     },
@@ -1294,7 +1297,7 @@
     },
     "street nuts": {
       "doResearch": false,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 2500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -1530,7 +1533,7 @@
     },
     "big ice cream stand": {
       "doResearch": false,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 3000,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -1607,7 +1610,7 @@
     },
     "ramen truck": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 3500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -1678,7 +1681,7 @@
     },
     "waffle stand": {
       "doResearch": false,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 3000,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -1727,7 +1730,7 @@
     },
     "cafe napolita": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -1775,7 +1778,7 @@
     },
     "dessert co": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -2040,7 +2043,7 @@
           "action": "scroll_down_1x",
           "waitTimeMs": null
         },
-        "scrollToBottomAfterFirstBuild": false,
+        "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "clickaround",
@@ -2048,7 +2051,7 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": true,
-            "clickaroundChunks": 1,
+            "clickaroundChunks": 3,
             "scrollUpDistance": 0,
             "scrollUpCount": 0,
             "initialScrollDown": 0,
@@ -2061,14 +2064,15 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "customTriggers": []
       },
       "customTriggers": [],
       "minBuildCount": 11
     },
     "curry wurst stand": {
       "doResearch": false,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 3000,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -2116,7 +2120,7 @@
     },
     "apple juice bar": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -2283,7 +2287,7 @@
     },
     "dumpling hut": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -2333,7 +2337,7 @@
     },
     "the fresh kitchen": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -2500,6 +2504,33 @@
     },
     "_global": {
       "directionMode": "random"
+    },
+    "unknown level": {
+      "doResearch": true,
+      "scrollDirection": "up",
+      "blueBoxClickHoldDuration": 4500,
+      "directionUp": {
+        "optimized": true,
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
+        "scrollToBottomAfterFirstBuild": false,
+        "scrollToBottomAfterSecondBuild": true,
+        "firstBuildAction": {
+          "action": "nothing",
+          "triggerTimeMs": null,
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
+        },
+        "secondBuildAction": {
+          "action": "nothing",
+          "triggerTimeMs": null,
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
+        },
+        "customTriggers": []
+      }
     }
   }
 }
