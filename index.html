@@ -199,7 +199,7 @@
                     </div>
 
                     <!-- Direction Mode Controls -->
-                    <div id="directionModeControls" style="margin-top: 10px; display: flex; gap: 18px; align-items: center;">
+                    <div id="directionModeControls" style="margin-top: 10px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap;">
                         <div style="color:#e0e6ed; font-weight:600;">Direction:</div>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
                             <input type="radio" name="directionMode" value="saved" id="directionModeSaved">
@@ -212,6 +212,14 @@
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
                             <input type="radio" name="directionMode" value="up" id="directionModeUp">
                             <span>Up</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
+                            <input type="radio" name="directionMode" value="best" id="directionModeBest">
+                            <span>Best</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
+                            <input type="radio" name="directionMode" value="worst" id="directionModeWorst">
+                            <span>Worst</span>
                         </label>
                     </div>
                 </div>
@@ -392,7 +400,14 @@
         <div class="settings-modal-content">
             <div class="settings-modal-header">
                 <h2>⚙️ Level Settings</h2>
-                <button id="closeSettingsBtn" class="settings-close">&times;</button>
+                <div class="settings-header-controls">
+                    <button id="directionToggleBtn" class="btn btn-direction" title="Click to toggle direction">
+                        <span id="directionToggleText">↑ UP</span>
+                    </button>
+                    <button id="saveSettingsBtn" class="btn btn-success btn-header">💾 Save</button>
+                    <button id="resetToDefaultsBtn" class="btn btn-secondary btn-header">🔄 Reset</button>
+                    <button id="closeSettingsBtn" class="settings-close">&times;</button>
+                </div>
             </div>
             
             <div class="settings-modal-body">
@@ -418,14 +433,8 @@
                             <span class="setting-help">Whether to check for and perform research during builds</span>
                         </div>
 
-                        <div class="setting-item">
-                            <label for="scrollDirection">Scroll Direction:</label>
-                            <select id="scrollDirection">
-                                <option value="up">Scroll Up (select bottom-right blob)</option>
-                                <option value="down">Scroll Down (select top-left blob)</option>
-                            </select>
-                            <span class="setting-help">Direction to scroll when searching for red blobs</span>
-                        </div>
+                        <!-- Hidden input to track current direction (controlled by header button) -->
+                        <input type="hidden" id="scrollDirection" value="up">
 
                         <div class="setting-item">
                             <label for="optimized">
@@ -449,11 +458,14 @@
                             <select id="perfectStartingPosition">
                                 <option value="nothing">Nothing</option>
                                 <option value="scroll_up_1x">Scroll Up 1x</option>
+                                <option value="scroll_up_2x">Scroll Up 2x</option>
+                                <option value="scroll_up_3x">Scroll Up 3x</option>
                                 <option value="scroll_down_1x">Scroll Down 1x</option>
                                 <option value="scroll_down_2x">Scroll Down 2x</option>
                                 <option value="scroll_down_3x">Scroll Down 3x</option>
                                 <option value="scroll_down_4x">Scroll Down 4x</option>
                                 <option value="scroll_to_bottom">Scroll to Bottom</option>
+                                <option value="scroll_to_top">Scroll to Top</option>
                                 <option value="wait">Wait (custom time)</option>
                             </select>
                             <span class="setting-help">What to do when starting a new level</span>
@@ -482,9 +494,14 @@
                             <span class="setting-help">When to trigger action (60000 = 1 minute, null = never)</span>
                         </div>
                         <div class="setting-item">
-                            <label for="firstBuildClickOffScrollDistance">Click Off & Scroll Distance (px):</label>
+                            <label for="firstBuildClickOffScrollDirection">Click Off & Scroll Direction:</label>
+                            <select id="firstBuildClickOffScrollDirection">
+                                <option value="up">Up</option>
+                                <option value="down">Down</option>
+                            </select>
+                            <label for="firstBuildClickOffScrollDistance">Distance (px):</label>
                             <input type="number" id="firstBuildClickOffScrollDistance" min="50" max="500" step="10" value="150">
-                            <span class="setting-help">Distance to scroll after clicking off (default: 150px, scrolls opposite to level direction)</span>
+                            <span class="setting-help">Direction and distance to scroll after clicking off</span>
                         </div>
                         
                         <!-- Clickaround Options for First Build -->
@@ -527,11 +544,23 @@
                         </div>
 
                         <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="scrollToBottomAfterFirstBuild">
-                                Scroll to Bottom After First Build
-                            </label>
-                            <span class="setting-help">Scroll to bottom after build completes</span>
+                            <label for="scrollAfterFirstBuild">After First Build Completes:</label>
+                            <select id="scrollAfterFirstBuild">
+                                <option value="nothing">Nothing</option>
+                                <option value="scrollToBottom">Scroll to Bottom</option>
+                                <option value="scrollToTop">Scroll to Top</option>
+                                <option value="scrollCustom">Scroll Custom...</option>
+                            </select>
+                            <span class="setting-help">Scroll action after first build completes</span>
+                        </div>
+                        <div id="scrollAfterFirstBuildCustomOptions" class="setting-item" style="display: none; margin-left: 20px;">
+                            <label for="scrollAfterFirstBuildDirection">Direction:</label>
+                            <select id="scrollAfterFirstBuildDirection">
+                                <option value="up">Up</option>
+                                <option value="down">Down</option>
+                            </select>
+                            <label for="scrollAfterFirstBuildDistance">Distance (px):</label>
+                            <input type="number" id="scrollAfterFirstBuildDistance" min="50" max="1000" step="50" value="300">
                         </div>
                     </div>
 
@@ -552,9 +581,14 @@
                             <span class="setting-help">When to trigger action (180000 = 3 minutes, null = never)</span>
                         </div>
                         <div class="setting-item">
-                            <label for="secondBuildClickOffScrollDistance">Click Off & Scroll Distance (px):</label>
+                            <label for="secondBuildClickOffScrollDirection">Click Off & Scroll Direction:</label>
+                            <select id="secondBuildClickOffScrollDirection">
+                                <option value="up">Up</option>
+                                <option value="down">Down</option>
+                            </select>
+                            <label for="secondBuildClickOffScrollDistance">Distance (px):</label>
                             <input type="number" id="secondBuildClickOffScrollDistance" min="50" max="500" step="10" value="150">
-                            <span class="setting-help">Distance to scroll after clicking off (default: 150px, scrolls opposite to level direction)</span>
+                            <span class="setting-help">Direction and distance to scroll after clicking off</span>
                         </div>
                         
                         <!-- Clickaround Options for Second Build -->
@@ -597,11 +631,23 @@
                         </div>
 
                         <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="scrollToBottomAfterSecondBuild">
-                                Scroll to Bottom After Second Build
-                            </label>
-                            <span class="setting-help">Scroll to bottom after build completes</span>
+                            <label for="scrollAfterSecondBuild">After Second Build Completes:</label>
+                            <select id="scrollAfterSecondBuild">
+                                <option value="nothing">Nothing</option>
+                                <option value="scrollToBottom">Scroll to Bottom</option>
+                                <option value="scrollToTop">Scroll to Top</option>
+                                <option value="scrollCustom">Scroll Custom...</option>
+                            </select>
+                            <span class="setting-help">Scroll action after second build completes</span>
+                        </div>
+                        <div id="scrollAfterSecondBuildCustomOptions" class="setting-item" style="display: none; margin-left: 20px;">
+                            <label for="scrollAfterSecondBuildDirection">Direction:</label>
+                            <select id="scrollAfterSecondBuildDirection">
+                                <option value="up">Up</option>
+                                <option value="down">Down</option>
+                            </select>
+                            <label for="scrollAfterSecondBuildDistance">Distance (px):</label>
+                            <input type="number" id="scrollAfterSecondBuildDistance" min="50" max="1000" step="50" value="300">
                         </div>
                     </div>
 
@@ -618,10 +664,6 @@
                         </div>
                     </div>
 
-                    <div class="settings-actions">
-                        <button id="saveSettingsBtn" class="btn btn-success">💾 Save Settings</button>
-                        <button id="resetToDefaultsBtn" class="btn btn-secondary">🔄 Reset to Defaults</button>
-                    </div>
                 </div>
             </div>
         </div>

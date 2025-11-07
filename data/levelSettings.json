@@ -5,12 +5,21 @@
     "scrollDirection": "up",
     "blueBoxClickHoldDuration": 4500,
     "maxBuildTimeMs": 180000,
-    "scrollToBottomAfterFirstBuild": true,
-    "scrollToBottomAfterSecondBuild": false,
+    "scrollAfterFirstBuild": {
+      "action": "scrollToBottom",
+      "direction": "down",
+      "distance": 300
+    },
+    "scrollAfterSecondBuild": {
+      "action": "nothing",
+      "direction": "down",
+      "distance": 300
+    },
     "perfectStartingPosition": "nothing",
     "firstBuildAction": {
       "action": "nothing",
       "triggerTimeMs": null,
+      "clickOffAndScrollDirection": "down",
       "clickOffAndScrollDistance": 150,
       "clickaroundOptions": {
         "excludeRedBlobs": true,
@@ -24,6 +33,7 @@
     "secondBuildAction": {
       "action": "nothing",
       "triggerTimeMs": null,
+      "clickOffAndScrollDirection": "down",
       "clickOffAndScrollDistance": 150,
       "clickaroundOptions": {
         "excludeRedBlobs": true,
@@ -198,21 +208,33 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "optimized": true,
-        "customTriggers": []
+        "customTriggers": [],
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        }
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "scroll_up_1x",
+          "action": "nothing",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
@@ -220,43 +242,69 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "minBuildCount": 4
     },
     "fast food": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
         "perfectStartingPosition": {
-          "action": "nothing",
+          "action": "scroll_down_1x",
           "waitTimeMs": null
         },
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "up",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
@@ -523,7 +571,7 @@
     },
     "coffee truck": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 3500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -535,16 +583,29 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "up",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
@@ -887,18 +948,38 @@
           "waitTimeMs": null
         },
         "firstBuildAction": {
-          "action": "nothing",
-          "triggerTimeMs": null,
+          "action": "clickaround",
+          "triggerTimeMs": 1000,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {}
+          "clickaroundOptions": {
+            "excludeRedBlobs": false,
+            "clickaroundChunks": 1,
+            "scrollUpDistance": 0,
+            "scrollUpCount": 0,
+            "initialScrollDown": 0,
+            "scrollToBottomAtEnd": false
+          }
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
@@ -910,16 +991,29 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "minBuildCount": 3
     },
@@ -937,20 +1031,33 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "scroll_down_1x",
+          "action": "nothing",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
@@ -958,16 +1065,29 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "minBuildCount": 4
     },
@@ -1838,6 +1958,7 @@
         "firstBuildAction": {
           "action": "clickaround",
           "triggerTimeMs": 30000,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": true,
@@ -1851,14 +1972,26 @@
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": 180000,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "scroll_up_1x",
+          "action": "nothing",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
@@ -1866,6 +1999,7 @@
         "firstBuildAction": {
           "action": "clickaround",
           "triggerTimeMs": 30000,
+          "clickOffAndScrollDirection": "up",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": true,
@@ -1879,10 +2013,22 @@
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "minBuildCount": 10
     },
@@ -1985,7 +2131,7 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "scroll_down_1x",
+          "action": "scroll_up_1x",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
@@ -1993,16 +2139,29 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "minBuildCount": 5
     },
@@ -2191,7 +2350,7 @@
     },
     "lobster house": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -2203,6 +2362,7 @@
         "firstBuildAction": {
           "action": "clickaround",
           "triggerTimeMs": 20000,
+          "clickOffAndScrollDirection": "up",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": false,
@@ -2215,7 +2375,8 @@
         },
         "secondBuildAction": {
           "action": "nothing",
-          "triggerTimeMs": 6000,
+          "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
@@ -2227,6 +2388,7 @@
             "triggerValue": "Oyster",
             "action": "clickAround",
             "actionParams": 5000,
+            "actionDistance": null,
             "clickaroundOptions": {
               "excludeRedBlobs": false,
               "clickaroundChunks": 1,
@@ -2242,6 +2404,7 @@
             "triggerValue": "Lobster",
             "action": "clickAround",
             "actionParams": 5000,
+            "actionDistance": null,
             "clickaroundOptions": {
               "excludeRedBlobs": false,
               "clickaroundChunks": 1,
@@ -2251,43 +2414,104 @@
               "scrollToBottomAtEnd": false
             }
           }
-        ]
+        ],
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        }
       },
       "directionDown": {
-        "perfectStartingPosition": "nothing",
+        "perfectStartingPosition": {
+          "action": "scroll_up_1x",
+          "waitTimeMs": null
+        },
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
-          "action": "nothing",
+          "action": "clickaround",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
+            "excludeRedBlobs": false,
+            "clickaroundChunks": 2,
             "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
+            "scrollUpCount": 1,
+            "initialScrollDown": 0,
             "scrollToBottomAtEnd": false
           }
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 3,
-            "scrollUpDistance": 200,
-            "scrollUpCount": 5,
-            "initialScrollDown": 150,
-            "scrollToBottomAtEnd": false
+          "clickaroundOptions": {}
+        },
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": [
+          {
+            "timing": "during",
+            "triggerType": "buildName",
+            "triggerValue": "Oyster",
+            "action": "clickAround",
+            "actionParams": 5000,
+            "actionDistance": null,
+            "clickaroundOptions": {
+              "excludeRedBlobs": false,
+              "clickaroundChunks": 1,
+              "scrollUpDistance": 0,
+              "scrollUpCount": 0,
+              "initialScrollDown": 0,
+              "scrollToBottomAtEnd": false
+            }
+          },
+          {
+            "timing": "during",
+            "triggerType": "buildName",
+            "triggerValue": "Lobster",
+            "action": "clickAround",
+            "actionParams": 5000,
+            "actionDistance": null,
+            "clickaroundOptions": {
+              "excludeRedBlobs": false,
+              "clickaroundChunks": 1,
+              "scrollUpDistance": 0,
+              "scrollUpCount": 0,
+              "initialScrollDown": 0,
+              "scrollToBottomAtEnd": false
+            }
+          },
+          {
+            "timing": "after",
+            "triggerType": "buildName",
+            "triggerValue": "Lobster",
+            "action": "scrollToTop",
+            "actionParams": 5000,
+            "actionDistance": 200
           }
-        }
+        ]
       }
     },
     "dumpling hut": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -2299,45 +2523,70 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "up",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
           "action": "wait",
-          "waitTimeMs": 1000
+          "waitTimeMs": 2000
         },
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "optimized": true,
-        "customTriggers": []
+        "customTriggers": [],
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        }
       },
       "customTriggers": [],
       "minBuildCount": 4
     },
     "the fresh kitchen": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 6500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -2349,12 +2598,14 @@
         "firstBuildAction": {
           "action": "click_off_and_scroll",
           "triggerTimeMs": 12000,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 400,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "clickaround",
           "triggerTimeMs": 40000,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": false,
@@ -2366,7 +2617,17 @@
           }
         },
         "optimized": true,
-        "customTriggers": []
+        "customTriggers": [],
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        }
       },
       "directionDown": {
         "perfectStartingPosition": {
@@ -2376,25 +2637,20 @@
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
-          "action": "clickaround",
+          "action": "click_off_and_scroll",
           "triggerTimeMs": 12000,
-          "clickOffAndScrollDistance": 500,
-          "clickaroundOptions": {
-            "excludeRedBlobs": true,
-            "clickaroundChunks": 2,
-            "scrollUpDistance": 0,
-            "scrollUpCount": 0,
-            "initialScrollDown": 0,
-            "scrollToBottomAtEnd": false
-          }
+          "clickOffAndScrollDirection": "down",
+          "clickOffAndScrollDistance": 400,
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "clickaround",
           "triggerTimeMs": 40000,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
-            "excludeRedBlobs": false,
-            "clickaroundChunks": 2,
+            "excludeRedBlobs": true,
+            "clickaroundChunks": 3,
             "scrollUpDistance": 250,
             "scrollUpCount": 3,
             "initialScrollDown": 0,
@@ -2402,7 +2658,17 @@
           }
         },
         "optimized": true,
-        "customTriggers": []
+        "customTriggers": [],
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        }
       },
       "customTriggers": []
     },
@@ -2468,20 +2734,33 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "scroll_up_1x",
+          "action": "scroll_down_1x",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
@@ -2489,16 +2768,29 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "up",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
-        "optimized": true
+        "optimized": true,
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "customTriggers": []
       },
       "minBuildCount": 9
     },
@@ -2520,12 +2812,56 @@
         "firstBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "up",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
           "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
+        },
+        "customTriggers": [],
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        }
+      },
+      "directionDown": {
+        "optimized": false,
+        "perfectStartingPosition": {
+          "action": "nothing",
+          "waitTimeMs": null
+        },
+        "scrollAfterFirstBuild": {
+          "action": "nothing",
+          "direction": "down",
+          "distance": 300
+        },
+        "scrollAfterSecondBuild": {
+          "action": "scrollToBottom",
+          "direction": "down",
+          "distance": 300
+        },
+        "firstBuildAction": {
+          "action": "nothing",
+          "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
+          "clickOffAndScrollDistance": 150,
+          "clickaroundOptions": {}
+        },
+        "secondBuildAction": {
+          "action": "nothing",
+          "triggerTimeMs": null,
+          "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {}
         },

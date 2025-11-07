@@ -2983,6 +2983,20 @@ async function initializeSettingsModal() {
         checkForChanges();
     });
     
+    // Show/hide custom scroll options for after first build
+    document.getElementById('scrollAfterFirstBuild').addEventListener('change', (e) => {
+        document.getElementById('scrollAfterFirstBuildCustomOptions').style.display = 
+            e.target.value === 'scrollCustom' ? 'block' : 'none';
+        checkForChanges();
+    });
+    
+    // Show/hide custom scroll options for after second build
+    document.getElementById('scrollAfterSecondBuild').addEventListener('change', (e) => {
+        document.getElementById('scrollAfterSecondBuildCustomOptions').style.display = 
+            e.target.value === 'scrollCustom' ? 'block' : 'none';
+        checkForChanges();
+    });
+    
     document.getElementById('firstBuildAction').addEventListener('change', (e) => {
         document.getElementById('firstBuildClickaroundOptions').style.display = 
             e.target.value === 'clickaround' ? 'block' : 'none';
@@ -3011,112 +3025,23 @@ async function initializeSettingsModal() {
             return; // No change
         }
         
-        // Get current form settings (may have unsaved changes for old direction)
+        // Get current form settings and auto-save silently
         const currentSettings = getCurrentFormSettings();
         await ipcRenderer.invoke('renderer-log', `DIR: current form (pre-save old): ${JSON.stringify(currentSettings)}`);
         
-        // Check if there are unsaved changes for the OLD direction only (ignore scrollDirection)
-        const currentDirSettings = {
+        // Always auto-save the current direction's settings before switching (no dialog)
+        const customTriggersForOldDir = getCustomTriggersFromForm();
+        const directionSpecificSettings = {
             optimized: currentSettings.optimized,
-            scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
-            scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
+            perfectStartingPosition: currentSettings.perfectStartingPosition,
+            scrollAfterFirstBuild: currentSettings.scrollAfterFirstBuild,
+            scrollAfterSecondBuild: currentSettings.scrollAfterSecondBuild,
             firstBuildAction: currentSettings.firstBuildAction,
             secondBuildAction: currentSettings.secondBuildAction,
-            perfectStartingPosition: currentSettings.perfectStartingPosition
+            customTriggers: customTriggersForOldDir
         };
-        const originalDirSettings = {
-            optimized: originalSettings.optimized,
-            scrollToBottomAfterFirstBuild: originalSettings.scrollToBottomAfterFirstBuild,
-            scrollToBottomAfterSecondBuild: originalSettings.scrollToBottomAfterSecondBuild,
-            firstBuildAction: originalSettings.firstBuildAction,
-            secondBuildAction: originalSettings.secondBuildAction,
-            perfectStartingPosition: originalSettings.perfectStartingPosition
-        };
-        const hasUnsavedChanges = JSON.stringify(currentDirSettings) !== JSON.stringify(originalDirSettings);
-        
-        if (hasUnsavedChanges) {
-            // Show confirmation dialog
-            const result = await new Promise((resolve) => {
-                const message = `You have unsaved changes for the "${oldDirection}" direction.\n\nWhat would you like to do?`;
-                const dialog = document.createElement('div');
-                dialog.style.cssText = `
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: #2a2a2a;
-                    border: 2px solid #555;
-                    border-radius: 8px;
-                    padding: 24px;
-                    z-index: 10000;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-                    min-width: 400px;
-                `;
-                
-                dialog.innerHTML = `
-                    <div style="color: #e0e6ed; font-size: 16px; margin-bottom: 20px; white-space: pre-line;">${message}</div>
-                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                        <button id="dialogSave" style="padding: 8px 16px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Save & Switch</button>
-                        <button id="dialogDiscard" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Discard & Switch</button>
-                        <button id="dialogCancel" style="padding: 8px 16px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Cancel</button>
-                    </div>
-                `;
-                
-                document.body.appendChild(dialog);
-                
-                document.getElementById('dialogSave').onclick = () => {
-                    document.body.removeChild(dialog);
-                    resolve('save');
-                };
-                document.getElementById('dialogDiscard').onclick = () => {
-                    document.body.removeChild(dialog);
-                    resolve('discard');
-                };
-                document.getElementById('dialogCancel').onclick = () => {
-                    document.body.removeChild(dialog);
-                    resolve('cancel');
-                };
-            });
-            
-            if (result === 'cancel') {
-                // Revert the dropdown to old direction
-                document.getElementById('scrollDirection').value = oldDirection;
-                return;
-            }
-            
-            if (result === 'discard') {
-                // Don't save, just continue with switching
-            } else if (result === 'save') {
-                // Extract only direction-specific settings (exclude global settings)
-                const customTriggersForOldDir = getCustomTriggersFromForm();
-                const directionSpecificSettings = {
-                    optimized: currentSettings.optimized,
-                    perfectStartingPosition: currentSettings.perfectStartingPosition,
-                    scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
-                    scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
-                    firstBuildAction: currentSettings.firstBuildAction,
-                    secondBuildAction: currentSettings.secondBuildAction,
-                    customTriggers: customTriggersForOldDir
-                };
-                await ipcRenderer.invoke('renderer-log', `DIR: saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
-                // Save changes from old direction before switching
-                await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
-            }
-        } else {
-            // No unsaved changes, just auto-save current state
-            const customTriggersForOldDir = getCustomTriggersFromForm();
-            const directionSpecificSettings = {
-                optimized: currentSettings.optimized,
-                perfectStartingPosition: currentSettings.perfectStartingPosition,
-                scrollToBottomAfterFirstBuild: currentSettings.scrollToBottomAfterFirstBuild,
-                scrollToBottomAfterSecondBuild: currentSettings.scrollToBottomAfterSecondBuild,
-                firstBuildAction: currentSettings.firstBuildAction,
-                secondBuildAction: currentSettings.secondBuildAction,
-                customTriggers: customTriggersForOldDir
-            };
-            await ipcRenderer.invoke('renderer-log', `DIR: auto-saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
-            await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
-        }
+        await ipcRenderer.invoke('renderer-log', `DIR: auto-saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
+        await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
         
         // Save the new scrollDirection to the file
         await ipcRenderer.invoke('renderer-log', `DIR: writing scrollDirection=${newDirection} for ${currentEditingLevel}`);
@@ -3126,9 +3051,20 @@ async function initializeSettingsModal() {
         await ipcRenderer.invoke('renderer-log', 'DIR: reloading settings from disk');
         await ipcRenderer.invoke('reload-settings');
         
-        // Now load the settings for the new direction
-        const settings = await ipcRenderer.invoke('get-level-settings', currentEditingLevel);
-        await ipcRenderer.invoke('renderer-log', `DIR: loaded merged settings: ${JSON.stringify(settings)}`);
+        // Now load settings for the NEW direction explicitly (not merged based on saved scrollDirection)
+        const globalSettings = await ipcRenderer.invoke('get-level-settings', currentEditingLevel);
+        const directionSettings = await ipcRenderer.invoke('get-direction-settings', currentEditingLevel, newDirection);
+        
+        // Merge global + direction-specific settings manually
+        const settings = {
+            ...directionSettings,
+            doResearch: globalSettings.doResearch,
+            scrollDirection: newDirection,  // Use the NEW direction, not the saved one
+            blueBoxClickHoldDuration: globalSettings.blueBoxClickHoldDuration,
+            maxBuildTimeMs: globalSettings.maxBuildTimeMs
+        };
+        
+        await ipcRenderer.invoke('renderer-log', `DIR: loaded direction-specific settings for ${newDirection}: ${JSON.stringify(settings)}`);
         
         // CRITICAL: Update originalSettings FIRST before touching any form elements
         // This prevents change listeners from interfering
@@ -3137,8 +3073,8 @@ async function initializeSettingsModal() {
             scrollDirection: settings.scrollDirection,
             blueBoxClickHoldDuration: settings.blueBoxClickHoldDuration,
             optimized: settings.optimized,
-            scrollToBottomAfterFirstBuild: settings.scrollToBottomAfterFirstBuild,
-            scrollToBottomAfterSecondBuild: settings.scrollToBottomAfterSecondBuild,
+            scrollAfterFirstBuild: settings.scrollAfterFirstBuild,
+            scrollAfterSecondBuild: settings.scrollAfterSecondBuild,
             perfectStartingPosition: settings.perfectStartingPosition,
             firstBuildAction: settings.firstBuildAction,
             secondBuildAction: settings.secondBuildAction,
@@ -3151,37 +3087,23 @@ async function initializeSettingsModal() {
         document.getElementById('blueBoxClickHoldDuration').value = settings.blueBoxClickHoldDuration;
         document.getElementById('optimized').checked = settings.optimized !== undefined ? settings.optimized : (newDirection === 'up');
         
-        // Force the checkboxes using multiple methods
-        const checkbox1 = document.getElementById('scrollToBottomAfterFirstBuild');
-        const checkbox2 = document.getElementById('scrollToBottomAfterSecondBuild');
+        // Load scroll after first build settings (handle backward compatibility)
+        const scrollAfterFirst = settings.scrollAfterFirstBuild || 
+            (settings.scrollToBottomAfterFirstBuild ? { action: 'scrollToBottom', direction: 'down', distance: 300 } : { action: 'nothing', direction: 'down', distance: 300 });
+        console.log('DEBUG: Direction change - scrollAfterFirstBuild:', JSON.stringify(scrollAfterFirst));
+        document.getElementById('scrollAfterFirstBuild').value = scrollAfterFirst.action;
+        document.getElementById('scrollAfterFirstBuildDirection').value = scrollAfterFirst.direction || 'down';
+        document.getElementById('scrollAfterFirstBuildDistance').value = scrollAfterFirst.distance || 300;
+        document.getElementById('scrollAfterFirstBuildCustomOptions').style.display = scrollAfterFirst.action === 'scrollCustom' ? 'block' : 'none';
         
-        // Method 1: Set property
-        checkbox1.checked = settings.scrollToBottomAfterFirstBuild;
-        await ipcRenderer.invoke('renderer-log', `UI: set checkbox1.checked=${checkbox1.checked}`);
-        checkbox2.checked = settings.scrollToBottomAfterSecondBuild;
-        
-        // Method 2: Set attribute
-        if (settings.scrollToBottomAfterFirstBuild) {
-            checkbox1.setAttribute('checked', '');
-        } else {
-            checkbox1.removeAttribute('checked');
-        }
-        if (settings.scrollToBottomAfterSecondBuild) {
-            checkbox2.setAttribute('checked', '');
-        } else {
-            checkbox2.removeAttribute('checked');
-        }
-        
-        // Method 3: Dispatch click events if values don't match
-        setTimeout(() => {
-            if (checkbox1.checked !== settings.scrollToBottomAfterFirstBuild) {
-                ipcRenderer.invoke('renderer-log', `UI: mismatch after set, clicking checkbox1 to ${settings.scrollToBottomAfterFirstBuild}`);
-                checkbox1.click();
-            }
-            if (checkbox2.checked !== settings.scrollToBottomAfterSecondBuild) {
-                checkbox2.click();
-            }
-        }, 100);
+        // Load scroll after second build settings (handle backward compatibility)
+        const scrollAfterSecond = settings.scrollAfterSecondBuild || 
+            (settings.scrollToBottomAfterSecondBuild ? { action: 'scrollToBottom', direction: 'down', distance: 300 } : { action: 'nothing', direction: 'down', distance: 300 });
+        console.log('DEBUG: Direction change - scrollAfterSecondBuild:', JSON.stringify(scrollAfterSecond));
+        document.getElementById('scrollAfterSecondBuild').value = scrollAfterSecond.action;
+        document.getElementById('scrollAfterSecondBuildDirection').value = scrollAfterSecond.direction || 'down';
+        document.getElementById('scrollAfterSecondBuildDistance').value = scrollAfterSecond.distance || 300;
+        document.getElementById('scrollAfterSecondBuildCustomOptions').style.display = scrollAfterSecond.action === 'scrollCustom' ? 'block' : 'none';
         
         // Handle perfectStartingPosition
         if (typeof settings.perfectStartingPosition === 'object') {
@@ -3195,8 +3117,10 @@ async function initializeSettingsModal() {
         }
         
         // First build action
+        console.log('DEBUG: Loading first build action:', JSON.stringify(settings.firstBuildAction, null, 2));
         document.getElementById('firstBuildAction').value = settings.firstBuildAction.action;
         document.getElementById('firstBuildTriggerTime').value = settings.firstBuildAction.triggerTimeMs || '';
+        document.getElementById('firstBuildClickOffScrollDirection').value = settings.firstBuildAction.clickOffAndScrollDirection || 'down';
         document.getElementById('firstBuildClickOffScrollDistance').value = settings.firstBuildAction.clickOffAndScrollDistance || 150;
         const firstOpts = settings.firstBuildAction.clickaroundOptions || {};
         document.getElementById('firstBuildExcludeRedBlobs').checked = firstOpts.excludeRedBlobs !== undefined ? firstOpts.excludeRedBlobs : true;
@@ -3211,8 +3135,10 @@ async function initializeSettingsModal() {
             settings.firstBuildAction.action === 'click_off_and_scroll' ? 'block' : 'none';
         
         // Second build action
+        console.log('DEBUG: Loading second build action:', JSON.stringify(settings.secondBuildAction, null, 2));
         document.getElementById('secondBuildAction').value = settings.secondBuildAction.action;
         document.getElementById('secondBuildTriggerTime').value = settings.secondBuildAction.triggerTimeMs || '';
+        document.getElementById('secondBuildClickOffScrollDirection').value = settings.secondBuildAction.clickOffAndScrollDirection || 'down';
         document.getElementById('secondBuildClickOffScrollDistance').value = settings.secondBuildAction.clickOffAndScrollDistance || 150;
         const secondOpts = settings.secondBuildAction.clickaroundOptions || {};
         document.getElementById('secondBuildExcludeRedBlobs').checked = secondOpts.excludeRedBlobs !== undefined ? secondOpts.excludeRedBlobs : true;
@@ -3235,26 +3161,34 @@ async function initializeSettingsModal() {
         await ipcRenderer.invoke('renderer-log', `DIR: calling checkForChanges`);
         checkForChanges();
         
-        // FINAL CHECK: Verify the checkbox is actually set correctly
-        setTimeout(() => {
-            const finalCheck = document.getElementById('scrollToBottomAfterFirstBuild');
-            if (finalCheck.checked !== settings.scrollToBottomAfterFirstBuild) {
-                ipcRenderer.invoke('renderer-log', `FINAL MISMATCH: expected=${settings.scrollToBottomAfterFirstBuild} actual=${finalCheck.checked}`);
-            } else {
-                ipcRenderer.invoke('renderer-log', `FINAL OK: checkbox1=${finalCheck.checked}`);
-            }
-        }, 500);
+        // Update the direction button text
+        updateDirectionButtonText(newDirection);
+    });
+    
+    // Direction Toggle Button Handler
+    document.getElementById('directionToggleBtn').addEventListener('click', () => {
+        const currentDirection = document.getElementById('scrollDirection').value;
+        const newDirection = currentDirection === 'up' ? 'down' : 'up';
+        
+        // Update the hidden input
+        document.getElementById('scrollDirection').value = newDirection;
+        
+        // Trigger the change event to use the existing handler logic
+        const event = new Event('change', { bubbles: true });
+        document.getElementById('scrollDirection').dispatchEvent(event);
     });
     
     // Add change listeners to all form inputs to track modifications
     // NOTE: scrollDirection has its own special handler above, don't add it here
     const formInputs = [
         'doResearch', 'optimized', 'blueBoxClickHoldDuration',
-        'scrollToBottomAfterFirstBuild', 'scrollToBottomAfterSecondBuild', 'perfectStartingPosition', 'perfectStartingPositionWaitTime',
-        'firstBuildAction', 'firstBuildTriggerTime', 'firstBuildClickOffScrollDistance',
+        'scrollAfterFirstBuild', 'scrollAfterFirstBuildDirection', 'scrollAfterFirstBuildDistance',
+        'scrollAfterSecondBuild', 'scrollAfterSecondBuildDirection', 'scrollAfterSecondBuildDistance',
+        'perfectStartingPosition', 'perfectStartingPositionWaitTime',
+        'firstBuildAction', 'firstBuildTriggerTime', 'firstBuildClickOffScrollDirection', 'firstBuildClickOffScrollDistance',
         'firstBuildExcludeRedBlobs', 'firstBuildClickaroundChunks', 'firstBuildScrollUpDistance', 'firstBuildScrollUpCount',
         'firstBuildInitialScrollDown', 'firstBuildScrollToBottomAtEnd',
-        'secondBuildAction', 'secondBuildTriggerTime', 'secondBuildClickOffScrollDistance',
+        'secondBuildAction', 'secondBuildTriggerTime', 'secondBuildClickOffScrollDirection', 'secondBuildClickOffScrollDistance',
         'secondBuildExcludeRedBlobs', 'secondBuildClickaroundChunks', 'secondBuildScrollUpDistance', 'secondBuildScrollUpCount',
         'secondBuildInitialScrollDown', 'secondBuildScrollToBottomAtEnd'
     ];
@@ -3266,6 +3200,21 @@ async function initializeSettingsModal() {
             element.addEventListener('input', checkForChanges);
         }
     });
+}
+
+// Update direction button text based on current direction
+function updateDirectionButtonText(direction) {
+    const btn = document.getElementById('directionToggleBtn');
+    const text = document.getElementById('directionToggleText');
+    if (btn && text) {
+        if (direction === 'up') {
+            text.textContent = '↑ UP';
+            btn.title = 'Click to switch to DOWN';
+        } else {
+            text.textContent = '↓ DOWN';
+            btn.title = 'Click to switch to UP';
+        }
+    }
 }
 
 function checkForChanges() {
@@ -3301,8 +3250,16 @@ function getCurrentFormSettings() {
         scrollDirection: document.getElementById('scrollDirection').value,
         optimized: document.getElementById('optimized').checked,
         blueBoxClickHoldDuration: parseInt(document.getElementById('blueBoxClickHoldDuration').value),
-        scrollToBottomAfterFirstBuild: document.getElementById('scrollToBottomAfterFirstBuild').checked,
-        scrollToBottomAfterSecondBuild: document.getElementById('scrollToBottomAfterSecondBuild').checked,
+        scrollAfterFirstBuild: {
+            action: document.getElementById('scrollAfterFirstBuild').value,
+            direction: document.getElementById('scrollAfterFirstBuildDirection').value,
+            distance: parseInt(document.getElementById('scrollAfterFirstBuildDistance').value) || 300
+        },
+        scrollAfterSecondBuild: {
+            action: document.getElementById('scrollAfterSecondBuild').value,
+            direction: document.getElementById('scrollAfterSecondBuildDirection').value,
+            distance: parseInt(document.getElementById('scrollAfterSecondBuildDistance').value) || 300
+        },
         perfectStartingPosition: {
             action: perfectStartingPositionAction,
             waitTimeMs: perfectStartingPositionAction === 'wait' ? parseInt(document.getElementById('perfectStartingPositionWaitTime').value) || 1000 : null
@@ -3310,6 +3267,7 @@ function getCurrentFormSettings() {
         firstBuildAction: {
             action: firstBuildAction,
             triggerTimeMs: parseInt(document.getElementById('firstBuildTriggerTime').value) || null,
+            clickOffAndScrollDirection: document.getElementById('firstBuildClickOffScrollDirection').value,
             clickOffAndScrollDistance: parseInt(document.getElementById('firstBuildClickOffScrollDistance').value) || 150,
             clickaroundOptions: firstBuildAction === 'clickaround' ? {
                 excludeRedBlobs: document.getElementById('firstBuildExcludeRedBlobs').checked,
@@ -3323,6 +3281,7 @@ function getCurrentFormSettings() {
         secondBuildAction: {
             action: secondBuildAction,
             triggerTimeMs: parseInt(document.getElementById('secondBuildTriggerTime').value) || null,
+            clickOffAndScrollDirection: document.getElementById('secondBuildClickOffScrollDirection').value,
             clickOffAndScrollDistance: parseInt(document.getElementById('secondBuildClickOffScrollDistance').value) || 150,
             clickaroundOptions: secondBuildAction === 'clickaround' ? {
                 excludeRedBlobs: document.getElementById('secondBuildExcludeRedBlobs').checked,
@@ -3354,13 +3313,33 @@ async function loadSettingsForLevel(levelName) {
     // Populate form
     document.getElementById('doResearch').checked = settings.doResearch;
     document.getElementById('scrollDirection').value = settings.scrollDirection;
+    
+    // Update the direction button text to match
+    updateDirectionButtonText(settings.scrollDirection);
+    
     // Set optimized checkbox with defaults: true for 'up', false for 'down'
     document.getElementById('optimized').checked = settings.optimized !== undefined 
         ? settings.optimized 
         : (settings.scrollDirection === 'up' ? true : false);
     document.getElementById('blueBoxClickHoldDuration').value = settings.blueBoxClickHoldDuration;
-    document.getElementById('scrollToBottomAfterFirstBuild').checked = settings.scrollToBottomAfterFirstBuild;
-    document.getElementById('scrollToBottomAfterSecondBuild').checked = settings.scrollToBottomAfterSecondBuild;
+    
+    // Load scroll after first build settings (handle backward compatibility)
+    const scrollAfterFirst = settings.scrollAfterFirstBuild || 
+        (settings.scrollToBottomAfterFirstBuild ? { action: 'scrollToBottom', direction: 'down', distance: 300 } : { action: 'nothing', direction: 'down', distance: 300 });
+    console.log('DEBUG: loadSettingsIntoForm - scrollAfterFirstBuild:', JSON.stringify(scrollAfterFirst));
+    document.getElementById('scrollAfterFirstBuild').value = scrollAfterFirst.action;
+    document.getElementById('scrollAfterFirstBuildDirection').value = scrollAfterFirst.direction || 'down';
+    document.getElementById('scrollAfterFirstBuildDistance').value = scrollAfterFirst.distance || 300;
+    document.getElementById('scrollAfterFirstBuildCustomOptions').style.display = scrollAfterFirst.action === 'scrollCustom' ? 'block' : 'none';
+    
+    // Load scroll after second build settings (handle backward compatibility)
+    const scrollAfterSecond = settings.scrollAfterSecondBuild || 
+        (settings.scrollToBottomAfterSecondBuild ? { action: 'scrollToBottom', direction: 'down', distance: 300 } : { action: 'nothing', direction: 'down', distance: 300 });
+    console.log('DEBUG: loadSettingsIntoForm - scrollAfterSecondBuild:', JSON.stringify(scrollAfterSecond));
+    document.getElementById('scrollAfterSecondBuild').value = scrollAfterSecond.action;
+    document.getElementById('scrollAfterSecondBuildDirection').value = scrollAfterSecond.direction || 'down';
+    document.getElementById('scrollAfterSecondBuildDistance').value = scrollAfterSecond.distance || 300;
+    document.getElementById('scrollAfterSecondBuildCustomOptions').style.display = scrollAfterSecond.action === 'scrollCustom' ? 'block' : 'none';
     
     // Handle perfectStartingPosition (can be string or object for backward compatibility)
     if (typeof settings.perfectStartingPosition === 'object') {
@@ -3378,6 +3357,7 @@ async function loadSettingsForLevel(levelName) {
     // First build action
     document.getElementById('firstBuildAction').value = settings.firstBuildAction.action;
     document.getElementById('firstBuildTriggerTime').value = settings.firstBuildAction.triggerTimeMs || '';
+    document.getElementById('firstBuildClickOffScrollDirection').value = settings.firstBuildAction.clickOffAndScrollDirection || 'down';
     document.getElementById('firstBuildClickOffScrollDistance').value = settings.firstBuildAction.clickOffAndScrollDistance || 150;
     
     // First build clickaround options
@@ -3398,6 +3378,7 @@ async function loadSettingsForLevel(levelName) {
     // Second build action
     document.getElementById('secondBuildAction').value = settings.secondBuildAction.action;
     document.getElementById('secondBuildTriggerTime').value = settings.secondBuildAction.triggerTimeMs || '';
+    document.getElementById('secondBuildClickOffScrollDirection').value = settings.secondBuildAction.clickOffAndScrollDirection || 'down';
     document.getElementById('secondBuildClickOffScrollDistance').value = settings.secondBuildAction.clickOffAndScrollDistance || 150;
     
     // Second build clickaround options
@@ -3495,8 +3476,16 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
                     `<option value="${action.value}" ${trigger.action === action.value ? 'selected' : ''}>${action.label}</option>`
                 ).join('')}
             </select>
-            <input type="number" class="trigger-settings-params" data-index="${index}" data-field="actionParams" 
-                   value="${trigger.actionParams || ''}" placeholder="Duration" min="1">
+            <span class="trigger-time-container" id="triggerTimeContainer${index}" data-index="${index}">
+                <span class="trigger-time-label">After (ms):</span>
+                <input type="number" class="trigger-settings-time" id="triggerTime${index}" data-index="${index}" data-field="actionParams" 
+                       value="${trigger.actionParams || ''}" placeholder="Time" min="1000" step="1000">
+            </span>
+            <span class="trigger-distance-container" id="triggerDistanceContainer${index}" data-index="${index}" style="display:none;">
+                <span class="trigger-distance-label">Distance (px):</span>
+                <input type="number" class="trigger-settings-distance" id="triggerDistance${index}" data-index="${index}" data-field="actionDistance" 
+                       value="${trigger.actionDistance || ''}" placeholder="Distance" min="50" step="10">
+            </span>
             <button class="remove-trigger-settings-btn" data-index="${index}">×</button>
         </div>
         <div class="trigger-clickaround-options" id="triggerClickaroundOptions${index}" style="display: none;">
@@ -3547,6 +3536,49 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
     const removeBtn = triggerDiv.querySelector('.remove-trigger-settings-btn');
     const actionSelect = triggerDiv.querySelector('.trigger-settings-action');
     const typeSelect = triggerDiv.querySelector('.trigger-settings-type');
+    const timingSelect = triggerDiv.querySelector('.trigger-settings-timing');
+    
+    // Function to update time and distance fields based on timing and action
+    const updateParamsField = () => {
+        const timing = timingSelect.value;
+        const action = actionSelect.value;
+        const timeContainer = document.getElementById(`triggerTimeContainer${index}`);
+        const distanceContainer = document.getElementById(`triggerDistanceContainer${index}`);
+        
+        // Determine what to show based on timing and action
+        if (timing === 'after') {
+            // AFTER build triggers
+            timeContainer.style.display = 'none'; // Never show time for after triggers
+            
+            if (action === 'scrollUp' || action === 'scrollDown') {
+                distanceContainer.style.display = 'inline';
+            } else if (action === 'scrollToTop' || action === 'scrollToBottom') {
+                distanceContainer.style.display = 'none'; // No distance needed for scroll to top/bottom
+            } else if (action === 'clickAround') {
+                distanceContainer.style.display = 'none';
+            } else {
+                distanceContainer.style.display = 'none';
+            }
+        } else {
+            // DURING build triggers
+            if (action === 'scrollUp' || action === 'scrollDown') {
+                timeContainer.style.display = 'inline';
+                distanceContainer.style.display = 'inline';
+            } else if (action === 'scrollToTop' || action === 'scrollToBottom') {
+                timeContainer.style.display = 'inline';
+                distanceContainer.style.display = 'none';
+            } else if (action === 'clickAround') {
+                timeContainer.style.display = 'inline';
+                distanceContainer.style.display = 'none';
+            } else {
+                timeContainer.style.display = 'none';
+                distanceContainer.style.display = 'none';
+            }
+        }
+    };
+    
+    // Call on initial load
+    updateParamsField();
     
     [...selects, ...inputs, ...checkboxes].forEach(element => {
         element.addEventListener('change', () => updateTriggerSettings(index));
@@ -3581,7 +3613,13 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
         updateTriggerSettings(index);
     });
     
-    // Special handler for action select to show/hide clickaround options
+    // Special handler for timing select to update params field
+    timingSelect.addEventListener('change', () => {
+        updateParamsField();
+        updateTriggerSettings(index);
+    });
+    
+    // Special handler for action select to show/hide clickaround options and update params field
     actionSelect.addEventListener('change', () => {
         const clickaroundOptions = triggerDiv.querySelector(`#triggerClickaroundOptions${index}`);
         if (actionSelect.value === 'clickAround') {
@@ -3589,6 +3627,7 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
         } else {
             clickaroundOptions.style.display = 'none';
         }
+        updateParamsField();
         updateTriggerSettings(index);
     });
     
@@ -3607,7 +3646,8 @@ async function addNewTriggerSettings(triggerTypes, triggerActions) {
         triggerType: 'buildNumber',
         triggerValue: 3, // Default to 3 (min for buildNumber)
         action: 'clickAround',
-        actionParams: 5000
+        actionParams: 5000,
+        actionDistance: 200
     };
     
     const triggersList = document.getElementById('triggersList');
@@ -3673,12 +3713,16 @@ function getCustomTriggersFromForm() {
             triggerValue = parseInt(triggerValueRaw) || (triggerType === 'buildNumber' ? 3 : 1000);
         }
         
+        const timeInput = triggerItem.querySelector('.trigger-settings-time');
+        const distanceInput = triggerItem.querySelector('.trigger-settings-distance');
+        
         const trigger = {
             timing: timing || 'during', // Default to 'during' if not set
             triggerType: triggerType,
             triggerValue: triggerValue,
             action: triggerItem.querySelector('.trigger-settings-action').value,
-            actionParams: parseInt(triggerItem.querySelector('.trigger-settings-params').value) || 5000
+            actionParams: timeInput ? (parseInt(timeInput.value) || null) : null,
+            actionDistance: distanceInput ? (parseInt(distanceInput.value) || null) : null
         };
         
         console.log(`DEBUG: getCustomTriggersFromForm - Trigger ${actualIndex}: timing="${timing}", type="${triggerType}", value="${triggerValue}"`);
@@ -3715,6 +3759,10 @@ async function saveCurrentSettings() {
     // Get custom triggers from the settings form
     const customTriggers = getCustomTriggersFromForm();
     console.log('DEBUG: saveCurrentSettings - Saving custom triggers:', JSON.stringify(customTriggers, null, 2));
+    console.log('DEBUG: saveCurrentSettings - scrollAfterFirstBuild:', JSON.stringify(settings.scrollAfterFirstBuild));
+    console.log('DEBUG: saveCurrentSettings - scrollAfterSecondBuild:', JSON.stringify(settings.scrollAfterSecondBuild));
+    console.log('DEBUG: saveCurrentSettings - firstBuildAction.clickOffAndScrollDirection:', settings.firstBuildAction.clickOffAndScrollDirection);
+    console.log('DEBUG: saveCurrentSettings - secondBuildAction.clickOffAndScrollDirection:', settings.secondBuildAction.clickOffAndScrollDirection);
     
     // Separate global settings from direction-specific settings
     const globalSettings = {
@@ -3726,8 +3774,8 @@ async function saveCurrentSettings() {
     const directionSpecificSettings = {
         optimized: settings.optimized,
         perfectStartingPosition: settings.perfectStartingPosition,
-        scrollToBottomAfterFirstBuild: settings.scrollToBottomAfterFirstBuild,
-        scrollToBottomAfterSecondBuild: settings.scrollToBottomAfterSecondBuild,
+        scrollAfterFirstBuild: settings.scrollAfterFirstBuild,
+        scrollAfterSecondBuild: settings.scrollAfterSecondBuild,
         firstBuildAction: settings.firstBuildAction,
         secondBuildAction: settings.secondBuildAction,
         customTriggers: customTriggers  // Custom triggers are direction-specific
@@ -3843,8 +3891,12 @@ function updateLevelActionsDisplayWithSettings(settings) {
     }
     
     // Update After First Build value
-    document.getElementById('afterFirstBuildValue').textContent = 
-        settings.scrollToBottomAfterFirstBuild ? 'Scroll to Bottom' : 'None';
+    const afterFirstText = settings.scrollAfterFirstBuild 
+        ? (settings.scrollAfterFirstBuild.action === 'scrollCustom' 
+            ? `Scroll ${settings.scrollAfterFirstBuild.direction} ${settings.scrollAfterFirstBuild.distance}px`
+            : settings.scrollAfterFirstBuild.action.replace('scrollTo', 'Scroll to '))
+        : (settings.scrollToBottomAfterFirstBuild ? 'Scroll to Bottom' : 'None');
+    document.getElementById('afterFirstBuildValue').textContent = afterFirstText;
     
     // Update Second Build value
     if (settings.secondBuildAction.action === 'nothing') {
@@ -3859,8 +3911,12 @@ function updateLevelActionsDisplayWithSettings(settings) {
     }
     
     // Update After Second Build value
-    document.getElementById('afterSecondBuildValue').textContent = 
-        settings.scrollToBottomAfterSecondBuild ? 'Scroll to Bottom' : 'None';
+    const afterSecondText = settings.scrollAfterSecondBuild 
+        ? (settings.scrollAfterSecondBuild.action === 'scrollCustom' 
+            ? `Scroll ${settings.scrollAfterSecondBuild.direction} ${settings.scrollAfterSecondBuild.distance}px`
+            : settings.scrollAfterSecondBuild.action.replace('scrollTo', 'Scroll to '))
+        : (settings.scrollToBottomAfterSecondBuild ? 'Scroll to Bottom' : 'None');
+    document.getElementById('afterSecondBuildValue').textContent = afterSecondText;
     
     // Update other settings
     document.getElementById('researchValue').textContent = settings.doResearch ? 'Yes' : 'No';
@@ -3881,10 +3937,10 @@ async function updateLevelActionsDisplay() {
         // Default settings when no level is known (matching settingsManager defaults)
         settings = {
             perfectStartingPosition: 'nothing',
-            firstBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {} },
-            secondBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {} },
-            scrollToBottomAfterFirstBuild: true,  // Default is true for unnamed levels
-            scrollToBottomAfterSecondBuild: false,
+            firstBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {}, clickOffAndScrollDirection: 'down' },
+            secondBuildAction: { action: 'nothing', triggerTimeMs: 0, clickaroundOptions: {}, clickOffAndScrollDirection: 'down' },
+            scrollAfterFirstBuild: { action: 'scrollToBottom', direction: 'down', distance: 300 },  // Default is scroll to bottom for unnamed levels
+            scrollAfterSecondBuild: { action: 'nothing', direction: 'down', distance: 300 },
             doResearch: true,  // Default is true
             blueBoxClickHoldDuration: 4500,  // Default is 4.5s
             scrollDirection: 'up'
@@ -3946,18 +4002,36 @@ function addTriggerItemIntegrated(trigger, index) {
     const triggerDiv = document.createElement('div');
     triggerDiv.className = 'trigger-item-integrated';
     
-    const triggerTypeLabel = trigger.triggerType === 'buildNumber' ? 'Build' : 'Time';
+    // Show timing (DURING or AFTER), not trigger type
+    const timingLabel = trigger.timing === 'after' ? 'AFTER' : 'DURING';
     const actionLabel = trigger.action.charAt(0).toUpperCase() + trigger.action.slice(1).replace(/([A-Z])/g, ' $1');
-    const paramsLabel = trigger.action === 'clickAround' ? `${trigger.actionParams}ms` : 
-                       trigger.action === 'wait' ? `${trigger.actionParams}ms` :
-                       trigger.action.includes('scroll') ? `${trigger.actionParams}px` : 
-                       trigger.actionParams;
+    
+    // Determine what to show for params
+    let paramsLabel = '';
+    const timing = trigger.timing || 'during';
+    
+    if (timing === 'during') {
+        // DURING build - show time for most actions
+        if (trigger.action === 'scrollUp' || trigger.action === 'scrollDown') {
+            paramsLabel = `${trigger.actionParams || 0}ms, ${trigger.actionDistance || 200}px`;
+        } else if (trigger.action === 'scrollToTop' || trigger.action === 'scrollToBottom') {
+            paramsLabel = `${trigger.actionParams || 0}ms`;
+        } else if (trigger.action === 'clickAround') {
+            paramsLabel = `${trigger.actionParams || 0}ms`;
+        }
+    } else {
+        // AFTER build - only show distance for scroll up/down
+        if (trigger.action === 'scrollUp' || trigger.action === 'scrollDown') {
+            paramsLabel = `${trigger.actionDistance || 200}px`;
+        }
+        // For scrollToTop, scrollToBottom, clickAround - show nothing
+    }
     
     triggerDiv.innerHTML = `
-        <span class="trigger-type">${triggerTypeLabel}</span>
+        <span class="trigger-type">${timingLabel}</span>
         <span class="trigger-value">${trigger.triggerValue}</span>
         <span class="trigger-action">${actionLabel}</span>
-        <span class="trigger-params">${paramsLabel}</span>
+        ${paramsLabel ? `<span class="trigger-params">${paramsLabel}</span>` : ''}
     `;
     
     triggersListIntegrated.appendChild(triggerDiv);
@@ -3972,7 +4046,16 @@ ipcRenderer.on('update-current-level-name', async () => {
 // Show effective direction in Level Progress when random applies
 ipcRenderer.on('effective-direction', async (event, mode, dir, randomApplied) => {
     try {
-        const label = mode === 'random' && randomApplied ? `Random ${dir === 'up' ? 'Up ↑' : 'Down ↓'}` : (dir === 'up' ? 'Up ↑' : 'Down ↓');
+        let label;
+        if (mode === 'random' && randomApplied) {
+            label = `Random ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
+        } else if (mode === 'best') {
+            label = `Best ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
+        } else if (mode === 'worst') {
+            label = `Worst ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
+        } else {
+            label = dir === 'up' ? 'Up ↑' : 'Down ↓';
+        }
         const el = document.getElementById('scrollDirValue');
         if (el) el.textContent = label;
         

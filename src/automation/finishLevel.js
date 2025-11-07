@@ -155,12 +155,13 @@ function startAutomation(dependencies) {
         try {
             const mode = settingsManager.getDirectionMode ? settingsManager.getDirectionMode() : 'random';
             const savedDir = (settingsManager.getLevelSettings(levelName).scrollDirection) || 'up';
+            const upS = settingsManager.getDirectionSettings(levelName, 'up');
+            const downS = settingsManager.getDirectionSettings(levelName, 'down');
+            
             if (mode === 'up') {
                 currentLevelEffectiveDirection = 'up';
                 currentLevelRandomApplied = false;
             } else if (mode === 'random') {
-                const upS = settingsManager.getDirectionSettings(levelName, 'up');
-                const downS = settingsManager.getDirectionSettings(levelName, 'down');
                 if (upS.optimized === true && downS.optimized === true) {
                     currentLevelEffectiveDirection = Math.random() < 0.5 ? 'up' : 'down';
                     currentLevelRandomApplied = true;
@@ -168,11 +169,130 @@ function startAutomation(dependencies) {
                     currentLevelEffectiveDirection = savedDir;
                     currentLevelRandomApplied = false;
                 }
+            } else if (mode === 'best') {
+                // Determine best direction based on historical data
+                const historicalStats = require(dependencies.path.join(dependencies.__dirname, 'lib', 'historicalStats.js'));
+                const bestTimes = historicalStats.getLevelBest(levelName);
+                const avgTimes = historicalStats.getLevelAverageByDirection(levelName);
+                
+                console.log(`DEBUG: Best mode - bestTimes:`, bestTimes, `avgTimes:`, avgTimes);
+                
+                // Check optimization status
+                const upOptimized = upS.optimized === true;
+                const downOptimized = downS.optimized === true;
+                
+                // If only one direction is optimized, always use that
+                if (upOptimized && !downOptimized) {
+                    currentLevelEffectiveDirection = 'up';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Best mode - choosing 'up' (only up is optimized)`);
+                } else if (downOptimized && !upOptimized) {
+                    currentLevelEffectiveDirection = 'down';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Best mode - choosing 'down' (only down is optimized)`);
+                } else if (bestTimes.up && bestTimes.down) {
+                    // Both have data, compare best times
+                    const diff = Math.abs(bestTimes.up - bestTimes.down);
+                    const maxTime = Math.max(bestTimes.up, bestTimes.down);
+                    const percentDiff = (diff / maxTime) * 100;
+                    
+                    if (percentDiff <= 1) {
+                        // Within 1%, use average instead
+                        console.log(`DEBUG: Best mode - best times within 1% (${percentDiff.toFixed(2)}%), using average`);
+                        if (avgTimes.up && avgTimes.down) {
+                            currentLevelEffectiveDirection = avgTimes.up < avgTimes.down ? 'up' : 'down';
+                        } else if (avgTimes.up) {
+                            currentLevelEffectiveDirection = 'up';
+                        } else if (avgTimes.down) {
+                            currentLevelEffectiveDirection = 'down';
+                        } else {
+                            currentLevelEffectiveDirection = bestTimes.up < bestTimes.down ? 'up' : 'down';
+                        }
+                    } else {
+                        // Use best time
+                        currentLevelEffectiveDirection = bestTimes.up < bestTimes.down ? 'up' : 'down';
+                    }
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Best mode - choosing '${currentLevelEffectiveDirection}' (up: ${bestTimes.up}ms, down: ${bestTimes.down}ms)`);
+                } else if (bestTimes.up) {
+                    currentLevelEffectiveDirection = 'up';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Best mode - choosing 'up' (only up has data)`);
+                } else if (bestTimes.down) {
+                    currentLevelEffectiveDirection = 'down';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Best mode - choosing 'down' (only down has data)`);
+                } else {
+                    // No data, use saved
+                    currentLevelEffectiveDirection = savedDir;
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Best mode - no data, using saved direction '${savedDir}'`);
+                }
+            } else if (mode === 'worst') {
+                // Determine worst direction based on historical data
+                const historicalStats = require(dependencies.path.join(dependencies.__dirname, 'lib', 'historicalStats.js'));
+                const bestTimes = historicalStats.getLevelBest(levelName);
+                const avgTimes = historicalStats.getLevelAverageByDirection(levelName);
+                
+                console.log(`DEBUG: Worst mode - bestTimes:`, bestTimes, `avgTimes:`, avgTimes);
+                
+                // Check optimization status
+                const upOptimized = upS.optimized === true;
+                const downOptimized = downS.optimized === true;
+                
+                // ALWAYS choose non-optimized direction if one exists
+                if (!upOptimized && downOptimized) {
+                    currentLevelEffectiveDirection = 'up';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Worst mode - choosing 'up' (not optimized)`);
+                } else if (!downOptimized && upOptimized) {
+                    currentLevelEffectiveDirection = 'down';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Worst mode - choosing 'down' (not optimized)`);
+                } else if (bestTimes.up && bestTimes.down) {
+                    // Both have same optimization status, compare times
+                    const diff = Math.abs(bestTimes.up - bestTimes.down);
+                    const maxTime = Math.max(bestTimes.up, bestTimes.down);
+                    const percentDiff = (diff / maxTime) * 100;
+                    
+                    if (percentDiff <= 1) {
+                        // Within 1%, use average instead
+                        console.log(`DEBUG: Worst mode - best times within 1% (${percentDiff.toFixed(2)}%), using average`);
+                        if (avgTimes.up && avgTimes.down) {
+                            currentLevelEffectiveDirection = avgTimes.up > avgTimes.down ? 'up' : 'down';
+                        } else if (avgTimes.up) {
+                            currentLevelEffectiveDirection = 'up';
+                        } else if (avgTimes.down) {
+                            currentLevelEffectiveDirection = 'down';
+                        } else {
+                            currentLevelEffectiveDirection = bestTimes.up > bestTimes.down ? 'up' : 'down';
+                        }
+                    } else {
+                        // Use worst (slower) time
+                        currentLevelEffectiveDirection = bestTimes.up > bestTimes.down ? 'up' : 'down';
+                    }
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Worst mode - choosing '${currentLevelEffectiveDirection}' (up: ${bestTimes.up}ms, down: ${bestTimes.down}ms)`);
+                } else if (bestTimes.up) {
+                    currentLevelEffectiveDirection = 'up';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Worst mode - choosing 'up' (only up has data)`);
+                } else if (bestTimes.down) {
+                    currentLevelEffectiveDirection = 'down';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Worst mode - choosing 'down' (only down has data)`);
+                } else {
+                    // No data, use saved
+                    currentLevelEffectiveDirection = savedDir;
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Worst mode - no data, using saved direction '${savedDir}'`);
+                }
             } else {
                 currentLevelEffectiveDirection = savedDir; // 'saved'
                 currentLevelRandomApplied = false;
             }
         } catch (e) {
+            console.error(`DEBUG: Error in selectEffectiveDirectionOnce:`, e);
             currentLevelEffectiveDirection = 'up';
             currentLevelRandomApplied = false;
         }
@@ -302,6 +422,8 @@ function startAutomation(dependencies) {
                 const levelSettings = (() => {
                     const global = settingsManager.getLevelSettings(settingsLevelName);
                     const dirSettings = settingsManager.getDirectionSettings(settingsLevelName, eff.dir);
+                    console.log(`DEBUG: After build ${buildCompletionCount} - Level: "${settingsLevelName}", Direction: ${eff.dir}`);
+                    console.log(`DEBUG: dirSettings:`, JSON.stringify(dirSettings, null, 2));
                     return {
                         ...dirSettings,
                         doResearch: global.doResearch,
@@ -313,27 +435,34 @@ function startAutomation(dependencies) {
                 const scrollDirection = levelSettings.scrollDirection || 'up';
                 // Do not emit effective-direction here; it's sent at level start
                 
-                let shouldScrollAfterBuild = false;
-                if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
-                    shouldScrollAfterBuild = true;
-                    console.log(`DEBUG: Settings indicate scroll after first build for "${settingsLevelName}" (direction: ${scrollDirection})`);
-                } else if (buildCompletionCount === 2 && levelSettings.scrollToBottomAfterSecondBuild) {
-                    shouldScrollAfterBuild = true;
-                    console.log(`DEBUG: Settings indicate scroll after second build for "${settingsLevelName}" (direction: ${scrollDirection})`);
-                }
+                // Check scroll action after build (new explicit direction system)
+                const scrollSetting = buildCompletionCount === 1 
+                    ? (levelSettings.scrollAfterFirstBuild || { action: 'nothing' })
+                    : (levelSettings.scrollAfterSecondBuild || { action: 'nothing' });
                 
-                if (shouldScrollAfterBuild) {
+                console.log(`DEBUG: scrollAfterFirstBuild:`, JSON.stringify(levelSettings.scrollAfterFirstBuild));
+                console.log(`DEBUG: scrollAfterSecondBuild:`, JSON.stringify(levelSettings.scrollAfterSecondBuild));
+                console.log(`DEBUG: scrollSetting for build ${buildCompletionCount}:`, JSON.stringify(scrollSetting));
+                
+                if (scrollSetting.action !== 'nothing') {
                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                     
-                    if (scrollDirection === 'down') {
-                        // For scroll down mode: scroll to top (opposite of setting name)
-                        console.log(`DEBUG: Scroll direction is DOWN, scrolling to TOP after build ${buildCompletionCount}`);
-                        await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
-                    } else {
-                        // For scroll up mode (default): scroll to bottom
-                        console.log(`DEBUG: Scroll direction is UP, scrolling to BOTTOM after build ${buildCompletionCount}`);
+                    console.log(`DEBUG: Scroll after build ${buildCompletionCount}: ${scrollSetting.action} (direction: ${scrollSetting.direction || 'N/A'}, distance: ${scrollSetting.distance || 'N/A'})`);
+                    
+                    if (scrollSetting.action === 'scrollToBottom') {
                         await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    } else if (scrollSetting.action === 'scrollToTop') {
+                        await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+                    } else if (scrollSetting.action === 'scrollCustom') {
+                        const distance = scrollSetting.distance || 300;
+                        if (scrollSetting.direction === 'up') {
+                            await scrollUpWithDistance(scrollX, scrollY, distance);
+                            console.log(`DEBUG: Scrolled UP ${distance}px after build ${buildCompletionCount}`);
+                        } else {
+                            await scrollDown(scrollX, scrollY, distance);
+                            console.log(`DEBUG: Scrolled DOWN ${distance}px after build ${buildCompletionCount}`);
+                        }
                     }
                     if (!getIsAutomationRunning()) return 'stopped';
                 }
@@ -550,27 +679,30 @@ function startAutomation(dependencies) {
                     dependencies.setEffectiveDirectionInfo(eff2);
                 }
                 
-                let shouldScrollAfterBuild = false;
-                if (buildCompletionCount === 1 && levelSettings.scrollToBottomAfterFirstBuild) {
-                    shouldScrollAfterBuild = true;
-                    console.log(`DEBUG: Settings indicate scroll after first build for "${settingsLevelName}" (direction: ${scrollDirection})`);
-                } else if (buildCompletionCount === 2 && levelSettings.scrollToBottomAfterSecondBuild) {
-                    shouldScrollAfterBuild = true;
-                    console.log(`DEBUG: Settings indicate scroll after second build for "${settingsLevelName}" (direction: ${scrollDirection})`);
-                }
+                // Check scroll action after build (new explicit direction system)
+                const scrollSetting = buildCompletionCount === 1 
+                    ? (levelSettings.scrollAfterFirstBuild || { action: 'nothing' })
+                    : (levelSettings.scrollAfterSecondBuild || { action: 'nothing' });
                 
-                if (shouldScrollAfterBuild) {
+                if (scrollSetting.action !== 'nothing') {
                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                     
-                    if (scrollDirection === 'down') {
-                        // For scroll down mode: scroll to top (opposite of setting name)
-                        console.log(`DEBUG: Scroll direction is DOWN, scrolling to TOP after build ${buildCompletionCount}`);
-                        await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
-                    } else {
-                        // For scroll up mode (default): scroll to bottom
-                        console.log(`DEBUG: Scroll direction is UP, scrolling to BOTTOM after build ${buildCompletionCount}`);
+                    console.log(`DEBUG: Scroll after build ${buildCompletionCount}: ${scrollSetting.action} (direction: ${scrollSetting.direction || 'N/A'}, distance: ${scrollSetting.distance || 'N/A'})`);
+                    
+                    if (scrollSetting.action === 'scrollToBottom') {
                         await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    } else if (scrollSetting.action === 'scrollToTop') {
+                        await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+                    } else if (scrollSetting.action === 'scrollCustom') {
+                        const distance = scrollSetting.distance || 300;
+                        if (scrollSetting.direction === 'up') {
+                            await scrollUpWithDistance(scrollX, scrollY, distance);
+                            console.log(`DEBUG: Scrolled UP ${distance}px after build ${buildCompletionCount}`);
+                        } else {
+                            await scrollDown(scrollX, scrollY, distance);
+                            console.log(`DEBUG: Scrolled DOWN ${distance}px after build ${buildCompletionCount}`);
+                        }
                     }
                     if (!getIsAutomationRunning()) return 'stopped';
                 }
@@ -771,59 +903,63 @@ function startAutomation(dependencies) {
             updateStatus(`Level-specific action: ${currentLevelName} - waiting ${waitTime}ms.`, 'info');
             await new Promise(resolve => setTimeout(resolve, waitTime));
         } else if (perfectStartingPositionAction === 'scroll_up_1x') {
-            const actualScrollFunc = scrollDirection === 'down' ? scrollDown : scrollUpWithDistance;
-            const directionText = scrollDirection === 'down' ? 'down' : 'up';
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} once (direction mode: ${scrollDirection}).`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} once.`, 'info');
-            await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll UP once.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling UP once.`, 'info');
+            await scrollUpWithDistance(scrollX, scrollY, scrollSwipeDistance);
             await new Promise(resolve => setTimeout(resolve, 100));
-        } else if (perfectStartingPositionAction === 'scroll_down_1x') {
-            const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
-            const directionText = scrollDirection === 'down' ? 'up' : 'down';
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} once (direction mode: ${scrollDirection}).`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} once.`, 'info');
-            await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
-            await new Promise(resolve => setTimeout(resolve, 100));
-        } else if (perfectStartingPositionAction === 'scroll_down_2x') {
-            const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
-            const directionText = scrollDirection === 'down' ? 'up' : 'down';
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} twice (direction mode: ${scrollDirection}).`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} twice.`, 'info');
+        } else if (perfectStartingPositionAction === 'scroll_up_2x') {
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll UP twice.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling UP twice.`, 'info');
             for (let i = 0; i < 2; i++) {
                 if (!getIsAutomationRunning()) { return; }
-                await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
+                await scrollUpWithDistance(scrollX, scrollY, scrollSwipeDistance);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } else if (perfectStartingPositionAction === 'scroll_up_3x') {
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll UP three times.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling UP three times.`, 'info');
+            for (let i = 0; i < 3; i++) {
+                if (!getIsAutomationRunning()) { return; }
+                await scrollUpWithDistance(scrollX, scrollY, scrollSwipeDistance);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } else if (perfectStartingPositionAction === 'scroll_down_1x') {
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll DOWN once.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling DOWN once.`, 'info');
+            await scrollDown(scrollX, scrollY, scrollSwipeDistance);
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } else if (perfectStartingPositionAction === 'scroll_down_2x') {
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll DOWN twice.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling DOWN twice.`, 'info');
+            for (let i = 0; i < 2; i++) {
+                if (!getIsAutomationRunning()) { return; }
+                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
         } else if (perfectStartingPositionAction === 'scroll_down_3x') {
-            const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
-            const directionText = scrollDirection === 'down' ? 'up' : 'down';
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} three times (direction mode: ${scrollDirection}).`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} three times.`, 'info');
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll DOWN three times.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling DOWN three times.`, 'info');
             for (let i = 0; i < 3; i++) {
                 if (!getIsAutomationRunning()) { return; }
-                await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
+                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
         } else if (perfectStartingPositionAction === 'scroll_down_4x') {
-            const actualScrollFunc = scrollDirection === 'down' ? scrollUpWithDistance : scrollDown;
-            const directionText = scrollDirection === 'down' ? 'up' : 'down';
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll ${directionText} four times (direction mode: ${scrollDirection}).`);
-            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling ${directionText} four times.`, 'info');
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll DOWN four times.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling DOWN four times.`, 'info');
             for (let i = 0; i < 4; i++) {
                 if (!getIsAutomationRunning()) { return; }
-                await actualScrollFunc(scrollX, scrollY, scrollSwipeDistance);
+                await scrollDown(scrollX, scrollY, scrollSwipeDistance);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
         } else if (perfectStartingPositionAction === 'scroll_to_bottom') {
-            if (scrollDirection === 'down') {
-                console.log(`DEBUG: Level "${currentLevelName}" requires scroll to TOP (scroll direction: down).`);
-                updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to top.`, 'info');
-                await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
-            } else {
-                console.log(`DEBUG: Level "${currentLevelName}" requires scroll to BOTTOM (scroll direction: up).`);
-                updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');
-                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
-            }
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll to BOTTOM.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to bottom.`, 'info');
+            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+        } else if (perfectStartingPositionAction === 'scroll_to_top') {
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll to TOP.`);
+            updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to top.`, 'info');
+            await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
         } else {
             // No specific action needed for this level
             console.log(`DEBUG: No specific scrolling action needed for level "${currentLevelName}".`);

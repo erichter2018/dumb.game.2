@@ -75,12 +75,17 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
                 console.log(`DEBUG: Custom trigger FIRING (first time this level) - ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
                 triggeredActions.add(triggerKey); // Mark as fired for the rest of this level
                 console.log(`DEBUG: Trigger marked as fired, will not fire again until next level`);
-                await executeTriggerActionDuringBuild(trigger, dependencies);
+                const result = await executeTriggerActionDuringBuild(trigger, dependencies);
+                // If clickaround was executed, return immediately so runBuildProtocol can exit
+                if (result === 'custom_trigger_clickaround_completed') {
+                    return result;
+                }
             }
         }
     } catch (error) {
         console.error('Error checking custom triggers during build:', error);
     }
+    return null; // No clickaround executed
 }
 
 // Custom trigger detection and execution AFTER build completes
@@ -140,12 +145,17 @@ async function checkCustomTriggersAfterBuild(levelName, buildNumber, elapsedTime
                 console.log(`DEBUG: Custom trigger FIRING AFTER build completes (first time this level) - ${trigger.triggerType}:${trigger.triggerValue} -> ${trigger.action}`);
                 triggeredActions.add(triggerKey); // Mark as fired for the rest of this level
                 console.log(`DEBUG: Trigger marked as fired, will not fire again until next level`);
-                await executeTriggerActionDuringBuild(trigger, dependencies);
+                const result = await executeTriggerActionDuringBuild(trigger, dependencies);
+                // If clickaround was executed, return immediately so runBuildProtocol can exit
+                if (result === 'custom_trigger_clickaround_completed') {
+                    return result;
+                }
             }
         }
     } catch (error) {
         console.error('Error checking custom triggers after build:', error);
     }
+    return null; // No clickaround executed
 }
 
 async function executeTriggerActionDuringBuild(trigger, dependencies) {
@@ -190,22 +200,51 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
                 
                 const { clickAround } = require('./clickAround');
                 await clickAround(clickAroundDependencies, trigger.clickaroundOptions?.excludeRedBlobs ?? true, trigger.clickaroundOptions || {});
-                break;
+                
+                // After clickaround, build box disappears - exit runBuildProtocol so finishLevel can find next red blob
+                console.log('DEBUG: Custom trigger clickaround completed - exiting runBuildProtocol');
+                return 'custom_trigger_clickaround_completed';
 
             case 'scrollUp':
                 updateCurrentFunction('customTrigger-scrollUp');
-                updateStatus(`Custom trigger: Scroll Up ${trigger.actionParams}px`, 'info');
+                const scrollUpDistance = trigger.actionDistance || 200;
+                updateStatus(`Custom trigger: Scroll Up ${scrollUpDistance}px`, 'info');
                 const scrollUpX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                 const scrollUpY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                await scrollUpWithDistance(scrollUpX, scrollUpY, trigger.actionParams || 200);
+                await scrollUpWithDistance(scrollUpX, scrollUpY, scrollUpDistance);
                 break;
 
             case 'scrollDown':
                 updateCurrentFunction('customTrigger-scrollDown');
-                updateStatus(`Custom trigger: Scroll Down ${trigger.actionParams}px`, 'info');
+                const scrollDownDistance = trigger.actionDistance || 200;
+                updateStatus(`Custom trigger: Scroll Down ${scrollDownDistance}px`, 'info');
                 const scrollDownX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                 const scrollDownY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-                await scrollDown(scrollDownX, scrollDownY, trigger.actionParams || 200);
+                await scrollDown(scrollDownX, scrollDownY, scrollDownDistance);
+                break;
+            
+            case 'scrollToTop':
+                updateCurrentFunction('customTrigger-scrollToTop');
+                updateStatus(`Custom trigger: Scroll to Top`, 'info');
+                const { scrollToTop } = require('./scrolling');
+                await scrollToTop({ 
+                    updateCurrentFunction: dependencies.updateCurrentFunction,
+                    performClick: dependencies.performClick,
+                    CLICK_AREAS: dependencies.CLICK_AREAS,
+                    iphoneMirroringRegion: dependencies.iphoneMirroringRegion
+                });
+                break;
+            
+            case 'scrollToBottom':
+                updateCurrentFunction('customTrigger-scrollToBottom');
+                updateStatus(`Custom trigger: Scroll to Bottom`, 'info');
+                const scrollToBottomX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                const scrollToBottomY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                await dependencies.scrollToBottom(scrollToBottomX, scrollToBottomY, dependencies.scrollSwipeDistance, dependencies.scrollToBottomIterations, {
+                    updateCurrentFunction: dependencies.updateCurrentFunction,
+                    performClick: dependencies.performClick,
+                    CLICK_AREAS: dependencies.CLICK_AREAS
+                });
                 break;
 
             default:
@@ -748,7 +787,12 @@ async function runBuildProtocol(dependencies) {
                 || levelSettings.scrollDirection 
                 || 'up';
             console.log(`DEBUG: Checking custom triggers during build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
-            await checkCustomTriggersDuringBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
+            const triggerResult = await checkCustomTriggersDuringBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
+            // If a clickaround trigger fired, exit immediately (build box will be gone)
+            if (triggerResult === 'custom_trigger_clickaround_completed') {
+                console.log('DEBUG: Custom trigger clickaround executed - exiting runBuildProtocol');
+                return triggerResult;
+            }
             
             // Only check for action if one is configured and hasn't been executed yet
             // If triggerTimeMs is null, execute immediately; otherwise wait for the trigger time
@@ -831,28 +875,25 @@ async function runBuildProtocol(dependencies) {
                         return 'click_off_completed';
                     }
                 } else if (currentBuildAction.action === 'click_off_and_scroll') {
-                    // Perform click off and scroll opposite to the level's scroll direction
+                    // Perform click off and scroll in explicit direction
                     if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
                         // Click off
                         await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
                         
-                        // Get scroll distance (default 150px)
+                        // Get scroll settings (explicit direction now)
+                        const scrollDirection = currentBuildAction.clickOffAndScrollDirection || 'down';
                         const scrollDistance = currentBuildAction.clickOffAndScrollDistance || 150;
                         
-                        // Get level's scroll direction and scroll in OPPOSITE direction
-                        const scrollDirection = levelSettings.scrollDirection || 'up';
                         const scrollX = dependencies.iphoneMirroringRegion.x + dependencies.iphoneMirroringRegion.width / 2;
                         const scrollY = dependencies.iphoneMirroringRegion.y + dependencies.iphoneMirroringRegion.height / 2;
                         
-                        console.log(`DEBUG: Click off and scroll - Level scroll direction: ${scrollDirection}, scrolling opposite direction with distance: ${scrollDistance}px`);
+                        console.log(`DEBUG: Click off and scroll - Direction: ${scrollDirection}, Distance: ${scrollDistance}px`);
                         
-                        if (scrollDirection === 'up') {
-                            // Level normally scrolls up, so scroll DOWN
+                        if (scrollDirection === 'down') {
                             const { scrollDown } = require('./scrolling');
                             await scrollDown(scrollX, scrollY, scrollDistance);
                             updateStatus(`Finish Build: Click off and scrolled down ${scrollDistance}px.`, 'success');
                         } else {
-                            // Level normally scrolls down, so scroll UP
                             await dependencies.scrollUp(scrollX, scrollY, { 
                                 updateCurrentFunction, 
                                 CLICK_AREAS: dependencies.CLICK_AREAS, 
@@ -924,7 +965,12 @@ async function runBuildProtocol(dependencies) {
                 
                 // Check for custom triggers that fire AFTER build completes
                 console.log(`DEBUG: Checking AFTER-build triggers for build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
-                await checkCustomTriggersAfterBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
+                const afterTriggerResult = await checkCustomTriggersAfterBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
+                // If a clickaround trigger fired, exit immediately (build box will be gone)
+                if (afterTriggerResult === 'custom_trigger_clickaround_completed') {
+                    console.log('DEBUG: AFTER-build custom trigger clickaround executed - exiting runBuildProtocol');
+                    return afterTriggerResult;
+                }
                 
                 // Perform the "click off" action
                 if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
@@ -966,7 +1012,12 @@ async function runBuildProtocol(dependencies) {
                 
                 // Check for custom triggers that fire AFTER build completes
                 console.log(`DEBUG: Checking AFTER-build triggers for build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
-                await checkCustomTriggersAfterBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
+                const afterTriggerResult = await checkCustomTriggersAfterBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
+                // If a clickaround trigger fired, exit immediately (build box will be gone)
+                if (afterTriggerResult === 'custom_trigger_clickaround_completed') {
+                    console.log('DEBUG: AFTER-build custom trigger clickaround executed - exiting runBuildProtocol');
+                    return afterTriggerResult;
+                }
                 
                 // Perform the "click off" action
                 if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
