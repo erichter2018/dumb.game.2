@@ -2826,17 +2826,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const currentMode = await ipcRenderer.invoke('get-direction-mode');
         const mode = currentMode || 'random';
-        const map = { saved: 'directionModeSaved', random: 'directionModeRandom', up: 'directionModeUp' };
+        const map = { 
+            saved: 'directionModeSaved', 
+            random: 'directionModeRandom', 
+            up: 'directionModeUp',
+            best: 'directionModeBest',
+            worst: 'directionModeWorst'
+        };
         if (document.getElementById(map[mode])) {
             document.getElementById(map[mode]).checked = true;
         }
     } catch {}
-    ['directionModeSaved','directionModeRandom','directionModeUp'].forEach(id => {
+    ['directionModeSaved','directionModeRandom','directionModeUp','directionModeBest','directionModeWorst'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', async () => {
                 if (!el.checked) return;
-                const mode = el.value; // saved | random | up
+                const mode = el.value; // saved | random | up | best | worst
                 await ipcRenderer.invoke('set-direction-mode', mode);
                 await ipcRenderer.invoke('renderer-log', `UI: directionMode set to ${mode}`);
             });

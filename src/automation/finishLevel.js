@@ -170,12 +170,18 @@ function startAutomation(dependencies) {
                     currentLevelRandomApplied = false;
                 }
             } else if (mode === 'best') {
-                // Determine best direction based on historical data
-                const historicalStats = require(dependencies.path.join(dependencies.__dirname, 'lib', 'historicalStats.js'));
-                const bestTimes = historicalStats.getLevelBest(levelName);
-                const avgTimes = historicalStats.getLevelAverageByDirection(levelName);
-                
-                console.log(`DEBUG: Best mode - bestTimes:`, bestTimes, `avgTimes:`, avgTimes);
+                // For Unknown Level or empty level name, just use saved direction (defaults to 'up')
+                if (!levelName || levelName.toLowerCase() === 'unknown level' || levelName.trim() === '') {
+                    currentLevelEffectiveDirection = savedDir;
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Best mode - Unknown Level, using saved direction '${savedDir}'`);
+                } else {
+                    // Determine best direction based on historical data
+                    const historicalStats = require('../../lib/historicalStats');
+                    const bestTimes = historicalStats.getLevelBest(levelName);
+                    const avgTimes = historicalStats.getLevelAverageByDirection(levelName);
+                    
+                    console.log(`DEBUG: Best mode - bestTimes:`, bestTimes, `avgTimes:`, avgTimes);
                 
                 // Check optimization status
                 const upOptimized = upS.optimized === true;
@@ -228,13 +234,20 @@ function startAutomation(dependencies) {
                     currentLevelRandomApplied = false;
                     console.log(`DEBUG: Best mode - no data, using saved direction '${savedDir}'`);
                 }
+                }
             } else if (mode === 'worst') {
-                // Determine worst direction based on historical data
-                const historicalStats = require(dependencies.path.join(dependencies.__dirname, 'lib', 'historicalStats.js'));
-                const bestTimes = historicalStats.getLevelBest(levelName);
-                const avgTimes = historicalStats.getLevelAverageByDirection(levelName);
-                
-                console.log(`DEBUG: Worst mode - bestTimes:`, bestTimes, `avgTimes:`, avgTimes);
+                // For Unknown Level or empty level name, just use saved direction (defaults to 'up')
+                if (!levelName || levelName.toLowerCase() === 'unknown level' || levelName.trim() === '') {
+                    currentLevelEffectiveDirection = savedDir;
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Worst mode - Unknown Level, using saved direction '${savedDir}'`);
+                } else {
+                    // Determine worst direction based on historical data
+                    const historicalStats = require('../../lib/historicalStats');
+                    const bestTimes = historicalStats.getLevelBest(levelName);
+                    const avgTimes = historicalStats.getLevelAverageByDirection(levelName);
+                    
+                    console.log(`DEBUG: Worst mode - bestTimes:`, bestTimes, `avgTimes:`, avgTimes);
                 
                 // Check optimization status
                 const upOptimized = upS.optimized === true;
@@ -286,6 +299,7 @@ function startAutomation(dependencies) {
                     currentLevelEffectiveDirection = savedDir;
                     currentLevelRandomApplied = false;
                     console.log(`DEBUG: Worst mode - no data, using saved direction '${savedDir}'`);
+                }
                 }
             } else {
                 currentLevelEffectiveDirection = savedDir; // 'saved'
@@ -401,9 +415,27 @@ function startAutomation(dependencies) {
             // Reset internal flag after finishBuildAutomation returns
             isFinishBuildRunningInternal = false;
             if (!getIsAutomationRunning()) return 'stopped';
+            
+            // Extract cached red blob coords if returned (predictive detection)
+            let cachedRedBlobCoords = null;
+            let buildStatus = buildResult;
+            if (typeof buildResult === 'object' && buildResult.cachedRedBlobCoords) {
+                cachedRedBlobCoords = buildResult.cachedRedBlobCoords;
+                buildStatus = buildResult.status;
+                console.log(`DEBUG: [PREDICTIVE] Received cached red blob coords from finishBuild: (${cachedRedBlobCoords.x}, ${cachedRedBlobCoords.y})`);
+            }
 
             // Check if we should scroll to bottom after build completion based on settings
-            if (buildResult !== 'stopped' && buildResult !== 'error' && buildResult !== 'max_build_at_startup') {
+            if (buildStatus === 'exit_level_detected') {
+                updateStatus('Exit level detected during build. Initiating exit.', 'success');
+                console.log('DEBUG: Exit level detected during build. Calling exitAndStartNewLevel.');
+                await exitAndStartNewLevel(dependencies);
+                if (!getIsAutomationRunning()) return 'stopped';
+                nextBuildCachedRedBlobCoords = null;
+                return 'exit_level_detected';
+            }
+
+            if (buildStatus !== 'stopped' && buildStatus !== 'error' && buildStatus !== 'max_build_at_startup') {
                 buildCompletionCount++;
                 console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult}`);
                 
@@ -436,15 +468,26 @@ function startAutomation(dependencies) {
                 // Do not emit effective-direction here; it's sent at level start
                 
                 // Check scroll action after build (new explicit direction system)
-                const scrollSetting = buildCompletionCount === 1 
-                    ? (levelSettings.scrollAfterFirstBuild || { action: 'nothing' })
-                    : (levelSettings.scrollAfterSecondBuild || { action: 'nothing' });
+                // Only apply scroll settings for builds 1 and 2
+                let scrollSetting = { action: 'nothing' };
+                if (buildCompletionCount === 1) {
+                    scrollSetting = levelSettings.scrollAfterFirstBuild || { action: 'nothing' };
+                } else if (buildCompletionCount === 2) {
+                    scrollSetting = levelSettings.scrollAfterSecondBuild || { action: 'nothing' };
+                }
+                // For build 3+, scrollSetting stays as { action: 'nothing' }
                 
                 console.log(`DEBUG: scrollAfterFirstBuild:`, JSON.stringify(levelSettings.scrollAfterFirstBuild));
                 console.log(`DEBUG: scrollAfterSecondBuild:`, JSON.stringify(levelSettings.scrollAfterSecondBuild));
                 console.log(`DEBUG: scrollSetting for build ${buildCompletionCount}:`, JSON.stringify(scrollSetting));
                 
                 if (scrollSetting.action !== 'nothing') {
+                    // Invalidate cached red blob coords if we're about to scroll
+                    if (cachedRedBlobCoords) {
+                        console.log('DEBUG: [PREDICTIVE] Cache invalidated due to after-build scroll action');
+                        cachedRedBlobCoords = null;
+                    }
+                    
                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                     
@@ -477,19 +520,24 @@ function startAutomation(dependencies) {
                 }
             }
 
-            if (buildResult === 'max_build_achieved' || buildResult === 'max_build_at_startup') {
+            if (buildStatus === 'max_build_achieved' || buildStatus === 'max_build_at_startup') {
                 updateStatus('Finish Build reported MAX build. Exiting prepBuild.', 'success');
                 console.log('DEBUG: Finish Build reported MAX build. Exiting prepBuild.');
-                return buildResult; // Exit prepBuild but let Finish Level loop continue
-            } else if (buildResult === 'no_blue_box_found') { // This status isn't returned by finishBuild currently, but was discussed.
+                
+                // Return cached coords if available (from predictive detection)
+                if (cachedRedBlobCoords) {
+                    return { status: buildStatus, cachedRedBlobCoords }; // Pass cached coords up to finishLevel
+                }
+                return buildStatus; // Exit prepBuild but let Finish Level loop continue
+            } else if (buildStatus === 'no_blue_box_found') { // This status isn't returned by finishBuild currently, but was discussed.
                 updateStatus('Finish Build failed to find blue box. Exiting prepBuild to allow red blob detection.', 'warn');
                 console.log('DEBUG: Finish Build reported no blue box found. Exiting prepBuild.');
                 return 'finish_build_failed_no_blue_box'; // New return status
-            } else if (buildResult === 'timeout') { // New: Handle timeout from finishBuildAutomationRunBuildProtocol
+            } else if (buildStatus === 'timeout') { // New: Handle timeout from finishBuildAutomationRunBuildProtocol
                 updateStatus('Finish Build timed out. Exiting prepBuild.', 'warn');
                 console.log('DEBUG: Finish Build timed out. Exiting prepBuild.');
                 return 'finish_build_timed_out'; // New return status for timeout
-            } else if (buildResult === 'clickaround_completed') { // New: Handle clickaround completion
+            } else if (buildStatus === 'clickaround_completed') { // New: Handle clickaround completion
                 updateStatus('Finish Build completed Click Around and returned control. Exiting prepBuild.', 'success');
                 console.log('DEBUG: Finish Build completed Click Around and returned control. Exiting prepBuild.');
                 return 'finish_build_clickaround_completed'; // New return status for clickaround completion
@@ -1005,6 +1053,9 @@ function startAutomation(dependencies) {
         const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
         const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
         
+        // Predictive red blob detection: track cached coords across loop iterations
+        let nextBuildCachedRedBlobCoords = null;
+        
         while (getIsAutomationRunning()) {
             // Check time-based custom triggers periodically
             if (settingsLevelName && settingsLevelName !== 'Unknown Level' && settingsLevelName !== '') {
@@ -1092,31 +1143,39 @@ function startAutomation(dependencies) {
                     continue;
                 }
 
-                if (result === 'max_build_achieved') {
+                // Extract cached coords from prepBuild result (if any)
+                if (typeof result === 'object' && result.cachedRedBlobCoords) {
+                    nextBuildCachedRedBlobCoords = result.cachedRedBlobCoords;
+                    console.log(`DEBUG: [PREDICTIVE] Saved cached coords for next build: (${nextBuildCachedRedBlobCoords.x}, ${nextBuildCachedRedBlobCoords.y})`);
+                }
+                
+                const prepBuildStatus = typeof result === 'object' ? result.status : result;
+                
+                if (prepBuildStatus === 'max_build_achieved') {
                     updateStatus('Finish Build reported MAX build. Finish Level continuing loop.', 'success');
                     console.log('DEBUG: Finish Build reported MAX build. Finish Level continuing loop.');
                     // Do not break; continue the loop
-                } else if (result === 'finish_build_launched') {
+                } else if (prepBuildStatus === 'finish_build_launched') {
                     updateStatus('Finish Build automation successfully launched from prepBuild.', 'info');
                     console.log('DEBUG: Finish Build automation successfully launched.');
-                } else if (result === 'no_blue_build') {
+                } else if (prepBuildStatus === 'no_blue_build') {
                     // This case should ideally not happen if blueBuildBox was found, but for robustness
                     updateStatus('PrepBuild returned no_blue_build even though blue box was initially found. Continuing.', 'warn');
                     console.log('DEBUG: PrepBuild returned no_blue_build unexpectedly. Continuing.');
-                } else if (result === 'error') {
+                } else if (prepBuildStatus === 'error') {
                     updateStatus('PrepBuild encountered an error. Stopping Finish Level.', 'error');
                     console.error('ERROR: PrepBuild returned an error state. Stopping Finish Level.');
                     break; // Stop the loop on error
-                } else if (result === 'stopped') {
+                } else if (prepBuildStatus === 'stopped') {
                     updateStatus('Finish Level automation stopped during prepBuild.', 'info');
                     console.log('DEBUG: Finish Level automation stopped during prepBuild.');
                     break; // Exit the loop if automation was stopped
-                } else if (result === 'no_build_box_exceeded_retries') { // New: Handle finish build exiting due to no build box
+                } else if (prepBuildStatus === 'no_build_box_exceeded_retries') { // New: Handle finish build exiting due to no build box
                     updateStatus('Finish Build exited due to consecutive failures. Continuing Finish Level.', 'warn');
                     console.log('DEBUG: Finish Build exited due to consecutive failures. Continuing Finish Level.');
                     redBlobsTried.add(JSON.stringify(targetBlob)); // Mark current red blob as tried
                     lastRedBlobCoords = null; // Clear last red blob coords to avoid immediately retrying it
-                } else if (result === 'timeout') { // New: Handle finish build timeout
+                } else if (prepBuildStatus === 'timeout') { // New: Handle finish build timeout
                     updateStatus('Finish Build timed out. Continuing Finish Level.', 'warn');
                     console.log('DEBUG: Finish Build timed out. Continuing Finish Level.');
                     redBlobsTried.add(JSON.stringify(targetBlob)); // Mark current red blob as tried
@@ -1127,6 +1186,34 @@ function startAutomation(dependencies) {
                 if (buildCompletionCount === 0) {
                     updateStatus('No blue build box found. Detecting red blobs...', 'info');
                     console.log('DEBUG: No blue build box found. Detecting red blobs.');
+                }
+                
+                // Check if we have cached red blob coords from previous build (predictive detection)
+                if (nextBuildCachedRedBlobCoords) {
+                    console.log(`DEBUG: [PREDICTIVE] Using cached red blob coords from previous build: (${nextBuildCachedRedBlobCoords.x}, ${nextBuildCachedRedBlobCoords.y}) - skipping red blob detection`);
+                    updateStatus('Using predictively detected red blob - clicking directly...', 'info');
+                    
+                    // Use cached coords directly
+                    const clickX = nextBuildCachedRedBlobCoords.x + 25;
+                    const clickY = nextBuildCachedRedBlobCoords.y + 25;
+                    await performClick(Math.round(clickX), Math.round(clickY));
+                    
+                    // Clear the cache after use
+                    const cachedCoords = nextBuildCachedRedBlobCoords;
+                    nextBuildCachedRedBlobCoords = null;
+                    
+                    if (!getIsAutomationRunning()) break;
+                    const prepBuildResult = await prepBuild(cachedCoords);
+                    if (!getIsAutomationRunning()) break;
+                    
+                    // Extract new cached coords if any
+                    if (typeof prepBuildResult === 'object' && prepBuildResult.cachedRedBlobCoords) {
+                        nextBuildCachedRedBlobCoords = prepBuildResult.cachedRedBlobCoords;
+                        console.log(`DEBUG: [PREDICTIVE] Saved new cached coords for next build: (${nextBuildCachedRedBlobCoords.x}, ${nextBuildCachedRedBlobCoords.y})`);
+                    }
+                    
+                    // Continue the loop
+                    continue;
                 }
                 
                 // Capture screen for red blob detection
@@ -1385,23 +1472,39 @@ function startAutomation(dependencies) {
                             // After exiting and starting a new level, the loop continues to re-detect from scratch
                             continue;
                         }
+                        
+                        // Extract cached coords from prepBuildResult (if any)
+                        if (typeof prepBuildResult === 'object' && prepBuildResult.cachedRedBlobCoords) {
+                            nextBuildCachedRedBlobCoords = prepBuildResult.cachedRedBlobCoords;
+                            console.log(`DEBUG: [PREDICTIVE] Saved cached coords for next build (red blob path): (${nextBuildCachedRedBlobCoords.x}, ${nextBuildCachedRedBlobCoords.y})`);
+                        }
+                        
+                        const prepBuildResultStatus = typeof prepBuildResult === 'object' ? prepBuildResult.status : prepBuildResult;
 
-                        if (prepBuildResult === 'max_build_achieved') {
+                        if (prepBuildResultStatus === 'exit_level_detected') {
+                            updateStatus('Exit level detected during build. Initiating exit.', 'success');
+                            console.log('DEBUG: Exit level detected during build (red blob path). Calling exitAndStartNewLevel.');
+                            await exitAndStartNewLevel(dependencies);
+                            if (!getIsAutomationRunning()) break;
+                            nextBuildCachedRedBlobCoords = null;
+                            updateCurrentFunction('runFinishLevelProtocol');
+                            continue;
+                        } else if (prepBuildResultStatus === 'max_build_achieved') {
                             updateStatus('Finish Build reported MAX build. Continuing Finish Level loop.', 'info');
                             console.log('DEBUG: prepBuild reported MAX build, continuing Finish Level loop.');
                             // Continue the loop, allowing Finish Level to re-evaluate for blue/red blobs
                             continue;
-                        } else if (prepBuildResult === 'error' || prepBuildResult === 'stopped') {
+                        } else if (prepBuildResultStatus === 'error' || prepBuildResultStatus === 'stopped') {
                             updateStatus('PrepBuild encountered an error or was stopped. Stopping Finish Level.', 'error');
                             console.error('ERROR: PrepBuild returned an error or stopped state. Stopping Finish Level.');
                             break; // Stop the loop on error
-                        } else if (prepBuildResult === 'finish_build_launched') {
+                        } else if (prepBuildResultStatus === 'finish_build_launched') {
                             redBlobsTried.clear(); // Reset tried blobs if finishBuild was launched successfully
                             redBlobRetryCount.clear(); // Reset retry counters on successful finishBuild launch
                             lastRedBlobCoords = targetBlob; // Store the last successfully clicked red blob
                             updateStatus('Finish Build automation successfully launched from prepBuild after red blob click.', 'info');
                             console.log('DEBUG: Finish Build automation successfully launched after red blob click.');
-                        } else if (prepBuildResult === 'no_blue_build' || prepBuildResult === 'no_red_blobs_found' || prepBuildResult === 'finish_build_failed_no_blue_box') {
+                        } else if (prepBuildResultStatus === 'no_blue_build' || prepBuildResultStatus === 'no_red_blobs_found' || prepBuildResultStatus === 'finish_build_failed_no_blue_box') {
                             // Track retry attempts for this red blob location (approximate matching within 10 pixels)
                             const blobLocationKey = `${Math.round(targetBlob.x / 10) * 10},${Math.round(targetBlob.y / 10) * 10}`;
                             const currentRetries = redBlobRetryCount.get(blobLocationKey) || 0;

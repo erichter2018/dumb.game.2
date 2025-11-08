@@ -606,6 +606,12 @@ async function runBuildProtocol(dependencies) {
 
     const startTime = Date.now();
     
+    // Predictive red blob detection: cache red blob coords found during build
+    let cachedRedBlobCoords = null;
+    let lastRedBlobDetectionTime = 0;
+    const RED_BLOB_DETECTION_INTERVAL = 2000; // Check every 2 seconds during build
+    let exitLevelDetected = false;
+    
     // Get level-specific settings (use the settings-compatible name)
     const currentLevelName = getCurrentLevelName ? getCurrentLevelName() : '';
     const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
@@ -793,6 +799,11 @@ async function runBuildProtocol(dependencies) {
                 console.log('DEBUG: Custom trigger clickaround executed - exiting runBuildProtocol');
                 return triggerResult;
             }
+            // If any custom trigger fired, invalidate cached red blob coords
+            if (triggerResult) {
+                cachedRedBlobCoords = null;
+                console.log('DEBUG: [PREDICTIVE] Cache invalidated due to custom trigger firing');
+            }
             
             // Only check for action if one is configured and hasn't been executed yet
             // If triggerTimeMs is null, execute immediately; otherwise wait for the trigger time
@@ -864,6 +875,10 @@ async function runBuildProtocol(dependencies) {
                     // Pass options as third parameter (second param maintained for backward compatibility)
                     await clickAround(clickAroundDependencies, true, clickaroundOptions);
                     
+                    // Invalidate cached red blob coords after clickaround
+                    cachedRedBlobCoords = null;
+                    console.log('DEBUG: [PREDICTIVE] Cache invalidated due to build action (clickaround)');
+                    
                     updateStatus('Finish Build: Action completed. Returning control to Finish Level.', 'success');
                     console.log('DEBUG: Finish Build: Action completed. Returning control to Finish Level.');
                     return 'clickaround_completed';
@@ -903,9 +918,17 @@ async function runBuildProtocol(dependencies) {
                             updateStatus(`Finish Build: Click off and scrolled up.`, 'success');
                         }
                         
+                        // Invalidate cached red blob coords after scrolling
+                        cachedRedBlobCoords = null;
+                        console.log('DEBUG: [PREDICTIVE] Cache invalidated due to build action (click_off_and_scroll)');
+                        
                         return 'click_off_scroll_completed';
                     }
                 } else if (currentBuildAction.action === 'scroll_to_bottom') {
+                    // Invalidate cache before scroll_to_bottom action
+                    cachedRedBlobCoords = null;
+                    console.log('DEBUG: [PREDICTIVE] Cache invalidated due to build action (scroll_to_bottom)');
+                    
                     // Scroll to bottom
                     if (scrollToBottom) {
                         const scrollX = dependencies.iphoneMirroringRegion.x + dependencies.iphoneMirroringRegion.width / 2;
@@ -971,8 +994,25 @@ async function runBuildProtocol(dependencies) {
                     console.log('DEBUG: AFTER-build custom trigger clickaround executed - exiting runBuildProtocol');
                     return afterTriggerResult;
                 }
+                // If any AFTER-build trigger fired, invalidate cached red blob coords
+                if (afterTriggerResult) {
+                    cachedRedBlobCoords = null;
+                    console.log('DEBUG: [PREDICTIVE] Cache invalidated due to AFTER-build trigger firing');
+                }
                 
-                // Perform the "click off" action
+                if (exitLevelDetected) {
+                    updateStatus('Exit level detected during build. Exiting immediately.', 'success');
+                    console.log('DEBUG: Exit level detected during build. Returning to Finish Level.');
+                    return { status: 'exit_level_detected' };
+                }
+                
+                // Check if we have cached red blob coords from predictive detection
+                if (cachedRedBlobCoords) {
+                    console.log(`DEBUG: [PREDICTIVE] Using cached red blob coordinates: (${cachedRedBlobCoords.x}, ${cachedRedBlobCoords.y}) - skipping click off`);
+                    return { status: 'max_build_achieved', cachedRedBlobCoords }; // Return cached coords
+                }
+                
+                // Perform the "click off" action (only if no cached coords)
                 if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
                     updateStatus('Performing final "click off" action.', 'info');
                     await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
@@ -986,6 +1026,74 @@ async function runBuildProtocol(dependencies) {
                 // blueBoxCoords = currentDetectedBox.coords; // No longer update blueBoxCoords here, stick to initial
                 updateStatus(`Build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${currentDetectedBox.state}). Continuing with established build coordinates.`, 'info');
                 console.log(`DEBUG: Build box found in current cycle: ${JSON.stringify(omitImageFromLog(currentDetectedBox))}. Continuing with established build coordinates.`);
+            }
+
+            // Predictive red blob detection: Search for red blobs during idle time
+            const now = Date.now();
+            if (!exitLevelDetected && !cachedRedBlobCoords && (now - lastRedBlobDetectionTime >= RED_BLOB_DETECTION_INTERVAL)) {
+                lastRedBlobDetectionTime = now;
+                
+                // Run red blob detection in the background (don't await, just fire and forget)
+                if (dependencies.redBlobDetectorDetect && captureScreenRegion && dependencies.iphoneMirroringRegion) {
+                    captureScreenRegion().then(async (screenDataUrl) => {
+                        if (screenDataUrl) {
+                            const redBlobs = await dependencies.redBlobDetectorDetect(screenDataUrl, dependencies.iphoneMirroringRegion);
+                            if (redBlobs && redBlobs.length > 0) {
+                                // Check for exit level blob first
+                                const exitBlob = redBlobs.find(blob => blob.name === 'exit level');
+                                if (exitBlob) {
+                                    exitLevelDetected = true;
+                                    cachedRedBlobCoords = null;
+                                    console.log('DEBUG: [PREDICTIVE] Exit level blob detected during build.');
+                                    return;
+                                }
+
+                                // Filter out named blobs (research, exit level)
+                                const unnamedBlobs = redBlobs.filter(blob => !blob.name);
+                                if (unnamedBlobs.length > 0) {
+                                    // Cache the first unnamed blob coordinates
+                                    const blob = unnamedBlobs[0];
+                                    const predictiveBlobX = Math.round(blob.x + blob.width / 2);
+                                    const predictiveBlobY = Math.round(blob.y + blob.height / 2);
+                                    
+                                    // PREDICTIVE RED BLOB RESTRICTION (can be removed if needed)
+                                    // Apply spatial validation to prevent caching problematic blobs
+                                    let isValidPredictiveBlob = true;
+                                    if (originalRedBlobCoords) {
+                                        const currentBlobX = originalRedBlobCoords.x;
+                                        const currentBlobY = originalRedBlobCoords.y;
+                                        
+                                        // If predictive blob is higher up (lower Y) than current blob,
+                                        // it MUST also be significantly to the left (X at least 125px lower)
+                                        if (predictiveBlobY < currentBlobY) {
+                                            if (predictiveBlobX >= currentBlobX - 125) {
+                                                isValidPredictiveBlob = false;
+                                                console.log(`DEBUG: [PREDICTIVE] Rejecting blob at (${predictiveBlobX}, ${predictiveBlobY}) - higher than current (${currentBlobX}, ${currentBlobY}) but not far enough left (needs X < ${currentBlobX - 125})`);
+                                            }
+                                        }
+                                        // If predictive blob has higher Y or higher X, no restriction - accept it
+                                    }
+                                    
+                                    if (isValidPredictiveBlob) {
+                                        cachedRedBlobCoords = {
+                                            x: predictiveBlobX,
+                                            y: predictiveBlobY
+                                        };
+                                        console.log(`DEBUG: [PREDICTIVE] Cached red blob coordinates: (${cachedRedBlobCoords.x}, ${cachedRedBlobCoords.y})`);
+                                    }
+                                }
+                            }
+                        }
+                    }).catch(err => {
+                        console.error('DEBUG: [PREDICTIVE] Error detecting red blobs:', err);
+                    });
+                }
+            }
+            
+            if (exitLevelDetected) {
+                updateStatus('Exit level detected during build. Exiting immediately.', 'success');
+                console.log('DEBUG: Exit level detected during build. Returning to Finish Level.');
+                return { status: 'exit_level_detected' };
             }
 
             // Step 3: Call a function to hold down in the middle of the current blue box for duration from settings
@@ -1018,8 +1126,25 @@ async function runBuildProtocol(dependencies) {
                     console.log('DEBUG: AFTER-build custom trigger clickaround executed - exiting runBuildProtocol');
                     return afterTriggerResult;
                 }
+                // If any AFTER-build trigger fired, invalidate cached red blob coords
+                if (afterTriggerResult) {
+                    cachedRedBlobCoords = null;
+                    console.log('DEBUG: [PREDICTIVE] Cache invalidated due to AFTER-build trigger firing (early hold exit)');
+                }
                 
-                // Perform the "click off" action
+                if (exitLevelDetected) {
+                    updateStatus('Exit level detected during build (early exit).', 'success');
+                    console.log('DEBUG: Exit level detected during build (early exit).');
+                    return { status: 'exit_level_detected' };
+                }
+                
+                // Check if we have cached red blob coords from predictive detection
+                if (cachedRedBlobCoords) {
+                    console.log(`DEBUG: [PREDICTIVE] Using cached red blob coordinates (early exit): (${cachedRedBlobCoords.x}, ${cachedRedBlobCoords.y}) - skipping click off`);
+                    return { status: 'max_build_achieved', cachedRedBlobCoords }; // Return cached coords
+                }
+                
+                // Perform the "click off" action (only if no cached coords)
                 if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
                     updateStatus('Performing final "click off" action.', 'info');
                     await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
