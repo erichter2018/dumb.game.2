@@ -1807,6 +1807,10 @@ ipcMain.handle('get-level-average', async (event, levelName) => {
   return historicalStats.getLevelAverage(levelName);
 });
 
+ipcMain.handle('get-level-average-by-direction', async (event, levelName) => {
+  return historicalStats.getLevelAverageByDirection(levelName);
+});
+
 ipcMain.handle('get-level-best', async (event, levelName) => {
   return historicalStats.getLevelBest(levelName);
 });

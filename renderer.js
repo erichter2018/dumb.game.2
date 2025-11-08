@@ -1012,6 +1012,7 @@ function formatDuration(durationMs) {
 }
 
 // Calculate ETA for completing the current stage (using historical averages for each level)
+// Calculate ETA for remaining levels only (averaging up/down directions)
 async function calculateStageETA(currentStage, stageLevelNames) {
     if (!currentStage || !stageLevelNames) return null;
     
@@ -1032,26 +1033,30 @@ async function calculateStageETA(currentStage, stageLevelNames) {
     
     let totalETA = 0;
     
-    // Add ETA for current level (historical avg - elapsed time)
+    // Add ETA for current level (average of up/down - elapsed time)
     const currentLevelName = stageLevelNames[currentLevelArrayPosition];
     if (currentLevelName && currentLevelName !== 'N/A') {
-        const currentLevelAvg = await ipcRenderer.invoke('get-level-average', currentLevelName);
-        if (currentLevelAvg) {
+        const avgByDir = await ipcRenderer.invoke('get-level-average-by-direction', currentLevelName);
+        const avgUpDown = getAverageOfDirections(avgByDir);
+        
+        if (avgUpDown !== null) {
             const currentLevelElapsed = currentLevelStartTime ? Date.now() - currentLevelStartTime : 0;
-            const currentLevelETA = Math.max(0, currentLevelAvg - currentLevelElapsed);
+            const currentLevelETA = Math.max(0, avgUpDown - currentLevelElapsed);
             totalETA += currentLevelETA;
         } else {
             return null; // No data for current level
         }
     }
     
-    // Add historical averages for remaining levels (skip N/A levels)
+    // Add average of up/down for remaining levels (skip N/A levels)
     for (let pos = currentLevelArrayPosition + 1; pos < stageLevelNames.length; pos++) {
         const levelName = stageLevelNames[pos];
         if (levelName && levelName !== 'N/A') {
-            const levelAvg = await ipcRenderer.invoke('get-level-average', levelName);
-            if (levelAvg) {
-                totalETA += levelAvg;
+            const avgByDir = await ipcRenderer.invoke('get-level-average-by-direction', levelName);
+            const avgUpDown = getAverageOfDirections(avgByDir);
+            
+            if (avgUpDown !== null) {
+                totalETA += avgUpDown;
             } else {
                 // If any level has no data, can't calculate accurate ETA
                 return null;
@@ -1060,6 +1065,85 @@ async function calculateStageETA(currentStage, stageLevelNames) {
     }
     
     return Math.round(totalETA);
+}
+
+// Calculate estimated time to finish entire stage (completed + remaining)
+async function calculateStageEstimate(currentStage, stageLevelNames) {
+    if (!currentStage || !stageLevelNames) return null;
+    
+    // Map currentStage.level (counts non-N/A levels) to array position
+    let nonNALevelsSeen = 0;
+    let currentLevelArrayPosition = -1;
+    for (let p = 0; p < stageLevelNames.length; p++) {
+        if (stageLevelNames[p] !== 'N/A') {
+            nonNALevelsSeen++;
+            if (nonNALevelsSeen === currentStage.level) {
+                currentLevelArrayPosition = p;
+                break;
+            }
+        }
+    }
+    
+    if (currentLevelArrayPosition < 0) return null;
+    if (currentLevelArrayPosition >= stageLevelNames.length) return 0; // Stage complete
+    
+    let totalEstimate = 0;
+    
+    // Add actual times for completed levels (from currentStage.levels array)
+    if (currentStage.levels && currentStage.levels.length > 0) {
+        for (const level of currentStage.levels) {
+            totalEstimate += level.durationMs || 0;
+        }
+    }
+    
+    // Add average of up/down for current level (if not yet completed)
+    const currentLevelName = stageLevelNames[currentLevelArrayPosition];
+    const isCurrentLevelCompleted = currentStage.levels && currentStage.levels.some(l => l.name === currentLevelName);
+    
+    if (!isCurrentLevelCompleted && currentLevelName && currentLevelName !== 'N/A') {
+        const avgByDir = await ipcRenderer.invoke('get-level-average-by-direction', currentLevelName);
+        const avgUpDown = getAverageOfDirections(avgByDir);
+        if (avgUpDown !== null) {
+            totalEstimate += avgUpDown;
+        } else {
+            return null; // No data
+        }
+    }
+    
+    // Add average of up/down for remaining levels
+    for (let pos = currentLevelArrayPosition + 1; pos < stageLevelNames.length; pos++) {
+        const levelName = stageLevelNames[pos];
+        if (levelName && levelName !== 'N/A') {
+            const avgByDir = await ipcRenderer.invoke('get-level-average-by-direction', levelName);
+            const avgUpDown = getAverageOfDirections(avgByDir);
+            
+            if (avgUpDown !== null) {
+                totalEstimate += avgUpDown;
+            } else {
+                return null;
+            }
+        }
+    }
+    
+    return Math.round(totalEstimate);
+}
+
+// Helper: Get average of up/down directions (returns null if both are null)
+function getAverageOfDirections(avgByDir) {
+    if (!avgByDir) return null;
+    
+    const up = avgByDir.up;
+    const down = avgByDir.down;
+    
+    if (up !== null && down !== null) {
+        return Math.round((up + down) / 2);
+    } else if (up !== null) {
+        return up;
+    } else if (down !== null) {
+        return down;
+    }
+    
+    return null;
 }
 
 // Calculate ETA for a specific level position (using historical average for that level)
@@ -1170,9 +1254,11 @@ async function updateStageETAs() {
     if (currentSummary && currentStageInfo.current) {
         const a = currentStageInfo.current.historicalAverage ? formatDuration(currentStageInfo.current.historicalAverage) : '—';
         const b = currentStageInfo.current.historicalBest ? formatDuration(currentStageInfo.current.historicalBest) : '—';
+        const est = await calculateStageEstimate(currentStageInfo.current, stageLevelNames);
+        const estText = est !== null ? ` • est: ${formatDuration(est)}` : '';
         const eta = await calculateStageETA(currentStageInfo.current, stageLevelNames);
         const etaText = eta !== null ? ` • eta: ${formatDuration(eta)}` : '';
-        currentSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Current Stage: ${currentStageInfo.current.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b}${etaText}</div>`;
+        currentSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Current Stage: ${currentStageInfo.current.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b}${estText}${etaText}</div>`;
     }
     
     // Update ONLY current level ETA (upcoming levels stay at their historical average)
@@ -1301,9 +1387,11 @@ async function updateStageDisplay(stageInfo) {
                 console.error('Failed to load level database for stage summary:', error);
             }
             
+            const est = await calculateStageEstimate(stageInfo.current, stageLevelNames);
+            const estText = est !== null ? ` • est: ${formatDuration(est)}` : '';
             const eta = await calculateStageETA(stageInfo.current, stageLevelNames);
             const etaText = eta !== null ? ` • eta: ${formatDuration(eta)}` : '';
-            currentSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Current Stage: ${stageInfo.current.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b}${etaText}</div>`;
+            currentSummary.innerHTML = `<div style="font-size: 1.2em; font-weight: 700; margin-bottom: 4px;">Current Stage: ${stageInfo.current.name}</div><div style="font-size: 0.85em; color: #a8b2c4;">avg: ${a} • best: ${b}${estText}${etaText}</div>`;
         } else {
             currentSummary.textContent = '';
         }

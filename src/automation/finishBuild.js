@@ -1096,11 +1096,11 @@ async function runBuildProtocol(dependencies) {
                                         const currentBlobY = originalRedBlobCoords.y;
                                         
                                         // If predictive blob is higher up (lower Y) than current blob,
-                                        // it MUST also be significantly to the left (X at least 125px lower)
+                                        // it MUST also be significantly to the left (X at least 150px lower)
                                         if (predictiveBlobY < currentBlobY) {
-                                            if (predictiveBlobX >= currentBlobX - 125) {
+                                            if (predictiveBlobX >= currentBlobX - 150) {
                                                 isValidPredictiveBlob = false;
-                                                console.log(`DEBUG: [PREDICTIVE] Rejecting blob at (${predictiveBlobX}, ${predictiveBlobY}) - higher than current (${currentBlobX}, ${currentBlobY}) but not far enough left (needs X < ${currentBlobX - 125})`);
+                                                console.log(`DEBUG: [PREDICTIVE] Rejecting blob at (${predictiveBlobX}, ${predictiveBlobY}) - higher than current (${currentBlobX}, ${currentBlobY}) but not far enough left (needs X < ${currentBlobX - 150})`);
                                             }
                                         }
                                         // If predictive blob has higher Y or higher X, no restriction - accept it

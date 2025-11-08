@@ -167,23 +167,6 @@
 
         <!-- Main Content -->
         <div class="main-content">
-            <!-- Live View Section -->
-            <div class="live-view-section collapsible-panel">
-                <div class="panel-header" data-panel="liveView">
-                    <h3>📺 Live View</h3>
-                    <button class="collapse-toggle">▼</button>
-                </div>
-                <div class="panel-content">
-                    <div class="preview-container">
-                        <canvas id="previewCanvas" width="800" height="600"></canvas>
-                        <div class="preview-overlay" id="previewOverlay"></div>
-                    </div>
-                    <div class="mouse-coordinates">
-                        <div id="coordinates">Mouse: (0, 0)</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Controls Section -->
             <div class="controls-section">
                 <!-- Game Controls -->
@@ -289,6 +272,23 @@
                                 Resets all-time best times to the best of the current 5 saved completions per level. Use this if statistics data becomes corrupted.
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live View Section -->
+            <div class="live-view-section collapsible-panel">
+                <div class="panel-header" data-panel="liveView">
+                    <h3>📺 Live View</h3>
+                    <button class="collapse-toggle">▼</button>
+                </div>
+                <div class="panel-content">
+                    <div class="preview-container">
+                        <canvas id="previewCanvas" width="800" height="600"></canvas>
+                        <div class="preview-overlay" id="previewOverlay"></div>
+                    </div>
+                    <div class="mouse-coordinates">
+                        <div id="coordinates">Mouse: (0, 0)</div>
                     </div>
                 </div>
             </div>
