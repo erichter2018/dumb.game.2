@@ -66,8 +66,20 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
                 const normalizedBuildName = buildName.toLowerCase();
                 const normalizedTriggerValue = String(trigger.triggerValue).toLowerCase();
                 if (normalizedBuildName.includes(normalizedTriggerValue)) {
-                    shouldTrigger = true;
-                    console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
+                    // For "during" timing, also check if enough time has elapsed (actionParams)
+                    if (trigger.timing === 'during') {
+                        const minTimeMs = trigger.actionParams || 0;
+                        if (elapsedTime >= minTimeMs) {
+                            shouldTrigger = true;
+                            console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}" AND elapsed time ${elapsedTime}ms >= ${minTimeMs}ms`);
+                        } else {
+                            console.log(`DEBUG: Build name matched "${buildName}" but time ${elapsedTime}ms < required ${minTimeMs}ms - not firing yet`);
+                        }
+                    } else {
+                        // "after" timing - fire immediately when build completes
+                        shouldTrigger = true;
+                        console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
+                    }
                 }
             }
 
@@ -136,8 +148,20 @@ async function checkCustomTriggersAfterBuild(levelName, buildNumber, elapsedTime
                 const normalizedBuildName = buildName.toLowerCase();
                 const normalizedTriggerValue = String(trigger.triggerValue).toLowerCase();
                 if (normalizedBuildName.includes(normalizedTriggerValue)) {
-                    shouldTrigger = true;
-                    console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
+                    // For "during" timing, also check if enough time has elapsed (actionParams)
+                    if (trigger.timing === 'during') {
+                        const minTimeMs = trigger.actionParams || 0;
+                        if (elapsedTime >= minTimeMs) {
+                            shouldTrigger = true;
+                            console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}" AND elapsed time ${elapsedTime}ms >= ${minTimeMs}ms`);
+                        } else {
+                            console.log(`DEBUG: Build name matched "${buildName}" but time ${elapsedTime}ms < required ${minTimeMs}ms - not firing yet`);
+                        }
+                    } else {
+                        // "after" timing - fire immediately when build completes
+                        shouldTrigger = true;
+                        console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
+                    }
                 }
             }
 

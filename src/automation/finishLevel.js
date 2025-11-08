@@ -1680,12 +1680,11 @@ function startAutomation(dependencies) {
                         
                         // Check if we've reached the scroll limit
                         if (scrollUpCount >= scrollUpAttempts) {
-                            console.log(`DEBUG: Reached scroll limit (${scrollUpAttempts}). Resetting position and restarting search.`);
-                            updateStatus(`Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting position and restarting search...`, 'warn');
+                            console.log(`DEBUG: Reached scroll limit (${scrollUpAttempts}). Resetting to starting position for ${scrollDirection} direction.`);
+                            updateStatus(`Scrolled ${scrollDirection} ${scrollUpCount} times (reached limit). Resetting to start position...`, 'warn');
                             
                             if (scrollDirection === 'down') {
-                                // For scroll down mode: scroll to bottom, then to top (end at top ready to scroll down)
-                                await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                                // For scroll down mode: reset to TOP (starting position for down scrolling)
                                 await scrollToTop({ 
                                     updateCurrentFunction, 
                                     performClick, 
@@ -1693,13 +1692,7 @@ function startAutomation(dependencies) {
                                     iphoneMirroringRegion: iphoneMirroringRegion 
                                 });
                             } else {
-                                // For scroll up mode: scroll to top, then to bottom (end at bottom ready to scroll up)
-                                await scrollToTop({ 
-                                    updateCurrentFunction, 
-                                    performClick, 
-                                    CLICK_AREAS: dependencies.CLICK_AREAS,
-                                    iphoneMirroringRegion: iphoneMirroringRegion 
-                                });
+                                // For scroll up mode: reset to BOTTOM (starting position for up scrolling)
                                 await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
                             }
                             scrollUpCount = 0; // Reset scroll count
