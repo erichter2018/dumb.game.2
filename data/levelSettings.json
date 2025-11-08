@@ -3165,7 +3165,7 @@
       "minBuildCount": 9
     },
     "_global": {
-      "directionMode": "worst"
+      "directionMode": "random"
     },
     "unknown level": {
       "doResearch": true,

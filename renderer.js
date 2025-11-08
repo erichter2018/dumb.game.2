@@ -181,6 +181,16 @@ startBtn.addEventListener('click', async () => {
         startBtn.disabled = true;
         stopBtn.disabled = false;
         
+        // Clear stage information since we don't know what stage we're in yet
+        const currentStageSummary = document.getElementById('currentStageSummary');
+        const previousStageSummary = document.getElementById('previousStageSummary');
+        if (currentStageSummary) {
+            currentStageSummary.textContent = '';
+        }
+        if (previousStageSummary) {
+            previousStageSummary.textContent = '';
+        }
+        
         // Show level actions display
         await updateLevelActionsDisplay();
         
