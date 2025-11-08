@@ -1,4 +1,5 @@
 const settingsManager = require('../../lib/settingsManager');
+const levelDatabase = require('../../lib/levelDatabase');
 
 function startAutomation(dependencies) {
     const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollUpWithDistance, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, getRandomInt } = dependencies;
@@ -286,14 +287,16 @@ function startAutomation(dependencies) {
                     }
                     currentLevelRandomApplied = false;
                     console.log(`DEBUG: Worst mode - choosing '${currentLevelEffectiveDirection}' (up: ${bestTimes.up}ms, down: ${bestTimes.down}ms)`);
-                } else if (bestTimes.up) {
-                    currentLevelEffectiveDirection = 'up';
-                    currentLevelRandomApplied = false;
-                    console.log(`DEBUG: Worst mode - choosing 'up' (only up has data)`);
-                } else if (bestTimes.down) {
+                } else if (bestTimes.up && !bestTimes.down) {
+                    // For worst mode: no data is worse than any data
                     currentLevelEffectiveDirection = 'down';
                     currentLevelRandomApplied = false;
-                    console.log(`DEBUG: Worst mode - choosing 'down' (only down has data)`);
+                    console.log(`DEBUG: Worst mode - choosing 'down' (no data, worse than up which has data)`);
+                } else if (bestTimes.down && !bestTimes.up) {
+                    // For worst mode: no data is worse than any data
+                    currentLevelEffectiveDirection = 'up';
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Worst mode - choosing 'up' (no data, worse than down which has data)`);
                 } else {
                     // No data, use saved
                     currentLevelEffectiveDirection = savedDir;
@@ -728,9 +731,13 @@ function startAutomation(dependencies) {
                 }
                 
                 // Check scroll action after build (new explicit direction system)
-                const scrollSetting = buildCompletionCount === 1 
-                    ? (levelSettings.scrollAfterFirstBuild || { action: 'nothing' })
-                    : (levelSettings.scrollAfterSecondBuild || { action: 'nothing' });
+                let scrollSetting = { action: 'nothing' };
+                if (buildCompletionCount === 1) {
+                    scrollSetting = levelSettings.scrollAfterFirstBuild || { action: 'nothing' };
+                } else if (buildCompletionCount === 2) {
+                    scrollSetting = levelSettings.scrollAfterSecondBuild || { action: 'nothing' };
+                }
+                // For builds 3+, scrollSetting remains { action: 'nothing' }
                 
                 if (scrollSetting.action !== 'nothing') {
                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
@@ -817,33 +824,77 @@ function startAutomation(dependencies) {
         console.log('DEBUG: Continuing "Exit and Start New Level" routine. Performing click at "Confirm Exit".');
         await performClick(CLICK_AREAS.CONFIRM_EXIT.x, CLICK_AREAS.CONFIRM_EXIT.y);
         updateStatus('Clicked "Confirm Exit".', 'info');
-        console.log(`DEBUG: Finished click at "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}). Waiting 7,500ms.`);
+        console.log(`DEBUG: Finished click at "Confirm Exit" at (${CLICK_AREAS.CONFIRM_EXIT.x}, ${CLICK_AREAS.CONFIRM_EXIT.y}). Waiting 5,000ms.`);
 
-        // Wait 7,500ms
-        await new Promise(resolve => setTimeout(resolve, 7500));
+        // Wait 5,000ms (reduced from 7,500ms)
+        await new Promise(resolve => setTimeout(resolve, 5000));
         if (!getIsAutomationRunning()) { return; }
 
         // New level starting: reset effective direction cache
         resetEffectiveDirectionForNewLevel();
 
-        // Capture level name using OCR before clicking "Start Level"
-        console.log('DEBUG: Capturing level name using OCR...');
+        // Capture level name using OCR with retry until valid - validate against levelDatabase
+        console.log('DEBUG: Starting OCR retry loop to capture valid level name...');
         updateStatus('Capturing level name...', 'info');
-        try {
-            const levelName = await dependencies.captureLevelName(dependencies.captureScreenRegion);
-            if (levelName && levelName !== 'Unknown Level') {
-                console.log(`DEBUG: Level name captured successfully: "${levelName}"`);
-                dependencies.updateCurrentLevelName(levelName);
-                updateStatus(`Level name captured: "${levelName}"`, 'success');
-            } else {
-                console.log('DEBUG: Level name capture failed or returned empty result - keeping previous level name');
-                // Don't update the level name if OCR fails - keep the previous level's name
-                updateStatus('Level name capture failed - keeping previous name', 'warn');
+        let validLevelName = null;
+        let retryCount = 0;
+        const maxRetries = 30; // Safety limit to prevent infinite loop
+        
+        while (!validLevelName && retryCount < maxRetries && getIsAutomationRunning()) {
+            retryCount++;
+            console.log(`DEBUG: OCR attempt ${retryCount}/${maxRetries}...`);
+            
+            try {
+                const levelName = await dependencies.captureLevelName(dependencies.captureScreenRegion);
+                
+                if (levelName && levelName !== 'Unknown Level') {
+                    // First try exact match
+                    let levelPosition = levelDatabase.getLevelPosition(levelName);
+                    let matchedName = levelName;
+                    
+                    // If no exact match, try to find a valid level name within the text
+                    if (!levelPosition) {
+                        console.log(`DEBUG: No exact match for "${levelName}", checking individual words...`);
+                        const words = levelName.split(/\s+/);
+                        for (const word of words) {
+                            if (word.length >= 3) { // Only check words with at least 3 characters
+                                const wordPosition = levelDatabase.getLevelPosition(word);
+                                if (wordPosition) {
+                                    levelPosition = wordPosition;
+                                    matchedName = word;
+                                    console.log(`DEBUG: Found valid level name "${word}" within OCR result "${levelName}"`);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (levelPosition) {
+                        // Valid level found!
+                        validLevelName = matchedName;
+                        console.log(`DEBUG: Valid level name captured on attempt ${retryCount}: "${matchedName}" (Stage: ${levelPosition.stageName}, Position: ${levelPosition.position})`);
+                        dependencies.updateCurrentLevelName(matchedName);
+                        updateStatus(`Level name captured: "${matchedName}"`, 'success');
+                    } else {
+                        console.log(`DEBUG: OCR returned "${levelName}" but no valid level name found - retrying...`);
+                        // Wait 250ms before retry
+                        await new Promise(resolve => setTimeout(resolve, 250));
+                    }
+                } else {
+                    console.log(`DEBUG: OCR returned empty or "Unknown Level" - retrying...`);
+                    // Wait 250ms before retry
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+            } catch (error) {
+                console.error(`ERROR: Level name OCR attempt ${retryCount} failed:`, error);
+                // Wait 250ms before retry
+                await new Promise(resolve => setTimeout(resolve, 250));
             }
-        } catch (error) {
-            console.error('ERROR: Level name OCR failed:', error);
-            // Don't update the level name on error - keep the previous level's name
-            updateStatus('Level name OCR error - keeping previous name', 'error');
+        }
+        
+        if (!validLevelName) {
+            console.log(`DEBUG: Failed to capture valid level name after ${retryCount} attempts - keeping previous level name`);
+            updateStatus('Level name capture failed after retries - keeping previous name', 'warn');
         }
 
         // Click at "start level"

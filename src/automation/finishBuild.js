@@ -428,8 +428,16 @@ async function holdBlueBox(coords, duration, dependencies, levelName) {
         }
         
         try {
+            const checkStartTime = Date.now();
             const screenCapture = await captureScreenRegion();
+            const captureTime = Date.now() - checkStartTime;
+            
+            const detectStartTime = Date.now();
             const blueBoxes = await detectBlueBoxes(screenCapture, iphoneMirroringRegion);
+            const detectTime = Date.now() - detectStartTime;
+            
+            const totalCheckTime = Date.now() - checkStartTime;
+            console.log(`DEBUG: [TIMING] Max build check: capture=${captureTime}ms, detect=${detectTime}ms, total=${totalCheckTime}ms`);
             
             // Check if the box at our SPECIFIC coordinates is grey_max
             // (not just any grey_max box on screen)

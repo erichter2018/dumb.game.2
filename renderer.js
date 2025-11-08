@@ -184,11 +184,20 @@ startBtn.addEventListener('click', async () => {
         // Clear stage information since we don't know what stage we're in yet
         const currentStageSummary = document.getElementById('currentStageSummary');
         const previousStageSummary = document.getElementById('previousStageSummary');
+        const stageLevels = document.getElementById('stageLevels');
+        const prevStageLevels = document.getElementById('prevStageLevels');
+        
         if (currentStageSummary) {
             currentStageSummary.textContent = '';
         }
         if (previousStageSummary) {
             previousStageSummary.textContent = '';
+        }
+        if (stageLevels) {
+            stageLevels.textContent = '';
+        }
+        if (prevStageLevels) {
+            prevStageLevels.textContent = '';
         }
         
         // Show level actions display

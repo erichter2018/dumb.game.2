@@ -1325,6 +1325,8 @@ async function clickAndHold(x, y, duration, getIsAutomationRunning, shouldStopHo
     const startTime = Date.now();
     let heldDuration = 0;
     const checkInterval = 250; // Check every 250ms for build completion (Old: 500ms)
+                                // NOTE: Can be reduced based on [TIMING] logs in finishBuild.js
+                                // If capture+detect consistently <150ms, can reduce to 150ms or lower
 
     // Hold the mouse button down for the specified duration
     while (heldDuration < duration && getIsAutomationRunning()) {
