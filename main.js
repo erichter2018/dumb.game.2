@@ -966,9 +966,11 @@ function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection
             // Record level completion in historical stats (use original name for "Level 1")
             const nameForStats = getOriginalLevelName(levelName);
             
-            // Get current direction from settings (needed for comparison and saving)
+            // Use stored direction for this level, or effective direction if available, otherwise fall back to saved settings
             const levelSettings = settingsManager.getLevelSettings(nameForStats);
-            const direction = levelSettings.scrollDirection || 'up';
+            const storedDirection = levelDirections.get(levelName);
+            const direction = storedDirection || effectiveDirection || levelSettings.scrollDirection || 'up';
+            console.log(`DEBUG: [LATE] Using direction: ${direction} (storedDirection: ${storedDirection}, effectiveDirection: ${effectiveDirection}, savedDirection: ${levelSettings.scrollDirection})`);
             
             let previousBestTime = null;
             if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
@@ -1292,6 +1294,16 @@ const CLICK_AREAS = {
 
 // New functions for click and hold using robotjs
 async function clickDown(x, y) {
+  // Validate coordinates
+  if (typeof x !== 'number' || typeof y !== 'number' || isNaN(x) || isNaN(y)) {
+    console.error(`ERROR: Invalid clickDown coordinates - x:${x}, y:${y}`);
+    return { success: false, error: 'Invalid coordinates' };
+  }
+  if (x <= 5 && y <= 5) {
+    console.error(`ERROR: Suspicious clickDown at near-origin - x:${x}, y:${y} - REJECTED`);
+    return { success: false, error: 'Suspicious coordinates' };
+  }
+  
   try {
     await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before robotjs
     robot.moveMouse(x, y);
@@ -1304,6 +1316,16 @@ async function clickDown(x, y) {
 }
 
 async function clickUp(x, y) {
+  // Validate coordinates
+  if (typeof x !== 'number' || typeof y !== 'number' || isNaN(x) || isNaN(y)) {
+    console.error(`ERROR: Invalid clickUp coordinates - x:${x}, y:${y}`);
+    return { success: false, error: 'Invalid coordinates' };
+  }
+  if (x <= 5 && y <= 5) {
+    console.error(`ERROR: Suspicious clickUp at near-origin - x:${x}, y:${y} - REJECTED`);
+    return { success: false, error: 'Suspicious coordinates' };
+  }
+  
   try {
     await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before robotjs
     robot.moveMouse(x, y);
@@ -1316,6 +1338,16 @@ async function clickUp(x, y) {
 }
 
 async function clickAndHold(x, y, duration, getIsAutomationRunning, shouldStopHolding = null) {
+  // Validate coordinates
+  if (typeof x !== 'number' || typeof y !== 'number' || isNaN(x) || isNaN(y)) {
+    console.error(`ERROR: Invalid clickAndHold coordinates - x:${x}, y:${y}`);
+    return { success: false, error: 'Invalid coordinates' };
+  }
+  if (x <= 5 && y <= 5) {
+    console.error(`ERROR: Suspicious clickAndHold at near-origin - x:${x}, y:${y} - REJECTED`);
+    return { success: false, error: 'Suspicious coordinates' };
+  }
+  
   try {
     // Move mouse to position and press down using robotjs
     robot.moveMouse(x, y);
@@ -1324,9 +1356,9 @@ async function clickAndHold(x, y, duration, getIsAutomationRunning, shouldStopHo
 
     const startTime = Date.now();
     let heldDuration = 0;
-    const checkInterval = 250; // Check every 250ms for build completion (Old: 500ms)
-                                // NOTE: Can be reduced based on [TIMING] logs in finishBuild.js
-                                // If capture+detect consistently <150ms, can reduce to 150ms or lower
+    const checkInterval = 150; // Check every 150ms for build completion (was 250ms, 500ms before that)
+                                // Reduced to 150ms now that node-screenshots brings capture time to ~50ms
+                                // Total check time now ~140ms avg, so 150ms interval works perfectly
 
     // Hold the mouse button down for the specified duration
     while (heldDuration < duration && getIsAutomationRunning()) {
@@ -1379,6 +1411,24 @@ async function performRapidClicks(x, y, count) {
 
 // New function to perform the click, called internally by main process
 async function performClick(x, y) {
+  // Validate coordinates to prevent invalid clicks (e.g., at 0,0)
+  if (typeof x !== 'number' || typeof y !== 'number' || isNaN(x) || isNaN(y)) {
+    console.error(`ERROR: Invalid click coordinates - x:${x}, y:${y} (not valid numbers)`);
+    return { success: false, error: 'Invalid coordinates: not numbers' };
+  }
+  
+  // Reject clicks at origin (0,0) or very close - these are likely errors from node-screenshots
+  if (x <= 5 && y <= 5) {
+    console.error(`ERROR: Suspicious click at near-origin coordinates - x:${x}, y:${y} - REJECTED to prevent errant clicks`);
+    return { success: false, error: 'Suspicious near-origin coordinates' };
+  }
+  
+  // Reject clicks that are clearly wrong (outside screen bounds)
+  if (x < 0 || y < 0 || x > 1920 || y > 1200) {
+    console.error(`ERROR: Click coordinates out of screen bounds - x:${x}, y:${y}`);
+    return { success: false, error: 'Coordinates out of bounds' };
+  }
+  
   console.log(`DEBUG: Performing click at X:${x}, Y:${y}`);
   try {
     // Removed app activation from here, it will be done once at automation start
@@ -1590,25 +1640,53 @@ let iphoneMirroringRegion = {
 // Track whether we're using window capture (true) or screen capture (false)
 let isUsingWindowCapture = false;
 
-// Screen capture using desktopCapturer
+// Screen capture using node-screenshots (Rust-based, much faster!)
 async function captureScreenRegion() {
   try {
-    // Get all screen sources
-    const sources = await desktopCapturer.getSources({ 
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
-    });
+    const { Monitor } = require('node-screenshots');
     
-    if (sources.length === 0) {
-      throw new Error('No screen sources found');
+    // Get all monitors and find the primary one
+    const monitors = Monitor.all();
+    const primaryMonitor = monitors.find(m => m.isPrimary);  // isPrimary is a property, not a function
+    
+    if (!primaryMonitor) {
+      throw new Error('No primary monitor found');
     }
     
-    // Use the primary screen and return the full screenshot
-    // The cropping will be done in the renderer process
-    return sources[0].thumbnail.toDataURL();
+    // Capture the full screen first
+    const image = primaryMonitor.captureImageSync();
+    
+    // Crop to the region we need (larger than iPhone region for coordinate safety)
+    // iPhone region: {x: 0, y: 100, width: 450, height: 900}
+    // Capture larger for safety: {x: 0, y: 0, width: 550, height: 1080}
+    const croppedImage = image.cropSync(0, 0, 550, 1080);
+    
+    // Convert to PNG buffer
+    const pngBuffer = croppedImage.toPngSync();
+    
+    // Convert to base64 data URL
+    return `data:image/png;base64,${pngBuffer.toString('base64')}`;
   } catch (error) {
-    console.error('Error capturing screen:', error);
-    throw error;
+    console.error('Error capturing screen with node-screenshots:', error);
+    console.error('Error details:', error.stack);
+    
+    // Fallback to Electron's desktopCapturer if node-screenshots fails
+    try {
+      console.log('Falling back to Electron desktopCapturer...');
+      const sources = await desktopCapturer.getSources({ 
+        types: ['screen'],
+        thumbnailSize: { width: 1920, height: 1080 }
+      });
+      
+      if (sources.length === 0) {
+        throw new Error('No screen sources found');
+      }
+      
+      return sources[0].thumbnail.toDataURL();
+    } catch (fallbackError) {
+      console.error('Fallback capture also failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 }
 
@@ -1680,7 +1758,7 @@ ipcMain.handle('auto-detect-iphone-mirroring', async () => {
 
 ipcMain.handle('pick-region', async () => {
   try {
-    // Take a full screen screenshot for region picking
+    // Take a full screen screenshot for region picking (this is for UI, so full screen is needed)
     const sources = await desktopCapturer.getSources({ 
       types: ['screen'],
       thumbnailSize: { width: 1920, height: 1080 }

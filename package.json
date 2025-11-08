@@ -19,7 +19,9 @@
     "electron-rebuild": "^3.2.9"
   },
   "dependencies": {
+    "node-screenshots": "^0.2.1",
     "robotjs": "^0.6.0",
+    "screenshot-desktop": "^1.15.3",
     "sharp": "^0.33.2",
     "tesseract.js": "^6.0.1"
   }

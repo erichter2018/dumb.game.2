@@ -852,18 +852,62 @@ function startAutomation(dependencies) {
                     let levelPosition = levelDatabase.getLevelPosition(levelName);
                     let matchedName = levelName;
                     
-                    // If no exact match, try to find a valid level name within the text
+                    // If no exact match, try to find a valid level/stage name within the text
                     if (!levelPosition) {
-                        console.log(`DEBUG: No exact match for "${levelName}", checking individual words...`);
+                        console.log(`DEBUG: No exact match for "${levelName}", checking individual words and phrases...`);
                         const words = levelName.split(/\s+/);
-                        for (const word of words) {
-                            if (word.length >= 3) { // Only check words with at least 3 characters
-                                const wordPosition = levelDatabase.getLevelPosition(word);
-                                if (wordPosition) {
-                                    levelPosition = wordPosition;
-                                    matchedName = word;
-                                    console.log(`DEBUG: Found valid level name "${word}" within OCR result "${levelName}"`);
+                        
+                        // First check for multi-word stage names (like "Cape Town", "New York", "San Francisco")
+                        for (let i = 0; i < words.length - 1; i++) {
+                            const twoWordPhrase = `${words[i]} ${words[i + 1]}`;
+                            if (twoWordPhrase.length >= 6) {
+                                const stageInfo = levelDatabase.getStageByCity(twoWordPhrase);
+                                if (stageInfo) {
+                                    const firstLevel = stageInfo.levels[0];
+                                    levelPosition = {
+                                        stageName: twoWordPhrase,
+                                        stageNumber: stageInfo.stageNumber,
+                                        position: 1,
+                                        levelInfo: firstLevel
+                                    };
+                                    // IMPORTANT: Use the CITY NAME, not "Level 1"
+                                    // main.js needs the city name to detect stage transitions
+                                    matchedName = twoWordPhrase;
+                                    console.log(`DEBUG: Found valid two-word stage name "${twoWordPhrase}" within OCR result "${levelName}" - will pass city name to trigger stage detection`);
                                     break;
+                                }
+                            }
+                        }
+                        
+                        // Then check individual words if no multi-word match found
+                        if (!levelPosition) {
+                            for (const word of words) {
+                                if (word.length >= 3) {
+                                    // Check if it's a level name
+                                    const wordPosition = levelDatabase.getLevelPosition(word);
+                                    if (wordPosition) {
+                                        levelPosition = wordPosition;
+                                        matchedName = word;
+                                        console.log(`DEBUG: Found valid level name "${word}" within OCR result "${levelName}"`);
+                                        break;
+                                    }
+                                    
+                                    // Also check if it's a single-word stage name (city)
+                                    const stageInfo = levelDatabase.getStageByCity(word);
+                                    if (stageInfo) {
+                                        const firstLevel = stageInfo.levels[0];
+                                        levelPosition = {
+                                            stageName: word,
+                                            stageNumber: stageInfo.stageNumber,
+                                            position: 1,
+                                            levelInfo: firstLevel
+                                        };
+                                        // IMPORTANT: Use the CITY NAME, not "Level 1"
+                                        // main.js needs the city name to detect stage transitions
+                                        matchedName = word;
+                                        console.log(`DEBUG: Found valid single-word stage name "${word}" within OCR result "${levelName}" - will pass city name to trigger stage detection`);
+                                        break;
+                                    }
                                 }
                             }
                         }

@@ -181,23 +181,15 @@ startBtn.addEventListener('click', async () => {
         startBtn.disabled = true;
         stopBtn.disabled = false;
         
-        // Clear stage information since we don't know what stage we're in yet
-        const currentStageSummary = document.getElementById('currentStageSummary');
-        const previousStageSummary = document.getElementById('previousStageSummary');
-        const stageLevels = document.getElementById('stageLevels');
-        const prevStageLevels = document.getElementById('prevStageLevels');
+        // Hide stage information since we don't know what stage we're in yet
+        const stageDetails = document.getElementById('stageDetails');
+        const prevStageDetails = document.getElementById('prevStageDetails');
         
-        if (currentStageSummary) {
-            currentStageSummary.textContent = '';
+        if (stageDetails) {
+            stageDetails.style.display = 'none';
         }
-        if (previousStageSummary) {
-            previousStageSummary.textContent = '';
-        }
-        if (stageLevels) {
-            stageLevels.textContent = '';
-        }
-        if (prevStageLevels) {
-            prevStageLevels.textContent = '';
+        if (prevStageDetails) {
+            prevStageDetails.style.display = 'none';
         }
         
         // Show level actions display
