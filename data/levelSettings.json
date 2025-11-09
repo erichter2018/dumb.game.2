@@ -2701,7 +2701,7 @@
     },
     "baklava shop": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -2739,7 +2739,7 @@
       },
       "directionDown": {
         "perfectStartingPosition": {
-          "action": "nothing",
+          "action": "scroll_up_1x",
           "waitTimeMs": null
         },
         "scrollToBottomAfterFirstBuild": false,
@@ -3628,11 +3628,11 @@
       "minBuildCount": 10
     },
     "_global": {
-      "directionMode": "best"
+      "directionMode": "lastWorst"
     },
     "unknown level": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "optimized": true,

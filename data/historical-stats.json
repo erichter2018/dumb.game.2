@@ -101,7 +101,7 @@
       ]
     },
     "Tapas Bar": {
-      "averageDuration": 73876,
+      "averageDuration": 73390,
       "totalCompletions": 10,
       "bestTime": 60153,
       "worstTime": 126838,
@@ -111,11 +111,11 @@
       "allTimeBestTimeUp": 60153,
       "allTimeBestTimeDown": 60946,
       "completionsUp": [
-        72104,
         72986,
         69005,
         60153,
-        72544
+        72544,
+        67250
       ],
       "completionsDown": [
         78771,
@@ -151,9 +151,9 @@
       ]
     },
     "Coffee Truck": {
-      "averageDuration": 31866,
+      "averageDuration": 32104,
       "totalCompletions": 10,
-      "bestTime": 28697,
+      "bestTime": 30778,
       "worstTime": 34642,
       "lastTime": 31790,
       "bestDirection": "up",
@@ -161,11 +161,11 @@
       "allTimeBestTimeUp": 28697,
       "allTimeBestTimeDown": 29270,
       "completionsUp": [
-        28697,
         31148,
         32085,
         30778,
-        32936
+        32936,
+        31073
       ],
       "completionsDown": [
         31235,
@@ -397,21 +397,21 @@
       ]
     },
     "Big Ice Cream Stand": {
-      "averageDuration": 23329,
+      "averageDuration": 22743,
       "totalCompletions": 10,
-      "bestTime": 20868,
+      "bestTime": 20715,
       "worstTime": 30688,
       "lastTime": 20887,
-      "bestDirection": "down",
+      "bestDirection": "up",
       "lastDirection": "down",
-      "allTimeBestTimeUp": 20872,
+      "allTimeBestTimeUp": 20715,
       "allTimeBestTimeDown": 20868,
       "completionsUp": [
-        26571,
         20963,
         20872,
         21105,
-        21062
+        21062,
+        20715
       ],
       "completionsDown": [
         30688,
@@ -519,7 +519,7 @@
       ]
     },
     "Cafe Napolita": {
-      "averageDuration": 63203,
+      "averageDuration": 63476,
       "totalCompletions": 10,
       "bestTime": 51633,
       "worstTime": 77225,
@@ -529,11 +529,11 @@
       "allTimeBestTimeUp": 56443,
       "allTimeBestTimeDown": 51633,
       "completionsUp": [
-        56443,
         63422,
         64362,
         65225,
-        56761
+        56761,
+        59172
       ],
       "completionsDown": [
         71184,
@@ -1014,21 +1014,21 @@
       ]
     },
     "Lemonade Stand": {
-      "averageDuration": 16108,
+      "averageDuration": 17399,
       "totalCompletions": 10,
       "bestTime": 12553,
-      "worstTime": 21737,
+      "worstTime": 25843,
       "lastTime": 12776,
       "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 12931,
       "allTimeBestTimeDown": 12553,
       "completionsUp": [
-        12931,
         15391,
         16020,
         14873,
-        14971
+        14971,
+        25843
       ],
       "completionsDown": [
         19962,
@@ -1917,7 +1917,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-11-09T10:21:38.467Z",
+    "lastUpdated": "2025-11-09T20:39:06.474Z",
     "totalLevelsTracked": 44,
     "totalStagesTracked": 60,
     "lastCompletedStage": {

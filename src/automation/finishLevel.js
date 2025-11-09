@@ -304,6 +304,40 @@ function startAutomation(dependencies) {
                     console.log(`DEBUG: Worst mode - no data, using saved direction '${savedDir}'`);
                 }
                 }
+            } else if (mode === 'lastWorst') {
+                // Choose direction based on which had a worse (longer) LAST run
+                if (!levelName || levelName.toLowerCase() === 'unknown level' || levelName.trim() === '') {
+                    currentLevelEffectiveDirection = savedDir;
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Last Worst mode - Unknown Level, using saved direction '${savedDir}'`);
+                } else {
+                    const historicalStats = require('../../lib/historicalStats');
+                    const lastTimes = historicalStats.getLevelLast(levelName);
+                    
+                    console.log(`DEBUG: Last Worst mode - lastTimes:`, lastTimes);
+                    
+                    if (lastTimes.up && lastTimes.down) {
+                        // Both have last times, choose the slower one
+                        currentLevelEffectiveDirection = lastTimes.up > lastTimes.down ? 'up' : 'down';
+                        currentLevelRandomApplied = false;
+                        console.log(`DEBUG: Last Worst mode - choosing '${currentLevelEffectiveDirection}' (last up: ${lastTimes.up}ms, last down: ${lastTimes.down}ms)`);
+                    } else if (lastTimes.up && !lastTimes.down) {
+                        // Only up has data, choose down (no data is worse)
+                        currentLevelEffectiveDirection = 'down';
+                        currentLevelRandomApplied = false;
+                        console.log(`DEBUG: Last Worst mode - choosing 'down' (no last time, worse than up)`);
+                    } else if (lastTimes.down && !lastTimes.up) {
+                        // Only down has data, choose up (no data is worse)
+                        currentLevelEffectiveDirection = 'up';
+                        currentLevelRandomApplied = false;
+                        console.log(`DEBUG: Last Worst mode - choosing 'up' (no last time, worse than down)`);
+                    } else {
+                        // No data for either, use saved
+                        currentLevelEffectiveDirection = savedDir;
+                        currentLevelRandomApplied = false;
+                        console.log(`DEBUG: Last Worst mode - no data, using saved direction '${savedDir}'`);
+                    }
+                }
             } else {
                 currentLevelEffectiveDirection = savedDir; // 'saved'
                 currentLevelRandomApplied = false;

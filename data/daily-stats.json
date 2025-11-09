@@ -2137,14 +2137,32 @@
       "minStageTime": null,
       "maxStageTime": null,
       "avgStageTime": null
+    },
+    "2025-11-09": {
+      "levelsCompleted": 111,
+      "stagesCompleted": 16,
+      "levelTimes": [
+        25843,
+        20715,
+        31073,
+        59172,
+        67250
+      ],
+      "stageTimes": [],
+      "minLevelTime": 20715,
+      "maxLevelTime": 67250,
+      "avgLevelTime": 40811,
+      "minStageTime": null,
+      "maxStageTime": null,
+      "avgStageTime": null
     }
   },
   "lastKnownLevel": {
-    "stageName": "Hong Kong",
-    "stageNumber": 36,
-    "levelName": "Mocktail Bar",
-    "levelPosition": 6,
-    "timestamp": "2025-11-08T01:32:54.281Z"
+    "stageName": "Birmingham",
+    "stageNumber": 52,
+    "levelName": "Cafe Napolita",
+    "levelPosition": 4,
+    "timestamp": "2025-11-09T20:36:15.686Z"
   },
-  "lastSaveDate": "2025-11-08T06:12:00.601Z"
+  "lastSaveDate": "2025-11-09T20:39:06.476Z"
 }

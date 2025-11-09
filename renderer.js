@@ -2925,23 +2925,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const currentMode = await ipcRenderer.invoke('get-direction-mode');
         const mode = currentMode || 'random';
-        const map = { 
+        const map = {
             saved: 'directionModeSaved', 
             random: 'directionModeRandom', 
-            up: 'directionModeUp',
             best: 'directionModeBest',
-            worst: 'directionModeWorst'
+            worst: 'directionModeWorst',
+            lastWorst: 'directionModeLastWorst'
         };
         if (document.getElementById(map[mode])) {
             document.getElementById(map[mode]).checked = true;
         }
     } catch {}
-    ['directionModeSaved','directionModeRandom','directionModeUp','directionModeBest','directionModeWorst'].forEach(id => {
+    ['directionModeSaved','directionModeRandom','directionModeBest','directionModeWorst','directionModeLastWorst'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', async () => {
                 if (!el.checked) return;
-                const mode = el.value; // saved | random | up | best | worst
+                const mode = el.value; // saved | random | best | worst | lastWorst
                 await ipcRenderer.invoke('set-direction-mode', mode);
                 await ipcRenderer.invoke('renderer-log', `UI: directionMode set to ${mode}`);
             });
@@ -4158,6 +4158,8 @@ ipcRenderer.on('effective-direction', async (event, mode, dir, randomApplied) =>
             label = `Best ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
         } else if (mode === 'worst') {
             label = `Worst ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
+        } else if (mode === 'lastWorst') {
+            label = `Last Worst ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
         } else {
             label = dir === 'up' ? 'Up ↑' : 'Down ↓';
         }
