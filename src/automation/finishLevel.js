@@ -674,7 +674,7 @@ function startAutomation(dependencies) {
                 updateStatus(`Verification click at X:${verificationClickX}, Y:${verificationClickY}`, 'info');
                 console.log(`DEBUG: Verification click at X:${verificationClickX}, Y:${verificationClickY}`);
                 await performClick(verificationClickX, verificationClickY);
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
                 // Check if verification click also produces blue build
                 const verificationBlueBox = await confirmAndClickBlueBuildBox(dependencies);
@@ -699,7 +699,7 @@ function startAutomation(dependencies) {
                     updateStatus(`Reverting to original click at X:${revertClickX}, Y:${revertClickY}`, 'info');
                     console.log(`DEBUG: Reverting to original click at X:${revertClickX}, Y:${revertClickY}`);
                     await performClick(revertClickX, revertClickY);
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                     
                     // Confirm the reverted click works
                     const revertedBlueBox = await confirmAndClickBlueBuildBox(dependencies);

@@ -17,6 +17,7 @@ const finishLevelAutomation = require('./src/automation/finishLevel');
 const imageComparison = require('./utils/image-comparison');
 const scrollingFunctions = require('./src/automation/scrolling');
 const clickAroundFunctions = require('./src/automation/clickAround');
+const activeSkillFunctions = require('./src/automation/activeSkill');
 const ocrUtils = require('./utils/ocr');
 const statistics = require('./lib/statistics');
 const historicalStats = require('./lib/historicalStats');
@@ -2651,6 +2652,31 @@ ipcMain.handle('scroll-to-top', async () => {
     mainWindow.webContents.send('scroll-occurred');
   }
   return scrollingFunctions.scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS });
+});
+
+ipcMain.handle('activate-active-skill', async (event) => {
+  console.log('DEBUG: activate-active-skill IPC handler called');
+  
+  const activeSkillDependencies = {
+    performClick: performClick,
+    scrollDown: scrollingFunctions.scrollDown,
+    CLICK_AREAS: CLICK_AREAS,
+    iphoneMirroringRegion: iphoneMirroringRegion,
+    updateStatus: (message, type) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        statusMessageHistory.push({ message, type, timestamp: new Date().toLocaleTimeString() });
+        if (statusMessageHistory.length > STATUS_MESSAGE_LIMIT) {
+          statusMessageHistory.shift();
+        }
+        mainWindow.webContents.send('finish-build-status', message, type);
+        mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
+      }
+    },
+    updateCurrentFunction: updateCurrentFunction
+  };
+  
+  const result = await activeSkillFunctions.activateActiveSkill(activeSkillDependencies);
+  return result;
 });
 
 ipcMain.handle('toggle-click-around', async (event, isRunning, exclude_red_blobs = true) => {

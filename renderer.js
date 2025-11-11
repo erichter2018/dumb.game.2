@@ -20,6 +20,7 @@ const finishBuildStatusList = document.getElementById('finishBuildStatusList');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const allStatisticsBtn = document.getElementById('allStatisticsBtn');
+const activateActiveSkillBtn = document.getElementById('activateActiveSkillBtn');
 
 // New DOM Elements for Function Display
 const currentFunctionDisplay = document.getElementById('currentFunction');
@@ -62,6 +63,7 @@ let overlayCtx = null;
 let currentLevelStartTime = null;
 let currentStageInfo = null;
 let stageETAUpdateInterval = null;
+let currentLevelEffectiveDirection = null; // Track the direction being used for current level
 
 // Function to update status - now unified with activity log
 function updateStatus(message, type = 'info') {
@@ -207,6 +209,24 @@ stopBtn.addEventListener('click', async () => {
 // All Statistics button event listener
 allStatisticsBtn.addEventListener('click', async () => {
     await openStatisticsModal();
+});
+
+// Active Skill button event listener
+activateActiveSkillBtn.addEventListener('click', async () => {
+    console.log('DEBUG: Active Skill button clicked');
+    updateStatus('Activating Active Skill...', 'info');
+    
+    try {
+        const result = await ipcRenderer.invoke('activate-active-skill');
+        if (result && result.success) {
+            updateStatus('Active Skill activated successfully!', 'success');
+        } else {
+            updateStatus('Active Skill activation failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error activating active skill:', error);
+        updateStatus('Active Skill activation error', 'error');
+    }
 });
 
 // Scroll button event listeners removed - scroll controls are now handled internally by automation
@@ -1176,22 +1196,36 @@ async function updateStageETAs() {
                 const currentLevelName = currentStageInfo.current.currentLevelName;
                 
                 if (timeSpan && currentLevelName && currentLevelName !== 'Unknown Level' && currentLevelName !== 'Unnamed Level') {
-                    // Calculate ETA for current level using historical average
+                    // Calculate ETAs for current level using direction-specific stats
                     const levelStats = statisticsData.levels[currentLevelName];
-                    let eta = null;
-                    if (levelStats) {
-                        const allCompletions = [
-                            ...(levelStats.completionsUp || []),
-                            ...(levelStats.completionsDown || [])
-                        ];
-                        if (allCompletions.length > 0) {
-                            const avg = allCompletions.reduce((sum, time) => sum + time, 0) / allCompletions.length;
+                    let etaBest = null;
+                    let etaAvg = null;
+                    
+                    if (levelStats && currentLevelEffectiveDirection) {
                             const elapsed = Date.now() - currentStageInfo.current.startTime - currentStageInfo.current.levels.reduce((sum, l) => sum + l.durationMs, 0);
-                            eta = Math.max(0, avg - elapsed);
+                        
+                        // Get direction-specific best time
+                        const directionBest = currentLevelEffectiveDirection === 'up' 
+                            ? levelStats.allTimeBestTimeUp 
+                            : levelStats.allTimeBestTimeDown;
+                        if (directionBest) {
+                            etaBest = Math.max(0, directionBest - elapsed);
+                        }
+                        
+                        // Get direction-specific average
+                        const directionCompletions = currentLevelEffectiveDirection === 'up' 
+                            ? (levelStats.completionsUp || []) 
+                            : (levelStats.completionsDown || []);
+                        if (directionCompletions.length > 0) {
+                            const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
+                            etaAvg = Math.max(0, avg - elapsed);
                         }
                     }
-                    if (eta !== null) {
-                        timeSpan.textContent = `eta: ${formatDuration(eta)}`;
+                    
+                    if (etaBest !== null || etaAvg !== null) {
+                        const bestText = etaBest !== null ? formatDuration(etaBest) : '—';
+                        const avgText = etaAvg !== null ? formatDuration(etaAvg) : '—';
+                        timeSpan.textContent = `avg: ${avgText} • best: ${bestText}`;
                     }
                 }
             }
@@ -1256,9 +1290,36 @@ async function updateStageETAs() {
         const levelName = stageLevelNames[currentLevelArrayPosition];
         
         if (timeSpan && !currentLevelItem.classList.contains('stage-level-completed') && levelName) {
-            const eta = await calculateLevelETA(currentStageInfo.current, currentLevelArrayPosition, levelName, stageLevelNames);
-            if (eta !== null) {
-                timeSpan.textContent = `eta: ${formatDuration(eta)}`;
+            // Calculate direction-specific ETAs for current level
+            const levelStats = statisticsData.levels[levelName];
+            let etaBest = null;
+            let etaAvg = null;
+            
+            if (levelStats && currentLevelEffectiveDirection) {
+                const elapsed = currentLevelStartTime ? Date.now() - currentLevelStartTime : 0;
+                
+                // Get direction-specific best time
+                const directionBest = currentLevelEffectiveDirection === 'up' 
+                    ? levelStats.allTimeBestTimeUp 
+                    : levelStats.allTimeBestTimeDown;
+                if (directionBest) {
+                    etaBest = Math.max(0, directionBest - elapsed);
+                }
+                
+                // Get direction-specific average
+                const directionCompletions = currentLevelEffectiveDirection === 'up' 
+                    ? (levelStats.completionsUp || []) 
+                    : (levelStats.completionsDown || []);
+                if (directionCompletions.length > 0) {
+                    const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
+                    etaAvg = Math.max(0, avg - elapsed);
+                }
+            }
+            
+            if (etaBest !== null || etaAvg !== null) {
+                const bestText = etaBest !== null ? formatDuration(etaBest) : '—';
+                const avgText = etaAvg !== null ? formatDuration(etaAvg) : '—';
+                timeSpan.textContent = `avg: ${avgText} • best: ${bestText}`;
             }
         }
     }
@@ -1892,30 +1953,43 @@ async function updateCurrentStageDetails(currentStage) {
                 const levelDiv = document.createElement('div');
                 levelDiv.className = 'stage-level-item stage-level-current';
                 
-                // Calculate ETA for current level using historical average
+                // Calculate ETAs for current level using direction-specific stats
                 const levelStats = statisticsData.levels[currentStage.currentLevelName];
-                let eta = null;
-                if (levelStats) {
-                    const allCompletions = [
-                        ...(levelStats.completionsUp || []),
-                        ...(levelStats.completionsDown || [])
-                    ];
-                    if (allCompletions.length > 0) {
-                        const avg = allCompletions.reduce((sum, time) => sum + time, 0) / allCompletions.length;
+                let etaBest = null;
+                let etaAvg = null;
+                
+                if (levelStats && currentLevelEffectiveDirection) {
                         const elapsed = Date.now() - currentStage.startTime - currentStage.levels.reduce((sum, l) => sum + l.durationMs, 0);
-                        eta = Math.max(0, avg - elapsed);
+                    
+                    // Get direction-specific best time
+                    const directionBest = currentLevelEffectiveDirection === 'up' 
+                        ? levelStats.allTimeBestTimeUp 
+                        : levelStats.allTimeBestTimeDown;
+                    if (directionBest) {
+                        etaBest = Math.max(0, directionBest - elapsed);
+                    }
+                    
+                    // Get direction-specific average
+                    const directionCompletions = currentLevelEffectiveDirection === 'up' 
+                        ? (levelStats.completionsUp || []) 
+                        : (levelStats.completionsDown || []);
+                    if (directionCompletions.length > 0) {
+                        const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
+                        etaAvg = Math.max(0, avg - elapsed);
                     }
                 }
-                const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
+                
+                const etaBestText = etaBest !== null ? formatDuration(etaBest) : '—';
+                const etaAvgText = etaAvg !== null ? formatDuration(etaAvg) : '—';
                 
                 levelDiv.innerHTML = `
                     <div class="stage-level-main">
                         <span class="stage-level-name">${currentStage.currentLevelName}</span>
-                        <span class="stage-level-time">    ${etaText}</span>
+                        <span class="stage-level-time">avg: ${etaAvgText} • best: ${etaBestText}</span>
                     </div>
                 `;
                 stageLevels.appendChild(levelDiv);
-                console.log(`DEBUG: Added current level in partial stage: ${currentStage.currentLevelName} (${etaText})`);
+                console.log(`DEBUG: Added current level in partial stage: ${currentStage.currentLevelName} (avg: ${etaAvgText}, best: ${etaBestText})`);
             }
         } else {
             // Normal stage rendering with all 7 positions
@@ -2033,18 +2107,43 @@ async function updateCurrentStageDetails(currentStage) {
                 // Show current level with actual name and ETA
                 levelDiv.className = 'stage-level-item stage-level-current';
                 
-                // Calculate ETA for current level (historical avg - elapsed time)
-                const eta = await calculateLevelETA(currentStage, position, levelName, stageLevelNames);
-                const etaText = eta !== null ? `eta: ${formatDuration(eta)}` : 'Calculating...';
+                // Calculate ETAs for current level using direction-specific stats
+                const levelStats = statisticsData.levels[levelName];
+                let etaBest = null;
+                let etaAvg = null;
+                
+                if (levelStats && currentLevelEffectiveDirection) {
+                    const elapsed = currentLevelStartTime ? Date.now() - currentLevelStartTime : 0;
+                    
+                    // Get direction-specific best time
+                    const directionBest = currentLevelEffectiveDirection === 'up' 
+                        ? levelStats.allTimeBestTimeUp 
+                        : levelStats.allTimeBestTimeDown;
+                    if (directionBest) {
+                        etaBest = Math.max(0, directionBest - elapsed);
+                    }
+                    
+                    // Get direction-specific average
+                    const directionCompletions = currentLevelEffectiveDirection === 'up' 
+                        ? (levelStats.completionsUp || []) 
+                        : (levelStats.completionsDown || []);
+                    if (directionCompletions.length > 0) {
+                        const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
+                        etaAvg = Math.max(0, avg - elapsed);
+                    }
+                }
+                
+                const etaBestText = etaBest !== null ? formatDuration(etaBest) : '—';
+                const etaAvgText = etaAvg !== null ? formatDuration(etaAvg) : '—';
                 
                 levelDiv.innerHTML = `
                     <div class="stage-level-main">
                         <span class="stage-level-name">${levelName}</span>
-                        <span class="stage-level-time">    ${etaText}</span>
+                        <span class="stage-level-time">avg: ${etaAvgText} • best: ${etaBestText}</span>
                     </div>
                 `;
                 levelItemsAdded++;
-                    await ipcRenderer.invoke('renderer-log', `Rendering current level at position ${position}: "${levelName}"`);
+                    await ipcRenderer.invoke('renderer-log', `Rendering current level at position ${position}: "${levelName}" (avg: ${etaAvgText}, best: ${etaBestText})`);
             } else {
                 // Show upcoming level with historical average as static ETA
                 levelDiv.className = 'stage-level-item';
@@ -4224,6 +4323,10 @@ ipcRenderer.on('update-current-level-name', async () => {
 // Show effective direction in Level Progress when random applies
 ipcRenderer.on('effective-direction', async (event, mode, dir, randomApplied) => {
     try {
+        // Store the effective direction for ETA calculations
+        currentLevelEffectiveDirection = dir;
+        console.log(`DEBUG: Stored current level effective direction: ${dir}`);
+        
         let label;
         if (mode === 'random' && randomApplied) {
             label = `Random ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
