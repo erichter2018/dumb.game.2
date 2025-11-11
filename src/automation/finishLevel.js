@@ -2,7 +2,7 @@ const settingsManager = require('../../lib/settingsManager');
 const levelDatabase = require('../../lib/levelDatabase');
 
 function startAutomation(dependencies) {
-    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollUpWithDistance, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, getRandomInt } = dependencies;
+    const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollUpWithDistance, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, getRandomInt, setCurrentLevelStartTime } = dependencies;
 
     updateCurrentFunction('startAutomation'); // Update current function display
     updateStatus('Finish Level Automation Started', 'info');
@@ -338,8 +338,42 @@ function startAutomation(dependencies) {
                         console.log(`DEBUG: Last Worst mode - no data, using saved direction '${savedDir}'`);
                     }
                 }
+            } else if (mode === 'lastBest') {
+                // Choose direction based on which had a better (shorter) LAST run
+                if (!levelName || levelName.toLowerCase() === 'unknown level' || levelName.trim() === '') {
+                    currentLevelEffectiveDirection = savedDir;
+                    currentLevelRandomApplied = false;
+                    console.log(`DEBUG: Last Best mode - Unknown Level, using saved direction '${savedDir}'`);
+                } else {
+                    const historicalStats = require('../../lib/historicalStats');
+                    const lastTimes = historicalStats.getLevelLast(levelName);
+                    
+                    console.log(`DEBUG: Last Best mode - lastTimes:`, lastTimes);
+                    
+                    if (lastTimes.up && lastTimes.down) {
+                        // Both have last times, choose the faster one
+                        currentLevelEffectiveDirection = lastTimes.up < lastTimes.down ? 'up' : 'down';
+                        currentLevelRandomApplied = false;
+                        console.log(`DEBUG: Last Best mode - choosing '${currentLevelEffectiveDirection}' (last up: ${lastTimes.up}ms, last down: ${lastTimes.down}ms)`);
+                    } else if (lastTimes.up && !lastTimes.down) {
+                        // Only up has data, choose up (has data is better than no data)
+                        currentLevelEffectiveDirection = 'up';
+                        currentLevelRandomApplied = false;
+                        console.log(`DEBUG: Last Best mode - choosing 'up' (has last time, better than down with no data)`);
+                    } else if (lastTimes.down && !lastTimes.up) {
+                        // Only down has data, choose down (has data is better than no data)
+                        currentLevelEffectiveDirection = 'down';
+                        currentLevelRandomApplied = false;
+                        console.log(`DEBUG: Last Best mode - choosing 'down' (has last time, better than up with no data)`);
+                    } else {
+                        // No data for either, use saved
+                        currentLevelEffectiveDirection = savedDir;
+                        currentLevelRandomApplied = false;
+                        console.log(`DEBUG: Last Best mode - no data, using saved direction '${savedDir}'`);
+                    }
+                }
             } else {
-                currentLevelEffectiveDirection = savedDir; // 'saved'
+                currentLevelEffectiveDirection = savedDir; // fallback
                 currentLevelRandomApplied = false;
             }
         } catch (e) {
@@ -871,6 +905,7 @@ function startAutomation(dependencies) {
         console.log('DEBUG: Starting OCR retry loop to capture valid level name...');
         updateStatus('Capturing level name...', 'info');
         let validLevelName = null;
+        let levelTransitionTimestamp = null; // Capture exact moment OCR succeeds
         let retryCount = 0;
         const maxRetries = 30; // Safety limit to prevent infinite loop
         
@@ -948,10 +983,29 @@ function startAutomation(dependencies) {
                     }
                     
                     if (levelPosition) {
-                        // Valid level found!
+                        // Valid level found! Capture the exact transition timestamp
+                        levelTransitionTimestamp = Date.now();
                         validLevelName = matchedName;
-                        console.log(`DEBUG: Valid level name captured on attempt ${retryCount}: "${matchedName}" (Stage: ${levelPosition.stageName}, Position: ${levelPosition.position})`);
+                        console.log(`DEBUG: ⏱️ LEVEL TRANSITION at ${levelTransitionTimestamp} - Valid level name captured on attempt ${retryCount}: "${matchedName}" (Stage: ${levelPosition.stageName}, Position: ${levelPosition.position})`);
+                        
+                        // IMMEDIATELY calculate and update previous level duration
+                        // This happens RIGHT AT OCR success, before any clicks or scrolling
+                        const rawDuration = levelTransitionTimestamp - getCurrentLevelStartTime();
+                        const compensatedDuration = rawDuration - getReconnectionDowntimeMs();
+                        console.log(`⏱️ TIMING: Level ended at transition (OCR success), duration: ${(compensatedDuration / 1000).toFixed(1)}s`);
+                        
+                        // 1. Add previous level to stage tracking FIRST (dependency version)
+                        updatePreviousLevelDuration(compensatedDuration);
+                        console.log(`⏱️ TIMING: Previous level added to stage tracking`);
+                        
+                        // 2. Start new timer at transition timestamp
+                        setCurrentLevelStartTime(levelTransitionTimestamp);
+                        console.log(`⏱️ TIMING: New level timer started at transition timestamp`);
+                        
+                        // 3. Update current level name (sends stage info with completed level included)
                         dependencies.updateCurrentLevelName(matchedName);
+                        console.log(`⏱️ TIMING: New level name set and stage info sent to renderer`);
+                        
                         updateStatus(`Level name captured: "${matchedName}"`, 'success');
                     } else {
                         console.log(`DEBUG: OCR returned "${levelName}" but no valid level name found - retrying...`);
@@ -973,6 +1027,16 @@ function startAutomation(dependencies) {
         if (!validLevelName) {
             console.log(`DEBUG: Failed to capture valid level name after ${retryCount} attempts - keeping previous level name`);
             updateStatus('Level name capture failed after retries - keeping previous name', 'warn');
+            // If OCR failed, use current time as fallback
+            levelTransitionTimestamp = Date.now();
+            const rawDuration = levelTransitionTimestamp - getCurrentLevelStartTime();
+            const compensatedDuration = rawDuration - getReconnectionDowntimeMs();
+            console.log(`⏱️ TIMING: OCR failed - using fallback timestamp for transition, duration: ${(compensatedDuration / 1000).toFixed(1)}s`);
+            
+            // Add previous level to stage tracking
+            updatePreviousLevelDuration(compensatedDuration);
+            // Start new timer
+            setCurrentLevelStartTime(levelTransitionTimestamp);
         }
 
         // Click at "start level"
@@ -1037,13 +1101,17 @@ function startAutomation(dependencies) {
         }
         
         // Handle perfectStartingPosition (can be string or object for backward compatibility)
-        let perfectStartingPositionAction, perfectStartingPositionWaitTime;
+        let perfectStartingPositionAction, perfectStartingPositionWaitTime, perfectStartingPositionScrollDirection, perfectStartingPositionScrollDistance;
         if (typeof effSettings.perfectStartingPosition === 'object') {
             perfectStartingPositionAction = effSettings.perfectStartingPosition.action || 'nothing';
             perfectStartingPositionWaitTime = effSettings.perfectStartingPosition.waitTimeMs || null;
+            perfectStartingPositionScrollDirection = effSettings.perfectStartingPosition.scrollDirection || 'down';
+            perfectStartingPositionScrollDistance = effSettings.perfectStartingPosition.scrollDistance || 200;
         } else {
             perfectStartingPositionAction = effSettings.perfectStartingPosition || 'nothing';
             perfectStartingPositionWaitTime = null;
+            perfectStartingPositionScrollDirection = 'down';
+            perfectStartingPositionScrollDistance = 200;
         }
         
         const scrollDirection = effSettings.scrollDirection || 'up';
@@ -1137,6 +1205,21 @@ function startAutomation(dependencies) {
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll to TOP.`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling to top.`, 'info');
             await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+        } else if (perfectStartingPositionAction === 'scroll_and_wait') {
+            const scrollDir = perfectStartingPositionScrollDirection || 'down';
+            const scrollDist = perfectStartingPositionScrollDistance || 200;
+            const waitTime = perfectStartingPositionWaitTime || 1000;
+            
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll and wait: ${scrollDir} ${scrollDist}px, then wait ${waitTime}ms`);
+            updateStatus(`Level-specific action: ${currentLevelName} - scroll ${scrollDir} ${scrollDist}px, wait ${waitTime}ms`, 'info');
+            
+            if (scrollDir === 'up') {
+                await scrollUpWithDistance(scrollX, scrollY, scrollDist);
+            } else {
+                await scrollDown(scrollX, scrollY, scrollDist);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, waitTime));
         } else {
             // No specific action needed for this level
             console.log(`DEBUG: No specific scrolling action needed for level "${currentLevelName}".`);
@@ -1145,15 +1228,10 @@ function startAutomation(dependencies) {
         
         if (!getIsAutomationRunning()) { return; }
 
-        // After a successful exit and new level start, update the previous level duration
-        // Subtract reconnection downtime to compensate for connection interruptions
-        const rawDuration = Date.now() - getCurrentLevelStartTime();
-        const compensatedDuration = rawDuration - getReconnectionDowntimeMs();
-        const downtimeSeconds = (getReconnectionDowntimeMs() / 1000).toFixed(1);
-        if (getReconnectionDowntimeMs() > 0) {
-            console.log(`LEVEL COMPLETE: Raw duration: ${(rawDuration / 1000).toFixed(1)}s, Downtime: ${downtimeSeconds}s, Compensated: ${(compensatedDuration / 1000).toFixed(1)}s`);
-        }
-        updatePreviousLevelDuration(compensatedDuration);
+        // Previous level duration was already updated at OCR success (before scrolling)
+        // Log post-transition delay for debugging
+        const postTransitionDelay = Date.now() - levelTransitionTimestamp;
+        console.log(`⏱️ TIMING: Post-transition setup (clicks, scrolling, etc) took ${(postTransitionDelay / 1000).toFixed(1)}s - NOT included in level time`);
         
         // Reset the build completion count for the new level
         buildCompletionCount = 0;

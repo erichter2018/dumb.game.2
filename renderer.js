@@ -65,10 +65,18 @@ let stageETAUpdateInterval = null;
 
 // Function to update status - now unified with activity log
 function updateStatus(message, type = 'info') {
-    statusText.textContent = message; // Update the general statusText
-    statusText.className = `status-update ${type}`;
-    finishBuildStatus.textContent = message; // Update the single-line finish build status
-    finishBuildStatus.className = `status-update ${type}`;
+    // Safely update elements only if they exist
+    const statusTextEl = document.getElementById('statusText');
+    const finishBuildStatusEl = document.getElementById('finishBuildStatus');
+    
+    if (statusTextEl) {
+        statusTextEl.textContent = message;
+        statusTextEl.className = `status-update ${type}`;
+    }
+    if (finishBuildStatusEl) {
+        finishBuildStatusEl.textContent = message;
+        finishBuildStatusEl.className = `status-update ${type}`;
+    }
     
     // Add to activity log
     addLogEntry(message, type);
@@ -128,46 +136,7 @@ function drawOverlay(x, y, color = 'red') {
     previewOverlay.appendChild(marker);
 }
 
-// Event listeners
-startLiveViewBtn.addEventListener('click', async () => {
-    // This button will be hidden by default as live view auto-starts.
-    // If it's ever visible and clicked, it should re-start the live view.
-    try {
-        console.log('DEBUG: Start Live View button clicked. Requesting live view start...');
-        updateStatus('Starting live view...', 'info');
-        const started = await ipcRenderer.invoke('start-live-view');
-        if (started) {
-            isCapturing = true;
-            startLiveViewBtn.style.display = 'none';
-            stopLiveViewBtn.style.display = 'block';
-            updateStatus('Live view started', 'success');
-        } else {
-            updateStatus('Live view already running', 'warn');
-            console.log('DEBUG: Live view start request returned false (already running).');
-        }
-    } catch (error) {
-        updateStatus(`Failed to start live view: ${error.message}`, 'error');
-    }
-});
-
-stopLiveViewBtn.addEventListener('click', async () => {
-    try {
-        console.log('DEBUG: Stop Live View button clicked.');
-        updateStatus('Stopping live view...', 'info');
-        await ipcRenderer.invoke('stop-live-view');
-        isCapturing = false;
-        startLiveViewBtn.style.display = 'block';
-        stopLiveViewBtn.style.display = 'none';
-        updateStatus('Live view stopped', 'success');
-        
-        // Retain last screenshot on stop
-        if (lastCapture) {
-            drawImageOnCanvas(lastCapture.src); // Redraws the last image without needing to refetch
-        }
-    } catch (error) {
-        updateStatus(`Failed to stop live view: ${error.message}`, 'error');
-    }
-});
+// Event listeners - Live view listeners will be attached in DOMContentLoaded
 
 // Handle toggle finish build button click
 // Start button event listener - starts the finish level automation
@@ -2926,22 +2895,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const currentMode = await ipcRenderer.invoke('get-direction-mode');
         const mode = currentMode || 'random';
         const map = {
-            saved: 'directionModeSaved', 
             random: 'directionModeRandom', 
             best: 'directionModeBest',
             worst: 'directionModeWorst',
-            lastWorst: 'directionModeLastWorst'
+            lastWorst: 'directionModeLastWorst',
+            lastBest: 'directionModeLastBest'
         };
         if (document.getElementById(map[mode])) {
             document.getElementById(map[mode]).checked = true;
         }
     } catch {}
-    ['directionModeSaved','directionModeRandom','directionModeBest','directionModeWorst','directionModeLastWorst'].forEach(id => {
+    ['directionModeRandom','directionModeBest','directionModeWorst','directionModeLastWorst','directionModeLastBest'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', async () => {
                 if (!el.checked) return;
-                const mode = el.value; // saved | random | best | worst | lastWorst
+                const mode = el.value; // random | best | worst | lastWorst | lastBest
                 await ipcRenderer.invoke('set-direction-mode', mode);
                 await ipcRenderer.invoke('renderer-log', `UI: directionMode set to ${mode}`);
             });
@@ -2967,8 +2936,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Live view is now disabled by default - user must manually start it
     console.log('DEBUG: Live view disabled by default - user must start manually.');
     isCapturing = false; // Live view disabled by default
-    startLiveViewBtn.style.display = 'block';
-    stopLiveViewBtn.style.display = 'none';
+    
+    // Re-get button references (elements selected at top of file are null)
+    const startLiveViewBtnEl = document.getElementById('startLiveViewBtn');
+    const stopLiveViewBtnEl = document.getElementById('stopLiveViewBtn');
+    
+    await ipcRenderer.invoke('renderer-log', `LIVE VIEW INIT: startBtn=${!!startLiveViewBtnEl}, stopBtn=${!!stopLiveViewBtnEl}`);
+    
+    if (startLiveViewBtnEl) {
+        startLiveViewBtnEl.style.display = 'block';
+    } else {
+        await ipcRenderer.invoke('renderer-log', 'ERROR: startLiveViewBtn element not found!');
+    }
+    if (stopLiveViewBtnEl) {
+        stopLiveViewBtnEl.style.display = 'none';
+    } else {
+        await ipcRenderer.invoke('renderer-log', 'ERROR: stopLiveViewBtn element not found!');
+    }
+    
+    // Attach live view event listeners
+    if (startLiveViewBtnEl) {
+        startLiveViewBtnEl.addEventListener('click', async () => {
+            try {
+                await ipcRenderer.invoke('renderer-log', 'LIVE VIEW: Start button clicked!');
+                updateStatus('Starting live view...', 'info');
+                
+                await ipcRenderer.invoke('renderer-log', 'LIVE VIEW: About to call start-live-view...');
+                const started = await ipcRenderer.invoke('start-live-view');
+                await ipcRenderer.invoke('renderer-log', `LIVE VIEW: IPC returned: ${started}`);
+                
+                if (started) {
+                    isCapturing = true;
+                    startLiveViewBtnEl.style.display = 'none';
+                    stopLiveViewBtnEl.style.display = 'block';
+                    updateStatus('Live view started', 'success');
+                    await ipcRenderer.invoke('renderer-log', 'LIVE VIEW: UI updated to show running');
+                } else {
+                    updateStatus('Live view already running', 'warn');
+                    await ipcRenderer.invoke('renderer-log', 'LIVE VIEW: IPC returned false');
+                }
+            } catch (error) {
+                await ipcRenderer.invoke('renderer-log', `LIVE VIEW ERROR: ${error.message}`);
+                updateStatus(`Failed to start live view: ${error.message}`, 'error');
+            }
+        });
+        await ipcRenderer.invoke('renderer-log', 'LIVE VIEW: Start button event listener attached');
+    } else {
+        await ipcRenderer.invoke('renderer-log', 'ERROR: Could not attach Start Live View listener - element is null');
+    }
+
+    if (stopLiveViewBtnEl) {
+        stopLiveViewBtnEl.addEventListener('click', async () => {
+            try {
+                console.log('DEBUG: Stop Live View button clicked.');
+                updateStatus('Stopping live view...', 'info');
+                await ipcRenderer.invoke('stop-live-view');
+                isCapturing = false;
+                startLiveViewBtnEl.style.display = 'block';
+                stopLiveViewBtnEl.style.display = 'none';
+                updateStatus('Live view stopped', 'success');
+                
+                // Retain last screenshot on stop
+                if (lastCapture) {
+                    drawImageOnCanvas(lastCapture.src);
+                }
+            } catch (error) {
+                updateStatus(`Failed to stop live view: ${error.message}`, 'error');
+            }
+        });
+        console.log('DEBUG: Stop Live View event listener attached');
+    }
     
     // Initialize button states
     stopBtn.disabled = true;
@@ -3083,8 +3120,12 @@ async function initializeSettingsModal() {
     
     // Show/hide options based on action selection
     document.getElementById('perfectStartingPosition').addEventListener('change', (e) => {
-        document.getElementById('perfectStartingPositionWaitOptions').style.display = 
-            e.target.value === 'wait' ? 'block' : 'none';
+        const waitOptions = document.getElementById('perfectStartingPositionWaitOptions');
+        const scrollAndWaitOptions = document.getElementById('perfectStartingPositionScrollAndWaitOptions');
+        
+        waitOptions.style.display = e.target.value === 'wait' ? 'block' : 'none';
+        scrollAndWaitOptions.style.display = e.target.value === 'scroll_and_wait' ? 'block' : 'none';
+        
         checkForChanges();
     });
     
@@ -3136,17 +3177,17 @@ async function initializeSettingsModal() {
         
         // Always auto-save the current direction's settings before switching (no dialog)
         const customTriggersForOldDir = getCustomTriggersFromForm();
-        const directionSpecificSettings = {
-            optimized: currentSettings.optimized,
-            perfectStartingPosition: currentSettings.perfectStartingPosition,
+                const directionSpecificSettings = {
+                    optimized: currentSettings.optimized,
+                    perfectStartingPosition: currentSettings.perfectStartingPosition,
             scrollAfterFirstBuild: currentSettings.scrollAfterFirstBuild,
             scrollAfterSecondBuild: currentSettings.scrollAfterSecondBuild,
-            firstBuildAction: currentSettings.firstBuildAction,
+                    firstBuildAction: currentSettings.firstBuildAction,
             secondBuildAction: currentSettings.secondBuildAction,
             customTriggers: customTriggersForOldDir
-        };
-        await ipcRenderer.invoke('renderer-log', `DIR: auto-saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
-        await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
+            };
+            await ipcRenderer.invoke('renderer-log', `DIR: auto-saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
+            await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);
         
         // Save the new scrollDirection to the file
         await ipcRenderer.invoke('renderer-log', `DIR: writing scrollDirection=${newDirection} for ${currentEditingLevel}`);
@@ -3213,12 +3254,22 @@ async function initializeSettingsModal() {
         // Handle perfectStartingPosition
         if (typeof settings.perfectStartingPosition === 'object') {
             document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition.action;
+            
+            // Load wait options
             document.getElementById('perfectStartingPositionWaitTime').value = settings.perfectStartingPosition.waitTimeMs || 1000;
             document.getElementById('perfectStartingPositionWaitOptions').style.display = 
                 settings.perfectStartingPosition.action === 'wait' ? 'block' : 'none';
+            
+            // Load scroll and wait options
+            document.getElementById('perfectStartingPositionScrollDirection').value = settings.perfectStartingPosition.scrollDirection || 'down';
+            document.getElementById('perfectStartingPositionScrollDistance').value = settings.perfectStartingPosition.scrollDistance || 200;
+            document.getElementById('perfectStartingPositionScrollWaitTime').value = settings.perfectStartingPosition.waitTimeMs || 1000;
+            document.getElementById('perfectStartingPositionScrollAndWaitOptions').style.display = 
+                settings.perfectStartingPosition.action === 'scroll_and_wait' ? 'block' : 'none';
         } else {
             document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition;
             document.getElementById('perfectStartingPositionWaitOptions').style.display = 'none';
+            document.getElementById('perfectStartingPositionScrollAndWaitOptions').style.display = 'none';
         }
         
         // First build action
@@ -3290,6 +3341,7 @@ async function initializeSettingsModal() {
         'scrollAfterFirstBuild', 'scrollAfterFirstBuildDirection', 'scrollAfterFirstBuildDistance',
         'scrollAfterSecondBuild', 'scrollAfterSecondBuildDirection', 'scrollAfterSecondBuildDistance',
         'perfectStartingPosition', 'perfectStartingPositionWaitTime',
+        'perfectStartingPositionScrollDirection', 'perfectStartingPositionScrollDistance', 'perfectStartingPositionScrollWaitTime',
         'firstBuildAction', 'firstBuildTriggerTime', 'firstBuildClickOffScrollDirection', 'firstBuildClickOffScrollDistance',
         'firstBuildExcludeRedBlobs', 'firstBuildClickaroundChunks', 'firstBuildScrollUpDistance', 'firstBuildScrollUpCount',
         'firstBuildInitialScrollDown', 'firstBuildScrollToBottomAtEnd',
@@ -3367,7 +3419,13 @@ function getCurrentFormSettings() {
         },
         perfectStartingPosition: {
             action: perfectStartingPositionAction,
-            waitTimeMs: perfectStartingPositionAction === 'wait' ? parseInt(document.getElementById('perfectStartingPositionWaitTime').value) || 1000 : null
+            waitTimeMs: perfectStartingPositionAction === 'wait' || perfectStartingPositionAction === 'scroll_and_wait' 
+                ? parseInt(perfectStartingPositionAction === 'scroll_and_wait' 
+                    ? document.getElementById('perfectStartingPositionScrollWaitTime').value 
+                    : document.getElementById('perfectStartingPositionWaitTime').value) || 1000 
+                : null,
+            scrollDirection: perfectStartingPositionAction === 'scroll_and_wait' ? document.getElementById('perfectStartingPositionScrollDirection').value : null,
+            scrollDistance: perfectStartingPositionAction === 'scroll_and_wait' ? parseInt(document.getElementById('perfectStartingPositionScrollDistance').value) || 200 : null
         },
         firstBuildAction: {
             action: firstBuildAction,
@@ -3449,14 +3507,24 @@ async function loadSettingsForLevel(levelName) {
     // Handle perfectStartingPosition (can be string or object for backward compatibility)
     if (typeof settings.perfectStartingPosition === 'object') {
         document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition.action;
+        
+        // Load wait options
         document.getElementById('perfectStartingPositionWaitTime').value = settings.perfectStartingPosition.waitTimeMs || 1000;
         document.getElementById('perfectStartingPositionWaitOptions').style.display = 
             settings.perfectStartingPosition.action === 'wait' ? 'block' : 'none';
+        
+        // Load scroll and wait options
+        document.getElementById('perfectStartingPositionScrollDirection').value = settings.perfectStartingPosition.scrollDirection || 'down';
+        document.getElementById('perfectStartingPositionScrollDistance').value = settings.perfectStartingPosition.scrollDistance || 200;
+        document.getElementById('perfectStartingPositionScrollWaitTime').value = settings.perfectStartingPosition.waitTimeMs || 1000;
+        document.getElementById('perfectStartingPositionScrollAndWaitOptions').style.display = 
+            settings.perfectStartingPosition.action === 'scroll_and_wait' ? 'block' : 'none';
     } else {
         // Backward compatibility: old settings stored as string
     document.getElementById('perfectStartingPosition').value = settings.perfectStartingPosition;
         document.getElementById('perfectStartingPositionWaitTime').value = 1000;
         document.getElementById('perfectStartingPositionWaitOptions').style.display = 'none';
+        document.getElementById('perfectStartingPositionScrollAndWaitOptions').style.display = 'none';
     }
     
     // First build action
@@ -3960,6 +4028,11 @@ function updateLevelActionsDisplayWithSettings(settings) {
         } else if (action === 'wait') {
             const waitTime = settings.perfectStartingPosition.waitTimeMs || 1000;
             startupText = `Wait ${waitTime}ms`;
+        } else if (action === 'scroll_and_wait') {
+            const direction = settings.perfectStartingPosition.scrollDirection || 'down';
+            const distance = settings.perfectStartingPosition.scrollDistance || 200;
+            const waitTime = settings.perfectStartingPosition.waitTimeMs || 1000;
+            startupText = `Scroll ${direction} ${distance}px, wait ${waitTime}ms`;
         } else {
             startupText = action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
@@ -4160,6 +4233,8 @@ ipcRenderer.on('effective-direction', async (event, mode, dir, randomApplied) =>
             label = `Worst ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
         } else if (mode === 'lastWorst') {
             label = `Last Worst ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
+        } else if (mode === 'lastBest') {
+            label = `Last Best ${dir === 'up' ? 'Up ↑' : 'Down ↓'}`;
         } else {
             label = dir === 'up' ? 'Up ↑' : 'Down ↓';
         }

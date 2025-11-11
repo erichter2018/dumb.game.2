@@ -155,13 +155,34 @@ async function clickAround(dependencies, exclude_red_blobs = true, options = {})
         }
       }
 
-      // OPTIMIZED: Single red blob detection per screen (removed redundant double detection)
-      const fullScreenDataUrl = await captureScreenRegion();
-      const currentRedBlobsRaw = await detectRedBlobs(fullScreenDataUrl, iphoneMirroringRegion);
+      // DOUBLE red blob detection per screen to catch blobs that might be missed in one pass
+      console.log(`DEBUG: ClickAround - Performing first red blob detection pass...`);
+      const fullScreenDataUrl1 = await captureScreenRegion();
+      const redBlobsRaw1 = await detectRedBlobs(fullScreenDataUrl1, iphoneMirroringRegion);
+      
+      // Small delay between detections
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log(`DEBUG: ClickAround - Performing second red blob detection pass...`);
+      const fullScreenDataUrl2 = await captureScreenRegion();
+      const redBlobsRaw2 = await detectRedBlobs(fullScreenDataUrl2, iphoneMirroringRegion);
+      
+      // Merge blobs from both passes, removing duplicates
+      // Two blobs are considered the same if they're within 30px of each other
+      const mergedBlobsRaw = [...redBlobsRaw1];
+      for (const blob2 of redBlobsRaw2) {
+        const isDuplicate = mergedBlobsRaw.some(blob1 => {
+          const distance = Math.sqrt(Math.pow(blob1.x - blob2.x, 2) + Math.pow(blob1.y - blob2.y, 2));
+          return distance < 30;
+        });
+        if (!isDuplicate) {
+          mergedBlobsRaw.push(blob2);
+        }
+      }
       
       // Filter out special named blobs (research blob, exit level) from clickAround detection
-      const currentRedBlobs = currentRedBlobsRaw.filter(blob => !blob.name);
-      console.log(`DEBUG: ClickAround detection found ${currentRedBlobsRaw.length} red blobs, ${currentRedBlobs.length} after filtering out named blobs`);
+      const currentRedBlobs = mergedBlobsRaw.filter(blob => !blob.name);
+      console.log(`DEBUG: ClickAround detection - Pass 1: ${redBlobsRaw1.length} blobs, Pass 2: ${redBlobsRaw2.length} blobs, Merged: ${mergedBlobsRaw.length} blobs, After filtering named: ${currentRedBlobs.length}`);
       
       // Send red blob detections for overlay display
       if (currentRedBlobs && currentRedBlobs.length > 0) {

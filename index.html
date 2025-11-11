@@ -185,10 +185,6 @@
                     <div id="directionModeControls" style="margin-top: 10px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap;">
                         <div style="color:#e0e6ed; font-weight:600;">Direction:</div>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
-                            <input type="radio" name="directionMode" value="saved" id="directionModeSaved">
-                            <span>Saved</span>
-                        </label>
-                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
                             <input type="radio" name="directionMode" value="random" id="directionModeRandom" checked>
                             <span>Random</span>
                         </label>
@@ -203,6 +199,10 @@
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
                             <input type="radio" name="directionMode" value="lastWorst" id="directionModeLastWorst">
                             <span>Last Worst</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#e0e6ed;">
+                            <input type="radio" name="directionMode" value="lastBest" id="directionModeLastBest">
+                            <span>Last Best</span>
                         </label>
                     </div>
                 </div>
@@ -456,6 +456,8 @@
                         <div class="setting-item">
                             <label for="perfectStartingPosition">Starting Action:</label>
                             <select id="perfectStartingPosition">
+                                <option value="scroll_and_wait">Scroll and Wait</option>
+                                <option value="wait">Wait (custom time)</option>
                                 <option value="nothing">Nothing</option>
                                 <option value="scroll_up_1x">Scroll Up 1x</option>
                                 <option value="scroll_up_2x">Scroll Up 2x</option>
@@ -466,7 +468,6 @@
                                 <option value="scroll_down_4x">Scroll Down 4x</option>
                                 <option value="scroll_to_bottom">Scroll to Bottom</option>
                                 <option value="scroll_to_top">Scroll to Top</option>
-                                <option value="wait">Wait (custom time)</option>
                             </select>
                             <span class="setting-help">What to do when starting a new level</span>
                         </div>
@@ -474,6 +475,18 @@
                             <label for="perfectStartingPositionWaitTime">Wait Time (ms):</label>
                             <input type="number" id="perfectStartingPositionWaitTime" min="0" max="60000" step="100" value="1000">
                             <span class="setting-help">Time to wait before starting (default: 1000ms = 1 second)</span>
+                        </div>
+                        <div class="setting-item" id="perfectStartingPositionScrollAndWaitOptions" style="display:none;">
+                            <label for="perfectStartingPositionScrollDirection">Scroll Direction:</label>
+                            <select id="perfectStartingPositionScrollDirection">
+                                <option value="up">Up</option>
+                                <option value="down">Down</option>
+                            </select>
+                            <label for="perfectStartingPositionScrollDistance" style="margin-left: 15px;">Distance (px):</label>
+                            <input type="number" id="perfectStartingPositionScrollDistance" min="50" max="1000" step="50" value="200">
+                            <label for="perfectStartingPositionScrollWaitTime" style="margin-left: 15px;">Then Wait (ms):</label>
+                            <input type="number" id="perfectStartingPositionScrollWaitTime" min="0" max="60000" step="100" value="1000">
+                            <span class="setting-help">Scroll in direction by distance, then wait specified time</span>
                         </div>
                     </div>
 

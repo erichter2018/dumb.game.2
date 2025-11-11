@@ -176,6 +176,8 @@ function updateCurrentLevelName(levelName) {
         console.log(`DEBUG: New stage detected: "${stageCityName}"`);
         
         // Start new stage (this will complete the current stage if one exists)
+        // Note: startNewStage() -> completeCurrentStage() -> sendStageInfoToRenderer()
+        // So we don't need to send stage info again here
         startNewStage(stageCityName);
         
         // Look up the proper first level name from the database using 'originalName'
@@ -193,6 +195,42 @@ function updateCurrentLevelName(levelName) {
         if (finishBuildAutomation && finishBuildAutomation.resetCustomTriggerState) {
             finishBuildAutomation.resetCustomTriggerState();
         }
+        
+        // STAGE START SPECIFIC: Map level, reset counts, send level data, then early return
+        // Map this level to the current stage ID
+        if (currentStage && stageTrackingEnabled && currentLevelName && 
+            currentLevelName !== 'Unknown Level' && currentLevelName !== 'Unnamed Level' && currentLevelName !== '') {
+            levelToStageId.set(currentLevelName, currentStage.id);
+            console.log(`DEBUG: [STAGE START] Mapped level "${currentLevelName}" to stage "${currentStage.name}" (ID: ${currentStage.id})`);
+        }
+        
+        // Reset build count, completion status, and action tracking for this level
+        levelBuildCounts.set(currentLevelName, 0);
+        levelBuildCompletionStatus.set(currentLevelName, false);
+        Array.from(levelBuildActionsExecuted.keys())
+            .filter(key => key.startsWith(`${currentLevelName}-`))
+            .forEach(key => levelBuildActionsExecuted.delete(key));
+        console.log(`DEBUG: [STAGE START] Reset build count to 0 for level: "${currentLevelName}"`);
+        
+        // Send level data to renderer
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            const levelAverage = historicalStats.getLevelAverage(currentLevelName);
+            const levelAverageObj = historicalStats.getLevelAverageByDirection(currentLevelName);
+            const levelBestObj = historicalStats.getLevelBest(currentLevelName);
+            const levelLastObj = historicalStats.getLevelLast(currentLevelName);
+            const levelAvgUp = levelAverageObj ? levelAverageObj.up : null;
+            const levelAvgDown = levelAverageObj ? levelAverageObj.down : null;
+            const levelBestUp = levelBestObj ? levelBestObj.up : null;
+            const levelBestDown = levelBestObj ? levelBestObj.down : null;
+            const levelLastUp = levelLastObj ? levelLastObj.up : null;
+            const levelLastDown = levelLastObj ? levelLastObj.down : null;
+            console.log(`DEBUG: [STAGE START] Sending level data for "${currentLevelName}": avgUp=${levelAvgUp}, avgDown=${levelAvgDown}`);
+            mainWindow.webContents.send('update-current-level-name', currentLevelName, levelAverage, levelAvgUp, levelAvgDown, levelBestUp, levelBestDown, levelLastUp, levelLastDown);
+            // Also send stage info for the new empty stage
+            console.log(`DEBUG: [STAGE START] Sending stage info for new empty stage`);
+            sendStageInfoToRenderer();
+        }
+        return;
     } else {
         // Regular level - keep original name and increment counter for new levels
         currentLevelName = originalLevelName;
@@ -209,26 +247,9 @@ function updateCurrentLevelName(levelName) {
             startPartialStage();
         }
         
-        // Increment stage level counter for new levels (but not for stage start levels)
-        if (currentStage && stageTrackingEnabled) {
-            // Check if this is a new level we haven't seen before
-            const isNewLevel = !currentStage.levels.some(level => level.name === currentLevelName);
-            
-            // Get expected level count for current stage (6 or 7 depending on whether stage has N/A)
-            const stageInfo = levelDatabase.getStageByCity(currentStage.name);
-            const expectedLevelCount = stageInfo ? stageInfo.levels.filter(l => l.name !== 'N/A').length : 7;
-            
-            console.log(`DEBUG: Level "${currentLevelName}" - isNewLevel: ${isNewLevel}, currentStageLevel: ${currentStageLevel}, expectedLevelCount: ${expectedLevelCount}, levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
-            
-            if (isNewLevel && currentStageLevel < expectedLevelCount) {
-                currentStageLevel++;
-                console.log(`DEBUG: Stage level incremented to ${currentStageLevel}/${expectedLevelCount} for new level: "${currentLevelName}"`);
-            } else if (!isNewLevel) {
-                console.log(`DEBUG: Level "${currentLevelName}" already exists in stage, not incrementing`);
-            } else if (currentStageLevel >= expectedLevelCount) {
-                console.log(`DEBUG: Stage already at max level (${currentStageLevel}/${expectedLevelCount}), not incrementing`);
-            }
-        }
+        // Don't increment currentStageLevel here - it should be incremented when a level is ADDED,
+        // not when a new level name is detected. Otherwise the level counter is ahead of the actual levels array.
+        // The increment now happens in addLevelToCurrentStage() after the level is successfully added.
     }
     
     // Map this level to the current stage ID to prevent cross-contamination
@@ -317,7 +338,7 @@ function startNewStage(stageCityName) {
         isPartial: false // Not a partial stage
     };
     
-    currentStageLevel = 1; // First level of the stage
+    currentStageLevel = 1; // Playing level 1 (will become 2 when first level completes)
     
     // Check for offline play when starting a new stage
     const stageInfo = levelDatabase.getStageByCity(stageCityName);
@@ -409,7 +430,7 @@ function startPartialStage() {
         deducedName: null // Will be set if we deduce the stage
     };
     
-    currentStageLevel = 0; // We don't know the level position yet
+    currentStageLevel = 1; // Playing level 1 (will increment when first level completes)
     stageTrackingEnabled = true; // Enable tracking for partial stage
     
     console.log(`DEBUG: Started partial stage tracking`);
@@ -473,9 +494,10 @@ function attemptStageDeduction() {
         const match = potentialMatches[0];
         currentStage.deducedName = match.stageName;
         currentStage.name = match.stageName; // Update display name
-        currentStageLevel = match.startPosition + completedLevelNames.length - 1; // Set current level position
+        // currentStageLevel should be: completed levels + 1 (the next level to play)
+        currentStageLevel = currentStage.levels.length + 1;
         
-        console.log(`DEBUG: Stage deduced as "${match.stageName}" starting at position ${match.startPosition}, currently at level ${currentStageLevel}`);
+        console.log(`DEBUG: Stage deduced as "${match.stageName}" - ${currentStage.levels.length} levels completed, currentStageLevel set to ${currentStageLevel} (next level)`);
         return true;
     } else if (potentialMatches.length === 2) {
         // Check if these are duplicate stages (1-30 vs 31-60)
@@ -513,10 +535,11 @@ function attemptStageDeduction() {
                 if (targetMatch) {
                     currentStage.deducedName = targetMatch.stageName;
                     currentStage.name = targetMatch.stageName;
-                    currentStageLevel = targetMatch.startPosition + completedLevelNames.length - 1;
+                    // currentStageLevel should be: completed levels + 1 (the next level to play)
+                    currentStageLevel = currentStage.levels.length + 1;
                     
                     const stageInfo = levelDatabase.getStageByCity(targetMatch.stageName);
-                    console.log(`DEBUG: Disambiguated stage as "${targetMatch.stageName}" (Stage #${stageInfo.stageNumber}) based on last completed stage`);
+                    console.log(`DEBUG: Disambiguated stage as "${targetMatch.stageName}" (Stage #${stageInfo.stageNumber}) - ${currentStage.levels.length} levels completed, currentStageLevel set to ${currentStageLevel} (next level)`);
                     return true;
                 }
             } else {
@@ -873,6 +896,15 @@ function addLevelToCurrentStage(levelName, durationMs, effectiveDirection = null
     console.log(`LEVEL ADD: SUCCESS - Added level #${currentStage.levels.length}`);
     console.log(`LEVEL ADD: Current stage now has levels: [${currentStage.levels.map(l => l.name).join(', ')}]`);
     
+    // Update currentStageLevel to point to the NEXT level to be played
+    // If 2 levels are done, currentStageLevel should be 3 (playing level 3 next)
+    let stageInfoForLevelCount = levelDatabase.getStageByCity(currentStage.name);
+    let expectedLevelCountForIncrement = stageInfoForLevelCount ? stageInfoForLevelCount.levels.filter(l => l.name !== 'N/A').length : 7;
+    
+    // Set to number of completed levels + 1 (the next level to play)
+    currentStageLevel = currentStage.levels.length + 1;
+    console.log(`LEVEL ADD: currentStageLevel set to ${currentStageLevel} (next level to play, ${currentStage.levels.length} completed)`);
+    
     // Update last known level position for offline detection (AFTER adding to array)
     if (nameForStats && nameForStats !== 'Unknown Level' && nameForStats !== 'Unnamed Level' && nameForStats !== 'Level 1') {
         if (currentStage && currentStage.name !== 'Unknown Stage') {
@@ -895,8 +927,6 @@ function addLevelToCurrentStage(levelName, durationMs, effectiveDirection = null
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('update-daily-stats', dailyStats.getTodayStats());
     }
-    
-    // Note: currentStageLevel is incremented when new levels start, not when they complete
     
     // Check if stage is complete (6 or 7 levels depending on whether stage has N/A)
     // Get expected level count for this stage
@@ -956,8 +986,8 @@ function addLevelToCurrentStageIfValid(levelName, durationMs, effectiveDirection
             if (isPendingMapping) {
                 pendingLevelMappings.delete(levelName);
             }
-            // Send updated info to renderer
-            sendStageInfoToRenderer();
+            // Don't send stage info here - it's already sent by updateCurrentLevelName()
+            // Sending it twice causes duplicate level displays in the UI
         } 
         // Check if it belongs to the previous stage (recently completed)
         else if (previousStage && mappedStageId === previousStage.id) {
@@ -1223,7 +1253,8 @@ function updateCurrentLevelDuration(durationMs) {
 }
 
 // Function to send current active function to renderer
-function updatePreviousLevelDuration(durationMs) {
+// This is the DISPLAY-ONLY version - does NOT trigger stage tracking on its own
+function updatePreviousLevelDuration(durationMs, transitionTimestamp = null) {
     if (mainWindow && !mainWindow.isDestroyed()) {
         if (durationMs === null) {
             mainWindow.webContents.send('update-previous-level-duration', 'N/A');
@@ -1232,6 +1263,19 @@ function updatePreviousLevelDuration(durationMs) {
             const seconds = Math.floor((durationMs % 60000) / 1000);
             mainWindow.webContents.send('update-previous-level-duration', `${minutes}m ${seconds}s`);
         }
+    }
+    
+    // If a transition timestamp is provided, use it to start the new level timer
+    // This ensures the new level timer starts exactly when OCR detected the new level
+    if (transitionTimestamp) {
+        currentLevelStartTime = transitionTimestamp;
+        const elapsedSinceTransition = Date.now() - transitionTimestamp;
+        console.log(`⏱️ TIMING: New level timer started at transition timestamp (${transitionTimestamp})`);
+        console.log(`⏱️ TIMING: Elapsed since transition: ${(elapsedSinceTransition / 1000).toFixed(1)}s - updating display immediately`);
+        
+        // Immediately update the display to show the time elapsed since transition
+        // This prevents waiting up to 1 second for the interval to tick
+        updateCurrentLevelDuration(elapsedSinceTransition);
     }
 }
 
@@ -2380,10 +2424,12 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     },
     setCurrentEffectiveDirection: setCurrentEffectiveDirection,
     updatePreviousLevelDuration: (duration) => {
+        console.log(`📊 DEPENDENCY updatePreviousLevelDuration called for "${finishedLevelName}" (${(duration / 1000).toFixed(1)}s)`);
         previousLevelDurationMs = duration;
         
         // Only track statistics for named levels (exclude "Unknown Level" and empty strings)
         if (finishedLevelName && finishedLevelName.trim() !== '' && finishedLevelName !== 'Unknown Level') {
+            console.log(`📊 Processing statistics for "${finishedLevelName}"`);
             levelsFinishedCount++; // Increment count of finished levels
             totalLevelsDurationMs += duration; // Add to total duration
 
@@ -2409,12 +2455,25 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
             // Add level to stage tracking (but only if it belongs to current stage)
             // Get the effective direction that was actually used during gameplay
             const effectiveDirection = currentEffectiveDirection;
+            console.log(`📊 About to call addLevelToCurrentStageIfValid for "${finishedLevelName}"`);
             addLevelToCurrentStageIfValid(finishedLevelName, duration, effectiveDirection);
+        } else {
+            console.log(`📊 Skipping statistics - finishedLevelName="${finishedLevelName}"`);
         }
 
         // Always update the previous level duration display (for unnamed levels too)
         updatePreviousLevelDuration(duration);
-        currentLevelStartTime = Date.now(); // Reset current level timer
+        
+        // Only reset the timer if it hasn't been recently set by exitAndStartNewLevel
+        // If the timer is very recent (< 10s old), it was already set correctly at OCR
+        const currentTimerAge = Date.now() - currentLevelStartTime;
+        if (currentTimerAge > 10000) {
+            // Timer is old or stale - this is a late completion, reset it
+            currentLevelStartTime = Date.now();
+            console.log(`DEBUG: Timer reset for late completion (was ${(currentTimerAge / 1000).toFixed(1)}s old)`);
+        } else {
+            console.log(`DEBUG: Timer NOT reset - already set ${(currentTimerAge / 1000).toFixed(1)}s ago by OCR transition`);
+        }
         
         // Clean up stored direction for the finished level
         if (finishedLevelName) {
@@ -2427,6 +2486,14 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     },
     // New: Pass a getter function for the current level start time
     getCurrentLevelStartTime: () => currentLevelStartTime,
+    // New: Pass a setter function for the current level start time
+    setCurrentLevelStartTime: (timestamp) => {
+        currentLevelStartTime = timestamp;
+        // Also update the display immediately
+        const elapsedSinceTransition = Date.now() - timestamp;
+        updateCurrentLevelDuration(elapsedSinceTransition);
+        console.log(`⏱️ TIMING: Timer manually set to ${timestamp}, elapsed: ${(elapsedSinceTransition / 1000).toFixed(1)}s`);
+    },
     // New: Pass a getter function for the reconnection downtime
     getReconnectionDowntimeMs: () => reconnectionDowntimeMs,
     // New: Pass counter functions for clickAround calls
@@ -2685,7 +2752,10 @@ async function startCaptureInterval(interval = 500) {
 }
 
 ipcMain.handle('start-live-view', async (event, interval = 500) => {
-  return startCaptureInterval(interval);
+  console.log('DEBUG: start-live-view IPC handler called');
+  const result = startCaptureInterval(interval);
+  console.log(`DEBUG: startCaptureInterval returned: ${result}`);
+  return result;
 });
 
 ipcMain.handle('stop-live-view', async () => {
