@@ -183,7 +183,7 @@ async function checkCustomTriggersAfterBuild(levelName, buildNumber, elapsedTime
 }
 
 async function executeTriggerActionDuringBuild(trigger, dependencies) {
-    const { performClick, scrollUp, scrollDown, updateStatus, updateCurrentFunction, captureScreenRegion, redBlobDetectorDetect, scrollUpWithDistance, iphoneMirroringRegion } = dependencies;
+    const { performClick, scrollUp, scrollDown, updateStatus, updateCurrentFunction, captureScreenRegion, redBlobDetectorDetect, scrollUpWithDistance, iphoneMirroringRegion, CLICK_AREAS } = dependencies;
 
     try {
         switch (trigger.action) {
@@ -268,6 +268,20 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
                     updateCurrentFunction: dependencies.updateCurrentFunction,
                     performClick: dependencies.performClick,
                     CLICK_AREAS: dependencies.CLICK_AREAS
+                });
+                break;
+            
+            case 'activeSkill':
+                updateCurrentFunction('customTrigger-activeSkill');
+                updateStatus(`Custom trigger: Active Skill`, 'info');
+                const { activateActiveSkill } = require('./activeSkill');
+                await activateActiveSkill({
+                    performClick: dependencies.performClick,
+                    scrollDown: dependencies.scrollDown,
+                    CLICK_AREAS: dependencies.CLICK_AREAS,
+                    iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
+                    updateStatus: dependencies.updateStatus,
+                    updateCurrentFunction: dependencies.updateCurrentFunction
                 });
                 break;
 

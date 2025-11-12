@@ -24,11 +24,11 @@ async function activateActiveSkill(dependencies) {
         await performClick(350, 560);
         await new Promise(resolve => setTimeout(resolve, 75));
         
-        // 4. Scroll down 200px, wait 100ms
-        console.log('DEBUG: [ACTIVE SKILL] Step 4: Scroll down 200px');
+        // 4. Scroll down 150px, wait 100ms
+        console.log('DEBUG: [ACTIVE SKILL] Step 4: Scroll down 150px');
         const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
         const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
-        await scrollDown(scrollX, scrollY, 200);
+        await scrollDown(scrollX, scrollY, 150);
         await new Promise(resolve => setTimeout(resolve, 100));
         
         // 5. Single click at x310, y630

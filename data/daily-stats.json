@@ -2430,8 +2430,8 @@
       "avgStageTime": 491453
     },
     "2025-11-11": {
-      "levelsCompleted": 453,
-      "stagesCompleted": 72,
+      "levelsCompleted": 542,
+      "stagesCompleted": 84,
       "levelTimes": [
         14037,
         20377,
@@ -2832,7 +2832,39 @@
         31145,
         76429,
         62706,
-        60648
+        60648,
+        14511,
+        19980,
+        31351,
+        13958,
+        21091,
+        31659,
+        58361,
+        68198,
+        70944,
+        203118,
+        14091,
+        24091,
+        62466,
+        58265,
+        261138,
+        13962,
+        19997,
+        31151,
+        54111,
+        55916,
+        64271,
+        232237,
+        14033,
+        32194,
+        71026,
+        55811,
+        220347,
+        14494,
+        33415,
+        57944,
+        64583,
+        69186
       ],
       "stageTimes": [
         492904,
@@ -2886,22 +2918,64 @@
         483635,
         513679,
         594108,
-        483378
+        483378,
+        467330,
+        471645
       ],
       "minLevelTime": 13668,
       "maxLevelTime": 471426,
-      "avgLevelTime": 77348,
+      "avgLevelTime": 76382,
       "minStageTime": 385979,
       "maxStageTime": 991988,
-      "avgStageTime": 546124
+      "avgStageTime": 543286
+    },
+    "2025-11-12": {
+      "levelsCompleted": 40,
+      "stagesCompleted": 5,
+      "levelTimes": [
+        20232,
+        126637,
+        79419,
+        267416,
+        13966,
+        21884,
+        31292,
+        80718,
+        56130,
+        53226,
+        352638,
+        13955,
+        20544,
+        33963,
+        63888,
+        77563,
+        154273,
+        13802,
+        19437,
+        31038,
+        56094,
+        68540,
+        55202,
+        14045,
+        50298
+      ],
+      "stageTimes": [
+        609854
+      ],
+      "minLevelTime": 13802,
+      "maxLevelTime": 352638,
+      "avgLevelTime": 71048,
+      "minStageTime": 609854,
+      "maxStageTime": 609854,
+      "avgStageTime": 609854
     }
   },
   "lastKnownLevel": {
-    "stageName": "Prague",
-    "stageNumber": 42,
-    "levelName": "Cafe",
-    "levelPosition": 6,
-    "timestamp": "2025-11-11T11:18:10.763Z"
+    "stageName": "Gothenburg",
+    "stageNumber": 59,
+    "levelName": "Hot Dog Stand",
+    "levelPosition": 1,
+    "timestamp": "2025-11-12T02:32:48.884Z"
   },
-  "lastSaveDate": "2025-11-11T11:18:10.763Z"
+  "lastSaveDate": "2025-11-12T02:34:25.466Z"
 }

@@ -785,7 +785,7 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up', prev
         if (deltaSeconds === '0.0' || deltaSeconds === '-0.0') {
             avgTimeDelta = `${avgDiffMs >= 0 ? '+' : ''}${Math.round(avgDiffMs)}ms`;
         } else {
-            avgTimeDelta = `${deltaSeconds}s`;
+            avgTimeDelta = `${avgDiffMs > 0 ? '+' : ''}${deltaSeconds}s`;
         }
     } else if (avgDiffMs > 0) {
         // Slower than average - red

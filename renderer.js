@@ -1460,36 +1460,50 @@ function updateLongestStages(longestStages) {
 }
 
 let updateStageCallCounter = 0;
+let isUpdatingPreviousStage = false;
 
 async function updatePreviousStageDetailsCompact(previousStage) {
-    const prevStageDetails = document.getElementById('prevStageDetails');
-    const prevStageLevels = document.getElementById('prevStageLevels');
-    
-    // Validate previous stage data
-    if (!previousStage) {
-        console.log(`RENDERER: No previous stage data provided`);
-        if (prevStageDetails) prevStageDetails.style.display = 'none';
+    // Prevent concurrent updates
+    if (isUpdatingPreviousStage) {
+        console.log(`RENDERER: Previous stage update already in progress, skipping duplicate call`);
         return;
     }
     
-    if (!previousStage.levels || !Array.isArray(previousStage.levels)) {
-        console.log(`RENDERER: Previous stage has invalid levels data:`, previousStage.levels);
-        if (prevStageDetails) prevStageDetails.style.display = 'none';
-        return;
-    }
+    isUpdatingPreviousStage = true;
     
-    if (previousStage.levels.length === 0) {
-        console.log(`RENDERER: Previous stage has no levels`);
-        if (prevStageDetails) prevStageDetails.style.display = 'none';
-        return;
-    }
-    
-    console.log(`RENDERER: Updating previous stage "${previousStage.name}" with ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
-    
-    if (prevStageDetails) prevStageDetails.style.display = 'block';
-    
-    if (prevStageLevels) {
-        prevStageLevels.innerHTML = '';
+    try {
+        const prevStageDetails = document.getElementById('prevStageDetails');
+        const prevStageLevels = document.getElementById('prevStageLevels');
+        
+        // Validate previous stage data
+        if (!previousStage) {
+            console.log(`RENDERER: No previous stage data provided`);
+            if (prevStageDetails) prevStageDetails.style.display = 'none';
+            if (prevStageLevels) prevStageLevels.innerHTML = '';
+            return;
+        }
+        
+        if (!previousStage.levels || !Array.isArray(previousStage.levels)) {
+            console.log(`RENDERER: Previous stage has invalid levels data:`, previousStage.levels);
+            if (prevStageDetails) prevStageDetails.style.display = 'none';
+            if (prevStageLevels) prevStageLevels.innerHTML = '';
+            return;
+        }
+        
+        if (previousStage.levels.length === 0) {
+            console.log(`RENDERER: Previous stage has no levels`);
+            if (prevStageDetails) prevStageDetails.style.display = 'none';
+            if (prevStageLevels) prevStageLevels.innerHTML = '';
+            return;
+        }
+        
+        console.log(`RENDERER: Updating previous stage "${previousStage.name}" with ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
+        
+        if (prevStageDetails) prevStageDetails.style.display = 'block';
+        
+        if (prevStageLevels) {
+            // Clear existing content first
+            prevStageLevels.innerHTML = '';
         
         const isPartialStage = previousStage.isPartial || false;
         
@@ -1671,6 +1685,9 @@ async function updatePreviousStageDetailsCompact(previousStage) {
             prevStageLevels.appendChild(levelDiv);
             }
         }
+        }
+    } finally {
+        isUpdatingPreviousStage = false;
     }
 }
 
@@ -1773,7 +1790,7 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up') {
         if (deltaSeconds === '0.0' || deltaSeconds === '-0.0') {
             avgTimeDelta = `${avgDiffMs >= 0 ? '+' : ''}${Math.round(avgDiffMs)}ms`;
         } else {
-            avgTimeDelta = `${deltaSeconds}s`;
+            avgTimeDelta = `${avgDiffMs > 0 ? '+' : ''}${deltaSeconds}s`;
         }
     } else if (avgDiffMs > 0) {
         // Slower than average - red
@@ -3744,7 +3761,13 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
                 ${valueInput}
             </span>
             <select class="trigger-settings-action" data-index="${index}" data-field="action">
-                ${triggerActions.map(action => 
+                ${triggerActions.filter(action => {
+                    // activeSkill is only available for "during" triggers
+                    if (action.value === 'activeSkill' && triggerTiming === 'after') {
+                        return false;
+                    }
+                    return true;
+                }).map(action => 
                     `<option value="${action.value}" ${trigger.action === action.value ? 'selected' : ''}>${action.label}</option>`
                 ).join('')}
             </select>
@@ -3842,6 +3865,9 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
             } else if (action === 'clickAround') {
                 timeContainer.style.display = 'inline';
                 distanceContainer.style.display = 'none';
+            } else if (action === 'activeSkill') {
+                timeContainer.style.display = 'inline';
+                distanceContainer.style.display = 'none';
             } else {
                 timeContainer.style.display = 'none';
                 distanceContainer.style.display = 'none';
@@ -3885,8 +3911,28 @@ function addTriggerSettingsItem(trigger, index, triggerTypes, triggerActions) {
         updateTriggerSettings(index);
     });
     
-    // Special handler for timing select to update params field
+    // Special handler for timing select to update params field and action options
     timingSelect.addEventListener('change', () => {
+        const newTiming = timingSelect.value;
+        const currentAction = actionSelect.value;
+        
+        // Rebuild action dropdown to include/exclude activeSkill based on timing
+        actionSelect.innerHTML = triggerActions.filter(action => {
+            // activeSkill is only available for "during" triggers
+            if (action.value === 'activeSkill' && newTiming === 'after') {
+                return false;
+            }
+            return true;
+        }).map(action => 
+            `<option value="${action.value}" ${currentAction === action.value ? 'selected' : ''}>${action.label}</option>`
+        ).join('');
+        
+        // If activeSkill was selected but timing changed to "after", reset to clickAround
+        if (currentAction === 'activeSkill' && newTiming === 'after') {
+            actionSelect.value = 'clickAround';
+            console.log('DEBUG: Changed action from activeSkill to clickAround (activeSkill only for DURING)');
+        }
+        
         updateParamsField();
         updateTriggerSettings(index);
     });
@@ -4294,6 +4340,8 @@ function addTriggerItemIntegrated(trigger, index) {
         } else if (trigger.action === 'scrollToTop' || trigger.action === 'scrollToBottom') {
             paramsLabel = `${trigger.actionParams || 0}ms`;
         } else if (trigger.action === 'clickAround') {
+            paramsLabel = `${trigger.actionParams || 0}ms`;
+        } else if (trigger.action === 'activeSkill') {
             paramsLabel = `${trigger.actionParams || 0}ms`;
         }
     } else {
