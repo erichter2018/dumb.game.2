@@ -139,6 +139,12 @@ function startAutomation(dependencies) {
         console.log(`DEBUG: Starting click around for ${durationMs}ms`);
         
         while (Date.now() < endTime && getIsAutomationRunning()) {
+            // Check for pause state and wait if paused
+            if (dependencies.waitIfPaused) {
+                await dependencies.waitIfPaused();
+            }
+            if (!getIsAutomationRunning()) return null; // Check again after pause
+            
             // Random click within the iPhone mirroring region
             const randomX = iphoneMirroringRegion.x + Math.random() * iphoneMirroringRegion.width;
             const randomY = iphoneMirroringRegion.y + Math.random() * iphoneMirroringRegion.height;
@@ -447,6 +453,53 @@ function startAutomation(dependencies) {
             }
         }
         return confirmedBlueBuildBox;
+    }
+
+    // Helper function to search for red blobs for a specified duration
+    // Returns the first red blob found (excluding named blobs like 'exit level'), or null if none found
+    async function searchForRedBlobsDuringWait(searchDurationMs) {
+        const startTime = Date.now();
+        const endTime = startTime + searchDurationMs;
+        const detectionInterval = 200; // Check every 200ms
+        
+        console.log(`DEBUG: Starting red blob search for ${searchDurationMs}ms (checking every ${detectionInterval}ms)`);
+        updateStatus(`Searching for red blobs for ${(searchDurationMs / 1000).toFixed(1)}s...`, 'info');
+        
+        while (Date.now() < endTime && getIsAutomationRunning()) {
+            // Check for pause state and wait if paused
+            if (dependencies.waitIfPaused) {
+                await dependencies.waitIfPaused();
+            }
+            if (!getIsAutomationRunning()) return null; // Check again after pause
+            
+            const fullScreenDataUrl = await captureScreenRegion();
+            if (!getIsAutomationRunning()) return null;
+            
+            const redBlobs = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
+            if (!getIsAutomationRunning()) return null;
+            
+            // Filter out named blobs (exit level, research) - we only want actionable red blobs
+            const actionableRedBlobs = redBlobs.filter(blob => !blob.name);
+            
+            if (actionableRedBlobs.length > 0) {
+                const firstBlob = actionableRedBlobs[0];
+                const elapsed = Date.now() - startTime;
+                console.log(`DEBUG: Red blob found after ${elapsed}ms of searching (${(elapsed / 1000).toFixed(1)}s)`);
+                updateStatus(`Red blob found after ${(elapsed / 1000).toFixed(1)}s - proceeding to prepBuild`, 'success');
+                return firstBlob;
+            }
+            
+            // Wait before next detection attempt
+            const remainingTime = endTime - Date.now();
+            if (remainingTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, Math.min(detectionInterval, remainingTime)));
+            }
+        }
+        
+        const elapsed = Date.now() - startTime;
+        console.log(`DEBUG: Red blob search completed after ${elapsed}ms - no red blobs found`);
+        updateStatus(`Red blob search completed - no blobs found in ${(elapsed / 1000).toFixed(1)}s`, 'info');
+        return null;
     }
 
     async function prepBuild(redBlobCoords) {
@@ -1206,9 +1259,28 @@ function startAutomation(dependencies) {
         
         if (perfectStartingPositionAction === 'wait') {
             const waitTime = perfectStartingPositionWaitTime || 1000;
-            console.log(`DEBUG: Level "${currentLevelName}" requires wait: ${waitTime}ms`);
-            updateStatus(`Level-specific action: ${currentLevelName} - waiting ${waitTime}ms.`, 'info');
-            await new Promise(resolve => setTimeout(resolve, waitTime));
+            const searchDuration = waitTime * 2; // Search for double the wait time
+            console.log(`DEBUG: Level "${currentLevelName}" requires wait: ${waitTime}ms - searching for red blobs for ${searchDuration}ms`);
+            updateStatus(`Level-specific action: ${currentLevelName} - searching for red blobs for ${(searchDuration / 1000).toFixed(1)}s (2x wait time)`, 'info');
+            
+            // Search for red blobs during the wait period
+            const foundRedBlob = await searchForRedBlobsDuringWait(searchDuration);
+            
+            // If a red blob was found, proceed to prepBuild immediately
+            if (foundRedBlob && getIsAutomationRunning()) {
+                console.log(`DEBUG: Red blob found during wait search - proceeding to prepBuild immediately`);
+                updateStatus(`Red blob found - proceeding to prepBuild`, 'success');
+                // Call prepBuild directly with the found red blob
+                const prepBuildResult = await prepBuild(foundRedBlob);
+                if (!getIsAutomationRunning() || prepBuildResult === 'stopped') {
+                    return; // Exit if automation stopped or prepBuild was stopped
+                }
+                // After prepBuild completes, continue to main loop which will handle next steps
+                return; // Exit function - prepBuild has been handled
+            }
+            
+            // If no red blob found, continue normally (main loop will continue searching)
+            console.log(`DEBUG: No red blob found during wait search - continuing with normal execution`);
         } else if (perfectStartingPositionAction === 'scroll_up_1x') {
             console.log(`DEBUG: Level "${currentLevelName}" requires scroll UP once.`);
             updateStatus(`Level-specific scrolling: ${currentLevelName} - scrolling UP once.`, 'info');
@@ -1271,17 +1343,38 @@ function startAutomation(dependencies) {
             const scrollDir = perfectStartingPositionScrollDirection || 'down';
             const scrollDist = perfectStartingPositionScrollDistance || 200;
             const waitTime = perfectStartingPositionWaitTime || 1000;
+            const searchDuration = waitTime * 2; // Search for double the wait time
             
-            console.log(`DEBUG: Level "${currentLevelName}" requires scroll and wait: ${scrollDir} ${scrollDist}px, then wait ${waitTime}ms`);
-            updateStatus(`Level-specific action: ${currentLevelName} - scroll ${scrollDir} ${scrollDist}px, wait ${waitTime}ms`, 'info');
+            console.log(`DEBUG: Level "${currentLevelName}" requires scroll and wait: ${scrollDir} ${scrollDist}px, then search for red blobs for ${searchDuration}ms`);
+            updateStatus(`Level-specific action: ${currentLevelName} - scroll ${scrollDir} ${scrollDist}px, then search for red blobs for ${(searchDuration / 1000).toFixed(1)}s`, 'info');
             
+            // Perform the scroll first
             if (scrollDir === 'up') {
                 await scrollUpWithDistance(scrollX, scrollY, scrollDist);
             } else {
                 await scrollDown(scrollX, scrollY, scrollDist);
             }
             
-            await new Promise(resolve => setTimeout(resolve, waitTime));
+            if (!getIsAutomationRunning()) { return; }
+            
+            // Search for red blobs immediately after scrolling (instead of waiting)
+            const foundRedBlob = await searchForRedBlobsDuringWait(searchDuration);
+            
+            // If a red blob was found, proceed to prepBuild immediately
+            if (foundRedBlob && getIsAutomationRunning()) {
+                console.log(`DEBUG: Red blob found during scroll_and_wait search - proceeding to prepBuild immediately`);
+                updateStatus(`Red blob found - proceeding to prepBuild`, 'success');
+                // Call prepBuild directly with the found red blob
+                const prepBuildResult = await prepBuild(foundRedBlob);
+                if (!getIsAutomationRunning() || prepBuildResult === 'stopped') {
+                    return; // Exit if automation stopped or prepBuild was stopped
+                }
+                // After prepBuild completes, continue to main loop which will handle next steps
+                return; // Exit function - prepBuild has been handled
+            }
+            
+            // If no red blob found, continue normally (main loop will continue searching)
+            console.log(`DEBUG: No red blob found during scroll_and_wait search - continuing with normal execution`);
         } else {
             // No specific action needed for this level
             console.log(`DEBUG: No specific scrolling action needed for level "${currentLevelName}".`);
@@ -1334,6 +1427,12 @@ function startAutomation(dependencies) {
         const TEN_MINUTE_FAILSAFE_MS = 600000; // 10 minutes
         
         while (getIsAutomationRunning()) {
+            // Check for pause state and wait if paused
+            if (dependencies.waitIfPaused) {
+                await dependencies.waitIfPaused();
+            }
+            if (!getIsAutomationRunning()) break; // Check again after pause
+            
             // Check 10-minute failsafe: if level is taking too long, trigger clickaround
             if (!tenMinuteFailsafeFired && getCurrentLevelStartTime) {
                 const levelStartTime = getCurrentLevelStartTime();

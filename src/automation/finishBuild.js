@@ -330,6 +330,12 @@ async function executeClickAroundDuringBuild(durationMs, clickaroundOptions, dep
     console.log(`DEBUG: Starting clickAround during build for ${durationMs}ms with options:`, options);
     
     while (Date.now() < endTime && getIsAutomationRunning()) {
+        // Check for pause state and wait if paused
+        if (dependencies.waitIfPaused) {
+            await dependencies.waitIfPaused();
+        }
+        if (!getIsAutomationRunning()) return null; // Check again after pause
+        
         // Capture screen and detect red blobs
         const fullScreenDataUrl = await captureScreenRegion();
         const redBlobs = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
@@ -601,6 +607,12 @@ async function findBlueBoxWithRetry(dependencies, originalRedBlobCoords) {
     }
 
     while (getIsAutomationRunning() && retryCount < MAX_RETRIES) { // Modified: Add retryCount condition
+        // Check for pause state and wait if paused
+        if (dependencies.waitIfPaused) {
+            await dependencies.waitIfPaused();
+        }
+        if (!getIsAutomationRunning()) break; // Check again after pause
+        
         updateStatus(`Detecting blue boxes (Attempt ${retryCount + 1}/${MAX_RETRIES})...`, 'info');
         console.log('DEBUG: Detecting blue boxes with Sharp...');
 
@@ -820,6 +832,12 @@ async function runBuildProtocol(dependencies) {
         }
         
         while (getIsAutomationRunning()) {
+            // Check for pause state and wait if paused
+            if (dependencies.waitIfPaused) {
+                await dependencies.waitIfPaused();
+            }
+            if (!getIsAutomationRunning()) break; // Check again after pause
+            
             const currentTime = Date.now();
             
             // Check if it's time to execute build action from settings

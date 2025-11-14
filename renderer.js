@@ -801,6 +801,30 @@ ipcRenderer.on('emergency-interrupt', async () => {
     await stopAllAutomation();
 });
 
+// IPC listener for pause state changes (Spacebar)
+ipcRenderer.on('automation-pause-state', (event, isPaused) => {
+    console.log(`⏸️ Automation pause state changed: ${isPaused}`);
+    
+    // Update UI to reflect pause state
+    if (isAutomationRunning || isFinishLevelRunning || isFinishBuildRunning || isClickAroundRunning) {
+        if (isPaused) {
+            // Show paused state
+            startBtn.classList.remove('btn-success');
+            startBtn.classList.add('btn-warning');
+            startBtn.textContent = 'Paused...';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+        } else {
+            // Show running state
+            startBtn.classList.remove('btn-warning');
+            startBtn.classList.add('btn-success');
+            startBtn.textContent = 'Running...';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+        }
+    }
+});
+
 // IPC listener for current function updates
 ipcRenderer.on('update-current-function', (event, functionName) => {
     if (currentFunctionDisplay) {

@@ -37,6 +37,7 @@ let isAutomationRunning = false; // New flag to control the automation loop in f
 let isFinishLevelRunning = false; // For Finish Level automation
 let isClickAroundRunning = false; // For Click Around automation
 let isClickAroundPaused = false; // For pausing Click Around on mouse movement
+let isAutomationPaused = false; // Global pause flag for spacebar pause/resume
 let clickAroundCallCounter = 0; // Global counter for clickAround calls since level start
 let lastRedBlobDetectionTime = Date.now(); // Track last time a red blob was detected
 let lastBlueBuildDetectionTime = Date.now(); // Track last time a blue build was detected
@@ -2216,6 +2217,8 @@ async function startFinishBuildAutomationLoop() {
     setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; }, // Pass setter for the state
     getIsAutomationRunning: () => isAutomationRunning, // Pass getter for the automation running state
     setIsAutomationRunning: (state) => { isAutomationRunning = state; }, // Pass setter for automation running state
+    getIsAutomationPaused: () => isAutomationPaused, // Pass getter for pause state
+    waitIfPaused: waitIfPaused, // Pass helper function to wait while paused
     scrollToBottom: scrollToBottom, // Pass scrollToBottom function
     scrollSwipeDistance: scrollSwipeDistance, // Pass scroll swipe distance
     // For pausing/resuming based on user input, the main loop manages this part
@@ -2254,6 +2257,7 @@ ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
   if (isRunning) {
     updateCurrentFunction('toggle-finish-build'); // Update current function
     isAutomationRunning = isRunning; // Update the global flag
+    registerAutomationShortcuts(); // Register shortcuts when automation starts
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('finish-build-status', 'Starting Finish Build automation...', 'info');
     }
@@ -2264,8 +2268,11 @@ ipcMain.handle('toggle-finish-build', async (event, isRunning) => {
     startFinishBuildAutomationLoop();
   } else {
     isAutomationRunning = isRunning; // Update the global flag to false
+    isAutomationPaused = false; // Clear pause state when stopping
+    unregisterAutomationShortcuts(); // Unregister shortcuts when automation stops
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('finish-build-status', 'Stopping Finish Build automation...', 'info');
+      mainWindow.webContents.send('automation-pause-state', false); // Update UI
     }
     if (pauseTimeout) {
       clearTimeout(pauseTimeout);
@@ -2302,7 +2309,15 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
   }
 
   isFinishLevelRunning = isRunning;
+  if (!isRunning) {
+    isAutomationPaused = false; // Clear pause state when stopping
+    unregisterAutomationShortcuts(); // Unregister shortcuts when automation stops
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('automation-pause-state', false); // Update UI
+    }
+  }
   if (isRunning) {
+    registerAutomationShortcuts(); // Register shortcuts when automation starts
     // Reset stage information when automation starts
     console.log('DEBUG: Finish Level automation starting - resetting stage information');
     resetStageInformationForFreshStart();
@@ -2404,6 +2419,8 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     setIsHoldingBlueBox: (state) => { isHoldingBlueBox = state; },
     getIsAutomationRunning: () => isFinishLevelRunning, // Use its own state for finish level
     setIsAutomationRunning: (state) => { isFinishLevelRunning = state; }, // Pass setter for automation running state
+    getIsAutomationPaused: () => isAutomationPaused, // Pass getter for pause state
+    waitIfPaused: waitIfPaused, // Pass helper function to wait while paused
     finishBuildAutomationRunBuildProtocol: finishBuildAutomation.runBuildProtocol, // Pass the runBuildProtocol from finishBuildAutomation
     scrollDown: async (x, y, distance) => {
       // Broadcast scroll event for overlay clearing
@@ -2717,7 +2734,15 @@ ipcMain.handle('toggle-click-around', async (event, isRunning, exclude_red_blobs
   }
 
   isClickAroundRunning = isRunning;
+  if (!isRunning) {
+    isAutomationPaused = false; // Clear pause state when stopping
+    unregisterAutomationShortcuts(); // Unregister shortcuts when automation stops
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('automation-pause-state', false); // Update UI
+    }
+  }
   if (isRunning) {
+    registerAutomationShortcuts(); // Register shortcuts when automation starts
     updateCurrentFunction('toggle-click-around');
     if (mainWindow && !mainWindow.isDestroyed()) {
       const blobStatus = exclude_red_blobs ? 'excluding red blobs' : 'including red blobs';
@@ -2842,6 +2867,73 @@ ipcMain.handle('scroll-new-down-test', async () => {
 });
 }
 
+// Register automation shortcuts (Escape and Spacebar)
+function registerAutomationShortcuts() {
+  // Unregister first if already registered (idempotent)
+  globalShortcut.unregister('Escape');
+  globalShortcut.unregister('Space');
+  
+  // Register Escape key for instant interrupt
+  const escapeRegistered = globalShortcut.register('Escape', () => {
+    emergencyInterrupt().catch(error => {
+      console.error('Error during emergency interrupt:', error);
+    });
+  });
+  
+  // Register Spacebar for pause/resume
+  const spaceRegistered = globalShortcut.register('Space', () => {
+    toggleAutomationPause();
+  });
+  
+  if (escapeRegistered && spaceRegistered) {
+    console.log('✅ Automation shortcuts registered (Escape, Spacebar)');
+  } else {
+    console.warn('⚠️ Failed to register some automation shortcuts');
+  }
+}
+
+// Unregister automation shortcuts (only if no automation is running)
+function unregisterAutomationShortcuts() {
+  // Only unregister if no automation is running
+  if (isAutomationRunning || isFinishLevelRunning || isClickAroundRunning) {
+    console.log('DEBUG: Not unregistering shortcuts - automation still running');
+    return;
+  }
+  
+  globalShortcut.unregister('Escape');
+  globalShortcut.unregister('Space');
+  console.log('✅ Automation shortcuts unregistered (Escape, Spacebar)');
+}
+
+// Pause/resume toggle function
+function toggleAutomationPause() {
+  // Only allow pause if automation is actually running
+  if (!isAutomationRunning && !isFinishLevelRunning && !isClickAroundRunning) {
+    console.log('DEBUG: Cannot pause - no automation is running');
+    return;
+  }
+  
+  isAutomationPaused = !isAutomationPaused;
+  const status = isAutomationPaused ? 'paused' : 'resumed';
+  console.log(`⏸️ Automation ${status}`);
+  
+  // Notify renderer
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('automation-pause-state', isAutomationPaused);
+    mainWindow.webContents.send('finish-build-status', 
+      isAutomationPaused ? '⏸️ Automation paused (press Space to resume)' : '▶️ Automation resumed', 
+      isAutomationPaused ? 'warning' : 'success'
+    );
+  }
+}
+
+// Helper function to wait while paused (to be called in automation loops)
+async function waitIfPaused() {
+  while (isAutomationPaused && (isAutomationRunning || isFinishLevelRunning || isClickAroundRunning)) {
+    await new Promise(resolve => setTimeout(resolve, 100)); // Check every 100ms
+  }
+}
+
 // Emergency interrupt function - instantly stops all automation
 async function emergencyInterrupt() {
   console.log('🚨 EMERGENCY INTERRUPT: Stopping all automation immediately');
@@ -2851,7 +2943,11 @@ async function emergencyInterrupt() {
   isAutomationRunning = false;
   isFinishLevelRunning = false;
   isClickAroundRunning = false;
-  isClickAroundPaused = false;
+  isClickAroundPaused = false; // Also clear pause state on interrupt
+  isAutomationPaused = false; // Clear global pause flag
+  
+  // Unregister automation shortcuts
+  unregisterAutomationShortcuts();
   
   // Clear any pause timeout
   if (pauseTimeout) {
@@ -2931,12 +3027,8 @@ app.whenReady().then(() => {
     }
   });
   
-  // Register Escape key for instant interrupt
-  globalShortcut.register('Escape', () => {
-    emergencyInterrupt().catch(error => {
-      console.error('Error during emergency interrupt:', error);
-    });
-  });
+  // Note: Automation shortcuts (Escape, Spacebar) are registered when automation starts
+  // and unregistered when automation stops - see registerAutomationShortcuts() and unregisterAutomationShortcuts()
 
   // App event handlers
   app.on('window-all-closed', () => {
