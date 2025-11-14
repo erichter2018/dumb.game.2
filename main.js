@@ -2842,6 +2842,54 @@ ipcMain.handle('scroll-new-down-test', async () => {
 });
 }
 
+// Emergency interrupt function - instantly stops all automation
+async function emergencyInterrupt() {
+  console.log('🚨 EMERGENCY INTERRUPT: Stopping all automation immediately');
+  
+  // Set all automation flags to false immediately
+  const wasRunning = isAutomationRunning || isFinishLevelRunning || isClickAroundRunning;
+  isAutomationRunning = false;
+  isFinishLevelRunning = false;
+  isClickAroundRunning = false;
+  isClickAroundPaused = false;
+  
+  // Clear any pause timeout
+  if (pauseTimeout) {
+    clearTimeout(pauseTimeout);
+    pauseTimeout = null;
+  }
+  
+  // Release any held mouse buttons immediately
+  if (isHoldingBlueBox && lastBlueBoxClickCoords) {
+    try {
+      await clickUp(lastBlueBoxClickCoords.x, lastBlueBoxClickCoords.y);
+      isHoldingBlueBox = false;
+      lastBlueBoxClickCoords = null;
+    } catch (error) {
+      console.error('Error releasing mouse button during interrupt:', error);
+      // Force release state even if clickUp fails
+      isHoldingBlueBox = false;
+    }
+  }
+  
+  // Reset automation state in finishBuild.js
+  try {
+    finishBuildAutomation.resetAutomationState();
+  } catch (error) {
+    console.error('Error resetting automation state:', error);
+  }
+  
+  // Notify renderer
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (wasRunning) {
+      mainWindow.webContents.send('finish-build-status', '🚨 Emergency interrupt: All automation stopped', 'error');
+      mainWindow.webContents.send('emergency-interrupt'); // Signal renderer to update UI (equivalent to stop button)
+    }
+  }
+  
+  console.log('✅ Emergency interrupt complete - all automation stopped');
+}
+
 // Global shortcuts
 app.whenReady().then(() => {
   createWindow();
@@ -2881,6 +2929,13 @@ app.whenReady().then(() => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('shortcut-stop'); // Not directly stopping here, but can signal renderer
     }
+  });
+  
+  // Register Escape key for instant interrupt
+  globalShortcut.register('Escape', () => {
+    emergencyInterrupt().catch(error => {
+      console.error('Error during emergency interrupt:', error);
+    });
   });
 
   // App event handlers

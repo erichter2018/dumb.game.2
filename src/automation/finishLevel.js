@@ -1318,6 +1318,10 @@ function startAutomation(dependencies) {
     async function runFinishLevelProtocol() {
         updateCurrentFunction('runFinishLevelProtocol'); // Update current function display
         
+        // Extract needed dependencies for failsafe
+        const mainWindow = dependencies.mainWindow;
+        const performBatchedClicks = dependencies.performBatchedClicks;
+        
         // Get current level name once for the entire function
         const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
         const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
@@ -1325,7 +1329,69 @@ function startAutomation(dependencies) {
         // Predictive red blob detection: track cached coords across loop iterations
         let nextBuildCachedRedBlobCoords = null;
         
+        // 10-minute failsafe: track if it has already fired
+        let tenMinuteFailsafeFired = false;
+        const TEN_MINUTE_FAILSAFE_MS = 600000; // 10 minutes
+        
         while (getIsAutomationRunning()) {
+            // Check 10-minute failsafe: if level is taking too long, trigger clickaround
+            if (!tenMinuteFailsafeFired && getCurrentLevelStartTime) {
+                const levelStartTime = getCurrentLevelStartTime();
+                if (levelStartTime) {
+                    const elapsedTime = Date.now() - levelStartTime;
+                    if (elapsedTime >= TEN_MINUTE_FAILSAFE_MS) {
+                        tenMinuteFailsafeFired = true;
+                        console.log(`FAILSAFE: Level has been running for ${(elapsedTime / 1000 / 60).toFixed(1)} minutes. Triggering clickaround failsafe.`);
+                        updateStatus('10-minute failsafe triggered: Executing clickaround to unstick level...', 'warn');
+                        
+                        // Execute clickaround with 1 chunk, 0 scrolls
+                        const clickAroundDependencies = {
+                            updateStatus: dependencies.updateStatus,
+                            detectRedBlobs: dependencies.redBlobDetectorDetect,
+                            performClick: dependencies.performClick,
+                            performBatchedClicks: performBatchedClicks || (async (clickArray) => {
+                                console.warn('WARNING: Using performBatchedClicks FALLBACK - this will be much slower!');
+                                if (!Array.isArray(clickArray)) return { success: false, error: 'Invalid click array' };
+                                for (const click of clickArray) {
+                                    await dependencies.performClick(click.x, click.y);
+                                }
+                                return { success: true };
+                            }),
+                            iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
+                            updateCurrentFunction: dependencies.updateCurrentFunction,
+                            CLICK_AREAS: dependencies.CLICK_AREAS,
+                            captureScreenRegion: dependencies.captureScreenRegion,
+                            sendDetectionResults: (detections) => {
+                                if (mainWindow && !mainWindow.isDestroyed()) {
+                                    mainWindow.webContents.send('detection-results', detections);
+                                }
+                            },
+                            getIsClickAroundRunning: () => dependencies.getIsAutomationRunning(),
+                            getIsClickAroundPaused: () => false,
+                            scrollToBottom: dependencies.scrollToBottom,
+                            scrollSwipeDistance: dependencies.scrollSwipeDistance,
+                            scrollToBottomIterations: dependencies.scrollToBottomIterations,
+                            compareBottomRegions: dependencies.compareBottomRegions,
+                            captureBottomRegion: dependencies.captureBottomRegion,
+                        };
+                        
+                        const { clickAround } = require('./clickAround');
+                        const failsafeClickaroundOptions = {
+                            excludeRedBlobs: true,
+                            clickaroundChunks: 1,
+                            scrollUpDistance: 0,
+                            scrollUpCount: 0,
+                            initialScrollDown: 0,
+                            scrollToBottomAtEnd: false
+                        };
+                        
+                        await clickAround(clickAroundDependencies, true, failsafeClickaroundOptions);
+                        console.log('FAILSAFE: Clickaround completed. Continuing level...');
+                        updateStatus('10-minute failsafe clickaround completed. Continuing level...', 'info');
+                    }
+                }
+            }
+            
             // Check time-based custom triggers periodically
             if (settingsLevelName && settingsLevelName !== 'Unknown Level' && settingsLevelName !== '') {
                 await checkCustomTriggers(settingsLevelName);

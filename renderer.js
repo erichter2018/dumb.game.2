@@ -174,8 +174,8 @@ startBtn.addEventListener('click', async () => {
     }
 });
 
-// Stop button event listener - stops all automation
-stopBtn.addEventListener('click', async () => {
+// Helper function to stop all automation and update UI
+async function stopAllAutomation() {
     if (isAutomationRunning) {
         isAutomationRunning = false;
         isFinishLevelRunning = false;
@@ -194,16 +194,29 @@ stopBtn.addEventListener('click', async () => {
         await ipcRenderer.invoke('toggle-click-around', false);
         
         // Reset click around buttons immediately since we're stopping them
-        clickAroundTrueBtn.textContent = 'Click Around True';
-        clickAroundTrueBtn.classList.remove('btn-danger');
-        clickAroundTrueBtn.classList.add('btn-secondary');
+        // Get buttons dynamically in case they're not defined at top level
+        const clickAroundTrueBtn = document.getElementById('clickAroundTrueBtn');
+        const clickAroundFalseBtn = document.getElementById('clickAroundFalseBtn');
         
-        clickAroundFalseBtn.textContent = 'Click Around False';
-        clickAroundFalseBtn.classList.remove('btn-danger');
-        clickAroundFalseBtn.classList.add('btn-secondary');
+        if (clickAroundTrueBtn) {
+            clickAroundTrueBtn.textContent = 'Click Around True';
+            clickAroundTrueBtn.classList.remove('btn-danger');
+            clickAroundTrueBtn.classList.add('btn-secondary');
+        }
+        
+        if (clickAroundFalseBtn) {
+            clickAroundFalseBtn.textContent = 'Click Around False';
+            clickAroundFalseBtn.classList.remove('btn-danger');
+            clickAroundFalseBtn.classList.add('btn-secondary');
+        }
         
         updateStatus('All automation stopped.', 'info');
     }
+}
+
+// Stop button event listener - stops all automation
+stopBtn.addEventListener('click', async () => {
+    await stopAllAutomation();
 });
 
 // All Statistics button event listener
@@ -782,6 +795,12 @@ ipcRenderer.on('shortcut-stop', async () => {
     await stopLiveViewBtn.click();
 });
 
+// IPC listener for emergency interrupt (Escape key)
+ipcRenderer.on('emergency-interrupt', async () => {
+    console.log('🚨 Emergency interrupt received - stopping all automation');
+    await stopAllAutomation();
+});
+
 // IPC listener for current function updates
 ipcRenderer.on('update-current-function', (event, functionName) => {
     if (currentFunctionDisplay) {
@@ -1330,15 +1349,23 @@ ipcRenderer.on('click-around-stopped', () => {
     // Reset both click around buttons to their initial state
     isClickAroundRunning = false;
     
+    // Get buttons dynamically
+    const clickAroundTrueBtn = document.getElementById('clickAroundTrueBtn');
+    const clickAroundFalseBtn = document.getElementById('clickAroundFalseBtn');
+    
     // Reset Click Around True button
-    clickAroundTrueBtn.textContent = 'Click Around True';
-    clickAroundTrueBtn.classList.remove('btn-danger');
-    clickAroundTrueBtn.classList.add('btn-secondary');
+    if (clickAroundTrueBtn) {
+        clickAroundTrueBtn.textContent = 'Click Around True';
+        clickAroundTrueBtn.classList.remove('btn-danger');
+        clickAroundTrueBtn.classList.add('btn-secondary');
+    }
     
     // Reset Click Around False button
-    clickAroundFalseBtn.textContent = 'Click Around False';
-    clickAroundFalseBtn.classList.remove('btn-danger');
-    clickAroundFalseBtn.classList.add('btn-secondary');
+    if (clickAroundFalseBtn) {
+        clickAroundFalseBtn.textContent = 'Click Around False';
+        clickAroundFalseBtn.classList.remove('btn-danger');
+        clickAroundFalseBtn.classList.add('btn-secondary');
+    }
 });
 
 // Initialize
