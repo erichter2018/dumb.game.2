@@ -88,8 +88,14 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
                 triggeredActions.add(triggerKey); // Mark as fired for the rest of this level
                 console.log(`DEBUG: Trigger marked as fired, will not fire again until next level`);
                 const result = await executeTriggerActionDuringBuild(trigger, dependencies);
-                // If clickaround was executed, return immediately so runBuildProtocol can exit
+                // If clickaround was executed, return immediately (blue build box disappears)
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
                 if (result === 'custom_trigger_clickaround_completed') {
+                    return result;
+                }
+                // If activeSkill was executed, return immediately (blue build box disappears)
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
+                if (result === 'custom_trigger_activeskill_completed') {
                     return result;
                 }
             }
@@ -170,8 +176,14 @@ async function checkCustomTriggersAfterBuild(levelName, buildNumber, elapsedTime
                 triggeredActions.add(triggerKey); // Mark as fired for the rest of this level
                 console.log(`DEBUG: Trigger marked as fired, will not fire again until next level`);
                 const result = await executeTriggerActionDuringBuild(trigger, dependencies);
-                // If clickaround was executed, return immediately so runBuildProtocol can exit
+                // If clickaround was executed, return immediately (blue build box disappears)
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
                 if (result === 'custom_trigger_clickaround_completed') {
+                    return result;
+                }
+                // If activeSkill was executed, return immediately (blue build box disappears)
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
+                if (result === 'custom_trigger_activeskill_completed') {
                     return result;
                 }
             }
@@ -226,7 +238,8 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
                 await clickAround(clickAroundDependencies, trigger.clickaroundOptions?.excludeRedBlobs ?? true, trigger.clickaroundOptions || {});
                 
                 // After clickaround, build box disappears - exit runBuildProtocol so finishLevel can find next red blob
-                console.log('DEBUG: Custom trigger clickaround completed - exiting runBuildProtocol');
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
+                console.log('DEBUG: Custom trigger clickaround completed - blue box disappeared, exiting runBuildProtocol immediately');
                 return 'custom_trigger_clickaround_completed';
 
             case 'scrollUp':
@@ -283,7 +296,10 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
                     updateStatus: dependencies.updateStatus,
                     updateCurrentFunction: dependencies.updateCurrentFunction
                 });
-                break;
+                // Active skill completed - blue build box disappears, so exit build protocol immediately
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
+                console.log('DEBUG: Custom trigger activeSkill completed - blue box disappeared, exiting build protocol immediately');
+                return 'custom_trigger_activeskill_completed';
 
             default:
                 console.log(`DEBUG: Unknown trigger action: ${trigger.action}`);
@@ -840,9 +856,16 @@ async function runBuildProtocol(dependencies) {
                 || 'up';
             console.log(`DEBUG: Checking custom triggers during build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
             const triggerResult = await checkCustomTriggersDuringBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
-            // If a clickaround trigger fired, exit immediately (build box will be gone)
+            // If a clickaround trigger fired, exit immediately (blue build box disappears)
+            // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
             if (triggerResult === 'custom_trigger_clickaround_completed') {
-                console.log('DEBUG: Custom trigger clickaround executed - exiting runBuildProtocol');
+                console.log('DEBUG: Custom trigger clickaround executed - blue box disappeared, exiting runBuildProtocol immediately');
+                return triggerResult;
+            }
+            // If activeSkill trigger fired, exit immediately (blue build box disappears)
+            // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
+            if (triggerResult === 'custom_trigger_activeskill_completed') {
+                console.log('DEBUG: Custom trigger activeSkill executed - blue box disappeared, exiting runBuildProtocol immediately');
                 return triggerResult;
             }
             // If any custom trigger fired, invalidate cached red blob coords
@@ -1035,9 +1058,16 @@ async function runBuildProtocol(dependencies) {
                 // Check for custom triggers that fire AFTER build completes
                 console.log(`DEBUG: Checking AFTER-build triggers for build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
                 const afterTriggerResult = await checkCustomTriggersAfterBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
-                // If a clickaround trigger fired, exit immediately (build box will be gone)
+                // If a clickaround trigger fired, exit immediately (blue build box disappears)
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
                 if (afterTriggerResult === 'custom_trigger_clickaround_completed') {
-                    console.log('DEBUG: AFTER-build custom trigger clickaround executed - exiting runBuildProtocol');
+                    console.log('DEBUG: AFTER-build custom trigger clickaround executed - blue box disappeared, exiting runBuildProtocol immediately');
+                    return afterTriggerResult;
+                }
+                // If activeSkill trigger fired, exit immediately (blue build box disappears)
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
+                if (afterTriggerResult === 'custom_trigger_activeskill_completed') {
+                    console.log('DEBUG: AFTER-build custom trigger activeSkill executed - blue box disappeared, exiting runBuildProtocol immediately');
                     return afterTriggerResult;
                 }
                 // If any AFTER-build trigger fired, invalidate cached red blob coords
@@ -1167,9 +1197,16 @@ async function runBuildProtocol(dependencies) {
                 // Check for custom triggers that fire AFTER build completes
                 console.log(`DEBUG: Checking AFTER-build triggers for build #${buildNumber} at ${elapsedTime}ms (effective direction: ${currentDirection})`);
                 const afterTriggerResult = await checkCustomTriggersAfterBuild(settingsLevelName, buildNumber, elapsedTime, currentDirection, buildName, dependencies);
-                // If a clickaround trigger fired, exit immediately (build box will be gone)
+                // If a clickaround trigger fired, exit immediately (blue build box disappears)
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
                 if (afterTriggerResult === 'custom_trigger_clickaround_completed') {
-                    console.log('DEBUG: AFTER-build custom trigger clickaround executed - exiting runBuildProtocol');
+                    console.log('DEBUG: AFTER-build custom trigger clickaround executed - blue box disappeared, exiting runBuildProtocol immediately (early hold exit)');
+                    return afterTriggerResult;
+                }
+                // If activeSkill trigger fired, exit immediately (blue build box disappears)
+                // Other triggers can still fire in subsequent builds (they're not marked as fired yet)
+                if (afterTriggerResult === 'custom_trigger_activeskill_completed') {
+                    console.log('DEBUG: AFTER-build custom trigger activeSkill executed - blue box disappeared, exiting runBuildProtocol immediately (early hold exit)');
                     return afterTriggerResult;
                 }
                 // If any AFTER-build trigger fired, invalidate cached red blob coords
@@ -1231,4 +1268,4 @@ async function runBuildProtocol(dependencies) {
     }
 }
 
-module.exports = { runBuildProtocol, resetAutomationState, findAndGetBlueBoxClickCoordinates, stopAutomation, resetCustomTriggerState };
+module.exports = { runBuildProtocol, resetAutomationState, findAndGetBlueBoxClickCoordinates, stopAutomation, resetCustomTriggerState, checkResearchBlob, doResearch };

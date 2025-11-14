@@ -3033,6 +3033,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
+    // Initialize Research First checkbox
+    try {
+        const researchFirstCheckbox = document.getElementById('researchFirstCheckbox');
+        if (researchFirstCheckbox) {
+            // Load saved state from main process
+            const savedState = await ipcRenderer.invoke('get-research-first');
+            researchFirstCheckbox.checked = savedState === true;
+            
+            // Save state when changed (both localStorage for quick access and main process for persistence)
+            researchFirstCheckbox.addEventListener('change', async () => {
+                localStorage.setItem('researchFirst', researchFirstCheckbox.checked.toString());
+                await ipcRenderer.invoke('set-research-first', researchFirstCheckbox.checked);
+                ipcRenderer.invoke('renderer-log', `UI: Research First set to ${researchFirstCheckbox.checked}`);
+            });
+        }
+    } catch (error) {
+        console.error('Error initializing research first checkbox:', error);
+    }
+    
     // Initialize overlay system
     initializeOverlay();
     

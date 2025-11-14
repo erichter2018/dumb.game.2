@@ -1,5 +1,8 @@
 const settingsManager = require('../../lib/settingsManager');
 const levelDatabase = require('../../lib/levelDatabase');
+const path = require('path');
+const fs = require('fs');
+const { app } = require('electron');
 
 function startAutomation(dependencies) {
     const { updateStatus, getIsAutomationRunning, detectBlueBoxes, redBlobDetectorDetect, performClick, captureScreenRegion, iphoneMirroringRegion, scrollUp, scrollDown, scrollUpWithDistance, scrollToBottom, scrollToTop, scrollSwipeDistance, scrollToBottomIterations, scrollUpAttempts, updateCurrentFunction, updatePreviousLevelDuration, getCurrentLevelStartTime, getReconnectionDowntimeMs, getRandomInt, setCurrentLevelStartTime } = dependencies;
@@ -460,6 +463,7 @@ function startAutomation(dependencies) {
         if (blueBuildBoxConfirmed) {
             updateStatus('Blue build box confirmed. Launching Finish Build automation.', 'info');
             console.log('DEBUG: Blue build box confirmed. Launching Finish Build.');
+            
             // Set internal flag before launching finishBuildAutomation
             isFinishBuildRunningInternal = true;
             // Get effective direction for this level
@@ -506,6 +510,13 @@ function startAutomation(dependencies) {
                 return 'exit_level_detected';
             }
 
+            // Handle activeSkill completion - exit immediately to check for red blobs (blue box disappeared)
+            if (buildStatus === 'custom_trigger_activeskill_completed') {
+                updateStatus('Active Skill completed. Blue box disappeared. Exiting prepBuild to check for red blobs.', 'info');
+                console.log('DEBUG: Active Skill completed. Blue box disappeared. Exiting prepBuild to immediately check for red blobs.');
+                return buildStatus; // Return immediately, skip after-build actions
+            }
+            
             if (buildStatus !== 'stopped' && buildStatus !== 'error' && buildStatus !== 'max_build_at_startup') {
                 buildCompletionCount++;
                 console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult}`);
@@ -621,6 +632,57 @@ function startAutomation(dependencies) {
 
         updateStatus('No blue build box confirmed initially. Initiating red blob click retries.', 'warn');
         console.log('DEBUG: No blue build box confirmed initially. Initiating red blob click retries.');
+        
+        // Check if we should do research first (only for first build, when blue box disappears)
+        if (buildCompletionCount === 0) {
+            const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+            const levelSettings = settingsManager.getLevelSettings(settingsLevelName);
+            
+            // Check if research is enabled for this level and research first is enabled
+            if (levelSettings.doResearch) {
+                try {
+                    // Get research first state directly from file (we're in main process)
+                    let researchFirstEnabled = false;
+                    try {
+                        const researchFirstFile = path.join(app.getPath('userData'), 'research-first.json');
+                        if (fs.existsSync(researchFirstFile)) {
+                            const data = fs.readFileSync(researchFirstFile, 'utf8');
+                            const parsed = JSON.parse(data);
+                            researchFirstEnabled = parsed.enabled === true;
+                        }
+                    } catch (error) {
+                        console.error('ERROR: Failed to read research first state:', error);
+                    }
+                    
+                    if (researchFirstEnabled) {
+                        updateStatus('Research First enabled: Checking for research blob before first build...', 'info');
+                        console.log('DEBUG: Research First enabled: Checking for research blob before first build...');
+                        
+                        // Import research functions from finishBuild
+                        const finishBuildModule = require('./finishBuild');
+                        const checkResearchBlob = finishBuildModule.checkResearchBlob;
+                        const doResearch = finishBuildModule.doResearch;
+                        
+                        // Check for research blob
+                        const researchBlobFound = await checkResearchBlob(dependencies, settingsLevelName);
+                        
+                        if (researchBlobFound) {
+                            updateStatus('Research blob found. Performing research before first build...', 'info');
+                            console.log('DEBUG: Research blob found. Performing research before first build...');
+                            await doResearch(dependencies);
+                            updateStatus('Research completed. Continuing with first build...', 'success');
+                            console.log('DEBUG: Research completed. Continuing with first build...');
+                        } else {
+                            updateStatus('No research blob found. Continuing with first build...', 'info');
+                            console.log('DEBUG: No research blob found. Continuing with first build...');
+                        }
+                    }
+                } catch (error) {
+                    console.error('ERROR: Failed to check research first:', error);
+                    // Continue with build even if research check fails
+                }
+            }
+        }
 
         // The retry logic is now unified here for both initial missing blue box and blue box disappearing after first click
         // Ensure we have redBlobCoords to click on for retries
@@ -1387,6 +1449,10 @@ function startAutomation(dependencies) {
                     console.log('DEBUG: Finish Build timed out. Continuing Finish Level.');
                     redBlobsTried.add(JSON.stringify(targetBlob)); // Mark current red blob as tried
                     lastRedBlobCoords = null; // Clear last red blob coords
+                } else if (prepBuildStatus === 'custom_trigger_activeskill_completed') { // Handle activeSkill completion
+                    updateStatus('Active Skill completed. Blue box disappeared. Continuing Finish Level to check for red blobs.', 'info');
+                    console.log('DEBUG: Active Skill completed. Blue box disappeared. Continuing Finish Level loop to immediately check for red blobs.');
+                    // Continue the loop to check for red blobs immediately (no pause)
                 }
             } else {
                 // Either no blue build box found (first time) or we're skipping blue detection (buildCompletionCount > 0)

@@ -1897,6 +1897,33 @@ ipcMain.handle('set-direction-mode', async (event, mode) => {
   }
 });
 
+// Research First checkbox state
+ipcMain.handle('get-research-first', async () => {
+  try {
+    const researchFirstFile = path.join(app.getPath('userData'), 'research-first.json');
+    if (fs.existsSync(researchFirstFile)) {
+      const data = fs.readFileSync(researchFirstFile, 'utf8');
+      const parsed = JSON.parse(data);
+      return parsed.enabled === true;
+    }
+    return false; // Default to false
+  } catch (error) {
+    console.error('Error reading research first state:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('set-research-first', async (event, enabled) => {
+  try {
+    const researchFirstFile = path.join(app.getPath('userData'), 'research-first.json');
+    fs.writeFileSync(researchFirstFile, JSON.stringify({ enabled: enabled === true }), 'utf8');
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving research first state:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('save-level-settings', async (event, levelName, settings) => {
   try {
     settingsManager.updateLevelSettings(levelName, settings);
