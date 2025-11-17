@@ -246,6 +246,11 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
                 updateCurrentFunction('customTrigger-scrollUp');
                 const scrollUpDistance = trigger.actionDistance || 200;
                 updateStatus(`Custom trigger: Scroll Up ${scrollUpDistance}px`, 'info');
+                // Click off before scrolling
+                if (dependencies.performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                    await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                    await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay after click off
+                }
                 const scrollUpX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                 const scrollUpY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                 await scrollUpWithDistance(scrollUpX, scrollUpY, scrollUpDistance);
@@ -255,6 +260,11 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
                 updateCurrentFunction('customTrigger-scrollDown');
                 const scrollDownDistance = trigger.actionDistance || 200;
                 updateStatus(`Custom trigger: Scroll Down ${scrollDownDistance}px`, 'info');
+                // Click off before scrolling
+                if (dependencies.performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                    await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                    await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay after click off
+                }
                 const scrollDownX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                 const scrollDownY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                 await scrollDown(scrollDownX, scrollDownY, scrollDownDistance);
@@ -263,6 +273,11 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
             case 'scrollToTop':
                 updateCurrentFunction('customTrigger-scrollToTop');
                 updateStatus(`Custom trigger: Scroll to Top`, 'info');
+                // Click off before scrolling
+                if (dependencies.performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                    await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                    await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay after click off
+                }
                 const { scrollToTop } = require('./scrolling');
                 await scrollToTop({ 
                     updateCurrentFunction: dependencies.updateCurrentFunction,
@@ -275,6 +290,11 @@ async function executeTriggerActionDuringBuild(trigger, dependencies) {
             case 'scrollToBottom':
                 updateCurrentFunction('customTrigger-scrollToBottom');
                 updateStatus(`Custom trigger: Scroll to Bottom`, 'info');
+                // Click off before scrolling
+                if (dependencies.performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                    await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                    await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay after click off
+                }
                 const scrollToBottomX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                 const scrollToBottomY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                 await dependencies.scrollToBottom(scrollToBottomX, scrollToBottomY, dependencies.scrollSwipeDistance, dependencies.scrollToBottomIterations, {

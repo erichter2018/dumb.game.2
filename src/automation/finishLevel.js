@@ -29,6 +29,7 @@ function startAutomation(dependencies) {
     }
 
     let buildCompletionCount = 0; // Track how many builds have completed
+    let lastKnownLevelForBuildCount = ''; // Track the last level name for buildCompletionCount reset
     // Effective direction chosen once per level
     let currentLevelEffectiveDirection = null; // 'up' | 'down'
     let currentLevelRandomApplied = false;
@@ -472,27 +473,79 @@ function startAutomation(dependencies) {
             }
             if (!getIsAutomationRunning()) return null; // Check again after pause
             
-            const fullScreenDataUrl = await captureScreenRegion();
+            // DOUBLE red blob detection per screen to catch blobs that might be missed in one pass
+            // But optimize: if first pass finds a blob, return immediately (no delay)
+            console.log(`DEBUG: searchForRedBlobsDuringWait - Performing first red blob detection pass...`);
+            const fullScreenDataUrl1 = await captureScreenRegion();
             if (!getIsAutomationRunning()) return null;
             
-            const redBlobs = await redBlobDetectorDetect(fullScreenDataUrl, iphoneMirroringRegion);
+            const redBlobs1 = await redBlobDetectorDetect(fullScreenDataUrl1, iphoneMirroringRegion);
             if (!getIsAutomationRunning()) return null;
             
-            // Filter out named blobs (exit level, research) - we only want actionable red blobs
-            const actionableRedBlobs = redBlobs.filter(blob => !blob.name);
+            // Filter out named blobs from first pass
+            const actionableRedBlobs1 = (redBlobs1 || []).filter(blob => !blob.name);
             
-            if (actionableRedBlobs.length > 0) {
-                const firstBlob = actionableRedBlobs[0];
+            // If first pass found actionable blobs, return immediately (no delay, no second pass needed)
+            if (actionableRedBlobs1.length > 0) {
+                const firstBlob = actionableRedBlobs1[0];
                 const elapsed = Date.now() - startTime;
-                console.log(`DEBUG: Red blob found after ${elapsed}ms of searching (${(elapsed / 1000).toFixed(1)}s)`);
+                console.log(`DEBUG: Red blob found on FIRST pass after ${elapsed}ms (${(elapsed / 1000).toFixed(1)}s) - blob at (${firstBlob.x}, ${firstBlob.y}) - returning immediately`);
                 updateStatus(`Red blob found after ${(elapsed / 1000).toFixed(1)}s - proceeding to prepBuild`, 'success');
                 return firstBlob;
             }
             
-            // Wait before next detection attempt
-            const remainingTime = endTime - Date.now();
-            if (remainingTime > 0) {
-                await new Promise(resolve => setTimeout(resolve, Math.min(detectionInterval, remainingTime)));
+            // First pass didn't find actionable blobs - try second pass (blobs might be wiggling)
+            console.log(`DEBUG: searchForRedBlobsDuringWait - First pass found ${redBlobs1?.length || 0} blob(s) but ${actionableRedBlobs1.length} actionable - trying second pass...`);
+            
+            // Small delay between detections (like clickAround does) - only if first pass didn't find anything
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            console.log(`DEBUG: searchForRedBlobsDuringWait - Performing second red blob detection pass...`);
+            const fullScreenDataUrl2 = await captureScreenRegion();
+            if (!getIsAutomationRunning()) return null;
+            
+            const redBlobs2 = await redBlobDetectorDetect(fullScreenDataUrl2, iphoneMirroringRegion);
+            if (!getIsAutomationRunning()) return null;
+            
+            // Merge results from both detections (deduplicate by coordinates)
+            const allRedBlobs = [...(redBlobs1 || []), ...(redBlobs2 || [])];
+            const uniqueRedBlobs = [];
+            const seenCoords = new Set();
+            
+            for (const blob of allRedBlobs) {
+                const coordKey = `${blob.x},${blob.y}`;
+                if (!seenCoords.has(coordKey)) {
+                    seenCoords.add(coordKey);
+                    uniqueRedBlobs.push(blob);
+                }
+            }
+            
+            // Debug logging to see what was detected
+            if (uniqueRedBlobs && uniqueRedBlobs.length > 0) {
+                console.log(`DEBUG: searchForRedBlobsDuringWait - Detected ${uniqueRedBlobs.length} red blob(s) (pass 1: ${redBlobs1?.length || 0}, pass 2: ${redBlobs2?.length || 0}):`, uniqueRedBlobs.map(b => ({ x: b.x, y: b.y, name: b.name || 'none' })));
+            } else {
+                console.log(`DEBUG: searchForRedBlobsDuringWait - No red blobs detected in this attempt (pass 1: ${redBlobs1?.length || 0}, pass 2: ${redBlobs2?.length || 0})`);
+            }
+            
+            // Filter out named blobs (exit level, research) - we only want actionable red blobs
+            const actionableRedBlobs = uniqueRedBlobs.filter(blob => !blob.name);
+            
+            if (actionableRedBlobs.length > 0) {
+                const firstBlob = actionableRedBlobs[0];
+                const elapsed = Date.now() - startTime;
+                console.log(`DEBUG: Red blob found on SECOND pass after ${elapsed}ms (${(elapsed / 1000).toFixed(1)}s) - blob at (${firstBlob.x}, ${firstBlob.y})`);
+                updateStatus(`Red blob found after ${(elapsed / 1000).toFixed(1)}s - proceeding to prepBuild`, 'success');
+                return firstBlob;
+            } else if (uniqueRedBlobs && uniqueRedBlobs.length > 0) {
+                // All blobs were named (exit level or research) - log this
+                console.log(`DEBUG: searchForRedBlobsDuringWait - Found ${uniqueRedBlobs.length} blob(s) but all were named (exit level/research) - filtering out`);
+            }
+            
+            // Continue immediately to next detection attempt (no delay - run continuously)
+            // The double detection already has a 100ms delay between passes, which is sufficient
+            // Check if we still have time remaining
+            if (Date.now() >= endTime) {
+                break; // Time expired, exit loop
             }
         }
         
@@ -571,19 +624,52 @@ function startAutomation(dependencies) {
             }
             
             if (buildStatus !== 'stopped' && buildStatus !== 'error' && buildStatus !== 'max_build_at_startup') {
-                buildCompletionCount++;
-                console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult}`);
+                // Get current build attempt number BEFORE incrementing buildCompletionCount
+                const currentBuildAttempt = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+                
+                // Only increment buildCompletionCount if the build actually completed (not interrupted by action)
+                const buildActuallyCompleted = buildStatus !== 'clickaround_completed' && buildStatus !== 'custom_trigger_clickaround_completed' && buildStatus !== 'custom_trigger_activeskill_completed';
+                
+                // CRITICAL: Store buildNumberForScroll BEFORE incrementing buildCompletionCount
+                // This ensures we use the correct build number (1 or 2) for scroll settings
+                let buildNumberForScroll = 0;
+                if (buildActuallyCompleted) {
+                    // CRITICAL: Check level name BEFORE determining build number
+                    // This ensures buildCompletionCount is reset if level changed
+                    const currentLevelNameForSignal = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                    if (currentLevelNameForSignal && currentLevelNameForSignal !== lastKnownLevelForBuildCount && lastKnownLevelForBuildCount !== '') {
+                        console.log(`DEBUG: Level changed detected in prepBuild: "${lastKnownLevelForBuildCount}" -> "${currentLevelNameForSignal}". Resetting buildCompletionCount to 0.`);
+                        buildCompletionCount = 0;
+                    }
+                    lastKnownLevelForBuildCount = currentLevelNameForSignal;
+                    
+                    // Determine which build number signal to send BEFORE incrementing
+                    // buildCompletionCount is currently the number of builds completed so far (0, 1, 2, ...)
+                    // After incrementing, it will be 1, 2, 3, ...
+                    // So we need to check BEFORE incrementing: if it's 0, send first_build; if it's 1, send second_build
+                    console.log(`DEBUG: BEFORE increment - buildCompletionCount: ${buildCompletionCount}, level: "${currentLevelNameForSignal}", will send: ${buildCompletionCount === 0 ? 'first_build' : 'second_build'}`);
+                    const buildNumber = buildCompletionCount === 0 ? 'first_build' : 'second_build';
+                    
+                    // Store buildNumberForScroll BEFORE incrementing (buildCompletionCount + 1 = next build number)
+                    buildNumberForScroll = buildCompletionCount + 1;
+                    
+                    buildCompletionCount++;
+                    console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult}`);
+                    
+                    // Send build completion signal (first_build or second_build) ONLY if build actually completed
+                    if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                        console.log(`🔨 Sending ${buildNumber} signal (build completed, buildCompletionCount was ${buildCompletionCount - 1}, now ${buildCompletionCount})`);
+                        dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
+                    }
+                } else {
+                    console.log(`DEBUG: Build action completed during build attempt #${currentBuildAttempt} (build did NOT complete - was interrupted)`);
+                    // For interrupted builds, use currentBuildAttempt
+                    buildNumberForScroll = currentBuildAttempt;
+                }
                 
                 // Get current level name to check settings
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
                 const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
-                
-                // Send build completion signal (first_build or second_build)
-                const buildNumber = buildCompletionCount === 1 ? 'first_build' : 'second_build';
-                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
-                    console.log(`🔨 Sending ${buildNumber} signal (build completed)`);
-                    dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
-                }
                 // Use the once-selected effective direction for this level
                 const eff = selectEffectiveDirectionOnce(settingsLevelName);
                 const levelSettings = (() => {
@@ -593,28 +679,26 @@ function startAutomation(dependencies) {
                     console.log(`DEBUG: dirSettings:`, JSON.stringify(dirSettings, null, 2));
                     return {
                         ...dirSettings,
-                        doResearch: global.doResearch,
-                        blueBoxClickHoldDuration: global.blueBoxClickHoldDuration,
-                        maxBuildTimeMs: global.maxBuildTimeMs,
-                        scrollDirection: eff.dir
+                        ...global, // Include all global settings (including scrollAfterFirstBuild, scrollAfterSecondBuild)
+                        scrollDirection: eff.dir // Override with effective direction
                     };
                 })();
                 const scrollDirection = levelSettings.scrollDirection || 'up';
                 // Do not emit effective-direction here; it's sent at level start
                 
                 // Check scroll action after build (new explicit direction system)
-                // Only apply scroll settings for builds 1 and 2
+                // Use buildNumberForScroll which was calculated BEFORE incrementing buildCompletionCount
                 let scrollSetting = { action: 'nothing' };
-                if (buildCompletionCount === 1) {
+                if (buildNumberForScroll === 1) {
                     scrollSetting = levelSettings.scrollAfterFirstBuild || { action: 'nothing' };
-                } else if (buildCompletionCount === 2) {
+                } else if (buildNumberForScroll === 2) {
                     scrollSetting = levelSettings.scrollAfterSecondBuild || { action: 'nothing' };
                 }
                 // For build 3+, scrollSetting stays as { action: 'nothing' }
                 
                 console.log(`DEBUG: scrollAfterFirstBuild:`, JSON.stringify(levelSettings.scrollAfterFirstBuild));
                 console.log(`DEBUG: scrollAfterSecondBuild:`, JSON.stringify(levelSettings.scrollAfterSecondBuild));
-                console.log(`DEBUG: scrollSetting for build ${buildCompletionCount}:`, JSON.stringify(scrollSetting));
+                console.log(`DEBUG: scrollSetting for ${buildActuallyCompleted ? `build ${buildCompletionCount}` : `build attempt #${currentBuildAttempt}`}:`, JSON.stringify(scrollSetting));
                 
                 if (scrollSetting.action !== 'nothing') {
                     // Invalidate cached red blob coords if we're about to scroll
@@ -623,10 +707,17 @@ function startAutomation(dependencies) {
                         cachedRedBlobCoords = null;
                     }
                     
+                    // Click off before scrolling
+                    if (performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                        await performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                        await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay after click off
+                    }
+                    
                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                     
-                    console.log(`DEBUG: Scroll after build ${buildCompletionCount}: ${scrollSetting.action} (direction: ${scrollSetting.direction || 'N/A'}, distance: ${scrollSetting.distance || 'N/A'})`);
+                    const buildStatusMsg = buildActuallyCompleted ? `build ${buildCompletionCount}` : `build attempt #${currentBuildAttempt} (interrupted)`;
+                    console.log(`DEBUG: Scroll after ${buildStatusMsg}: ${scrollSetting.action} (direction: ${scrollSetting.direction || 'N/A'}, distance: ${scrollSetting.distance || 'N/A'})`);
                     
                     if (scrollSetting.action === 'scrollToBottom') {
                         await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
@@ -636,19 +727,21 @@ function startAutomation(dependencies) {
                         const distance = scrollSetting.distance || 300;
                         if (scrollSetting.direction === 'up') {
                             await scrollUpWithDistance(scrollX, scrollY, distance);
-                            console.log(`DEBUG: Scrolled UP ${distance}px after build ${buildCompletionCount}`);
+                            console.log(`DEBUG: Scrolled UP ${distance}px after ${buildStatusMsg}`);
                         } else {
                             await scrollDown(scrollX, scrollY, distance);
-                            console.log(`DEBUG: Scrolled DOWN ${distance}px after build ${buildCompletionCount}`);
+                            console.log(`DEBUG: Scrolled DOWN ${distance}px after ${buildStatusMsg}`);
                         }
                     }
                     if (!getIsAutomationRunning()) return 'stopped';
                 }
                 
                 // Mark the "after build" action as complete (always, even if no scroll)
+                // Use buildCompletionCount to determine which action signal to send (since currentBuildAttempt is the NEXT build)
                 const afterBuildAction = buildCompletionCount === 1 ? 'after_first_build' : 'after_second_build';
                 if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
-                    console.log(`🎯 Sending ${afterBuildAction} action completed signal`);
+                    const actionMsg = buildActuallyCompleted ? 'action completed signal' : 'action completed signal (build action completed, but build did NOT complete)';
+                    console.log(`🎯 Sending ${afterBuildAction} action completed signal (buildCompletionCount: ${buildCompletionCount})`);
                     dependencies.mainWindow.webContents.send('level-action-completed', afterBuildAction);
                 } else {
                     console.log(`⚠️ Cannot send ${afterBuildAction} signal - mainWindow not available`);
@@ -673,8 +766,86 @@ function startAutomation(dependencies) {
                 console.log('DEBUG: Finish Build timed out. Exiting prepBuild.');
                 return 'finish_build_timed_out'; // New return status for timeout
             } else if (buildStatus === 'clickaround_completed') { // New: Handle clickaround completion
-                updateStatus('Finish Build completed Click Around and returned control. Exiting prepBuild.', 'success');
-                console.log('DEBUG: Finish Build completed Click Around and returned control. Exiting prepBuild.');
+                updateStatus('Build action (clickaround) completed. Build was interrupted, but action completed.', 'success');
+                console.log('DEBUG: Build action (clickaround) completed. Build was interrupted, but action completed.');
+                
+                // Get current build attempt number
+                // Since markFinishBuildRunForCurrentLevel() increments the count at the start of runBuildProtocol,
+                // we need to subtract 1 to get the actual build attempt number
+                const buildNumberFromCounter = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+                const currentBuildAttempt = buildNumberFromCounter - 1 || 1; // Subtract 1 because count was incremented, but ensure at least 1
+                console.log(`DEBUG: Build action completed during build attempt #${currentBuildAttempt} (build NOT completed, buildNumberFromCounter was ${buildNumberFromCounter})`);
+                
+                // Get current level name to check settings
+                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+                
+                // Use the once-selected effective direction for this level
+                const eff = selectEffectiveDirectionOnce(settingsLevelName);
+                // getLevelSettings already merges direction-specific settings, but we need to ensure
+                // we're using the correct direction. So we get the level settings first, then override
+                // with direction-specific settings if needed.
+                const baseSettings = settingsManager.getLevelSettings(settingsLevelName);
+                const dirSettings = settingsManager.getDirectionSettings(settingsLevelName, eff.dir);
+                const levelSettings = {
+                    ...baseSettings,
+                    ...dirSettings, // Direction-specific settings override base settings
+                    scrollDirection: eff.dir // Ensure effective direction is set
+                };
+                
+                // Check scroll action after build based on build attempt number (1st or 2nd)
+                // Note: We use currentBuildAttempt, NOT buildCompletionCount, since the build didn't complete
+                let scrollSetting = { action: 'nothing' };
+                if (currentBuildAttempt === 1) {
+                    scrollSetting = levelSettings.scrollAfterFirstBuild || { action: 'nothing' };
+                } else if (currentBuildAttempt === 2) {
+                    scrollSetting = levelSettings.scrollAfterSecondBuild || { action: 'nothing' };
+                }
+                
+                console.log(`DEBUG: scrollAfterFirstBuild:`, JSON.stringify(levelSettings.scrollAfterFirstBuild));
+                console.log(`DEBUG: scrollAfterSecondBuild:`, JSON.stringify(levelSettings.scrollAfterSecondBuild));
+                console.log(`DEBUG: scrollSetting for build attempt #${currentBuildAttempt} (clickaround interrupted):`, JSON.stringify(scrollSetting));
+                
+                if (scrollSetting.action !== 'nothing') {
+                    // Click off before scrolling
+                    if (performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                        await performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                        await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay after click off
+                    }
+                    
+                    const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                    const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                    
+                    console.log(`DEBUG: Scroll after build attempt #${currentBuildAttempt}: ${scrollSetting.action} (direction: ${scrollSetting.direction || 'N/A'}, distance: ${scrollSetting.distance || 'N/A'})`);
+                    
+                    if (scrollSetting.action === 'scrollToBottom') {
+                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    } else if (scrollSetting.action === 'scrollToTop') {
+                        await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+                    } else if (scrollSetting.action === 'scrollCustom') {
+                        const distance = scrollSetting.distance || 300;
+                        if (scrollSetting.direction === 'up') {
+                            await scrollUpWithDistance(scrollX, scrollY, distance);
+                            console.log(`DEBUG: Scrolled UP ${distance}px after build attempt #${currentBuildAttempt}`);
+                        } else {
+                            await scrollDown(scrollX, scrollY, distance);
+                            console.log(`DEBUG: Scrolled DOWN ${distance}px after build attempt #${currentBuildAttempt}`);
+                        }
+                    }
+                    if (!getIsAutomationRunning()) return 'stopped';
+                }
+                
+                // Mark the "after build" action as complete (based on build attempt number)
+                // This signals that the scroll action was executed, even though the build didn't complete
+                const afterBuildAction = currentBuildAttempt === 1 ? 'after_first_build' : 'after_second_build';
+                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                    console.log(`🎯 Sending ${afterBuildAction} action completed signal (build action completed, but build did NOT complete)`);
+                    dependencies.mainWindow.webContents.send('level-action-completed', afterBuildAction);
+                }
+                
+                // DO NOT increment buildCompletionCount - the build was interrupted, not completed
+                // DO NOT send first_build/second_build completion signals - those are only for actual build completions
+                
                 return 'finish_build_clickaround_completed'; // New return status for clickaround completion
             }
             if (!getIsAutomationRunning()) return 'stopped';
@@ -864,18 +1035,56 @@ function startAutomation(dependencies) {
 
             // Check if we should scroll to bottom after build completion based on settings
             if (buildResult !== 'stopped' && buildResult !== 'error') {
-                buildCompletionCount++;
-                console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult} after red blob click`);
+                // Get current build attempt number BEFORE incrementing buildCompletionCount
+                const currentBuildAttempt = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
                 
                 // Get current level name to check settings
                 const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
                 const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
                 
-                // Send build completion signal (first_build or second_build)
-                const buildNumber = buildCompletionCount === 1 ? 'first_build' : 'second_build';
-                if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
-                    console.log(`🔨 Sending ${buildNumber} signal (build completed)`);
-                    dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
+                // CRITICAL: Check if build actually completed (not interrupted by action)
+                const buildActuallyCompleted = buildResult !== 'clickaround_completed' && buildResult !== 'custom_trigger_clickaround_completed' && buildResult !== 'custom_trigger_activeskill_completed';
+                
+                // CRITICAL: Store buildNumberForScroll BEFORE incrementing buildCompletionCount
+                // This ensures we use the correct build number (1 or 2) for scroll settings
+                // Declare it outside the if block so it's available for scroll logic later
+                let buildNumberForScroll = 0;
+                
+                // Only send build completion signals if build actually completed (not interrupted)
+                if (buildActuallyCompleted) {
+                    // CRITICAL: Check level name and reset buildCompletionCount if level changed
+                    // This ensures buildCompletionCount is always correct for the current level
+                    // We check here because builds can complete before the loop-level check happens
+                    if (currentLevelName && currentLevelName !== lastKnownLevelForBuildCount && lastKnownLevelForBuildCount !== '') {
+                        console.log(`DEBUG: Level changed detected before signal: "${lastKnownLevelForBuildCount}" -> "${currentLevelName}". Resetting buildCompletionCount to 0.`);
+                        buildCompletionCount = 0;
+                    }
+                    lastKnownLevelForBuildCount = currentLevelName;
+                    
+                    // Determine which build number signal to send BEFORE incrementing
+                    // buildCompletionCount is currently the number of builds completed so far (0, 1, 2, ...)
+                    // After incrementing, it will be 1, 2, 3, ...
+                    // So we need to check BEFORE incrementing: if it's 0, send first_build; if it's 1, send second_build
+                    console.log(`DEBUG: BEFORE increment - buildCompletionCount: ${buildCompletionCount}, level: "${currentLevelName}", will send: ${buildCompletionCount === 0 ? 'first_build' : 'second_build'}`);
+                    const buildNumber = buildCompletionCount === 0 ? 'first_build' : 'second_build';
+                    
+                    // Store buildNumberForScroll BEFORE incrementing (buildCompletionCount + 1 = next build number)
+                    buildNumberForScroll = buildCompletionCount + 1;
+                    
+                    buildCompletionCount++;
+                    console.log(`DEBUG: Build ${buildCompletionCount} completed with status: ${buildResult} after red blob click`);
+                    
+                    // Send build completion signal (first_build or second_build)
+                    if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                        console.log(`🔨 Sending ${buildNumber} signal (build completed, buildCompletionCount was ${buildCompletionCount - 1}, now ${buildCompletionCount})`);
+                        dependencies.mainWindow.webContents.send('level-action-completed', buildNumber);
+                    }
+                } else {
+                    console.log(`DEBUG: Build was interrupted by action (${buildResult}) - NOT sending build completion signal`);
+                    // For interrupted builds, we need to get currentBuildAttempt from somewhere
+                    // But in this context, we don't have currentBuildAttempt available
+                    // So we'll use buildCompletionCount + 1 as a fallback (though this shouldn't happen for interrupted builds)
+                    buildNumberForScroll = buildCompletionCount + 1;
                 }
                 const resolveDirectionMode = () => {
                     const mode = settingsManager.getDirectionMode ? settingsManager.getDirectionMode() : 'random';
@@ -898,11 +1107,9 @@ function startAutomation(dependencies) {
                     const global = settingsManager.getLevelSettings(settingsLevelName);
                     const dirSettings = settingsManager.getDirectionSettings(settingsLevelName, eff2.dir);
                     return {
-                        ...dirSettings,
-                        doResearch: global.doResearch,
-                        blueBoxClickHoldDuration: global.blueBoxClickHoldDuration,
-                        maxBuildTimeMs: global.maxBuildTimeMs,
-                        scrollDirection: eff2.dir
+                        ...global, // Include all global settings (including scrollAfterFirstBuild, scrollAfterSecondBuild)
+                        ...dirSettings, // Direction-specific settings override global settings
+                        scrollDirection: eff2.dir // Override with effective direction
                     };
                 })();
                 const scrollDirection = levelSettings.scrollDirection || 'up';
@@ -914,19 +1121,27 @@ function startAutomation(dependencies) {
                 }
                 
                 // Check scroll action after build (new explicit direction system)
+                // Use buildNumberForScroll which was calculated BEFORE incrementing buildCompletionCount
                 let scrollSetting = { action: 'nothing' };
-                if (buildCompletionCount === 1) {
+                if (buildNumberForScroll === 1) {
                     scrollSetting = levelSettings.scrollAfterFirstBuild || { action: 'nothing' };
-                } else if (buildCompletionCount === 2) {
+                } else if (buildNumberForScroll === 2) {
                     scrollSetting = levelSettings.scrollAfterSecondBuild || { action: 'nothing' };
                 }
                 // For builds 3+, scrollSetting remains { action: 'nothing' }
                 
                 if (scrollSetting.action !== 'nothing') {
+                    // Click off before scrolling
+                    if (performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                        await performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                        await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay after click off
+                    }
+                    
                     const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
                     const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
                     
-                    console.log(`DEBUG: Scroll after build ${buildCompletionCount}: ${scrollSetting.action} (direction: ${scrollSetting.direction || 'N/A'}, distance: ${scrollSetting.distance || 'N/A'})`);
+                    const buildStatusMsg = buildActuallyCompleted ? `build ${buildCompletionCount}` : `build attempt #${currentBuildAttempt} (interrupted)`;
+                    console.log(`DEBUG: Scroll after ${buildStatusMsg}: ${scrollSetting.action} (direction: ${scrollSetting.direction || 'N/A'}, distance: ${scrollSetting.distance || 'N/A'})`);
                     
                     if (scrollSetting.action === 'scrollToBottom') {
                         await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
@@ -936,19 +1151,21 @@ function startAutomation(dependencies) {
                         const distance = scrollSetting.distance || 300;
                         if (scrollSetting.direction === 'up') {
                             await scrollUpWithDistance(scrollX, scrollY, distance);
-                            console.log(`DEBUG: Scrolled UP ${distance}px after build ${buildCompletionCount}`);
+                            console.log(`DEBUG: Scrolled UP ${distance}px after ${buildStatusMsg}`);
                         } else {
                             await scrollDown(scrollX, scrollY, distance);
-                            console.log(`DEBUG: Scrolled DOWN ${distance}px after build ${buildCompletionCount}`);
+                            console.log(`DEBUG: Scrolled DOWN ${distance}px after ${buildStatusMsg}`);
                         }
                     }
                     if (!getIsAutomationRunning()) return 'stopped';
                 }
                 
                 // Mark the "after build" action as complete (always, even if no scroll)
+                // Use buildCompletionCount to determine which action signal to send (since currentBuildAttempt is the NEXT build)
                 const afterBuildAction = buildCompletionCount === 1 ? 'after_first_build' : 'after_second_build';
                 if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
-                    console.log(`🎯 Sending ${afterBuildAction} action completed signal`);
+                    const actionMsg = buildActuallyCompleted ? 'action completed signal' : 'action completed signal (build action completed, but build did NOT complete)';
+                    console.log(`🎯 Sending ${afterBuildAction} action completed signal (buildCompletionCount: ${buildCompletionCount})`);
                     dependencies.mainWindow.webContents.send('level-action-completed', afterBuildAction);
                 } else {
                     console.log(`⚠️ Cannot send ${afterBuildAction} signal - mainWindow not available`);
@@ -1419,11 +1636,20 @@ function startAutomation(dependencies) {
         const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
         const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
         
+        // Track the last level name to detect level changes
+        // Initialize lastLevelName to empty string so first level detection works correctly
+        let lastLevelName = '';
+        
+        // Reset buildCompletionCount at the start - this ensures it starts at 0 for the first level
+        // The level change detection inside the loop will handle subsequent level changes
+        buildCompletionCount = 0;
+        console.log(`DEBUG: Starting runFinishLevelProtocol, buildCompletionCount reset to 0`);
+        
         // Predictive red blob detection: track cached coords across loop iterations
         let nextBuildCachedRedBlobCoords = null;
         
-        // 10-minute failsafe: track if it has already fired
-        let tenMinuteFailsafeFired = false;
+        // 10-minute failsafe: runs every 10 minutes until level finishes
+        let lastFailsafeTime = null; // Track when the last failsafe ran
         const TEN_MINUTE_FAILSAFE_MS = 600000; // 10 minutes
         
         while (getIsAutomationRunning()) {
@@ -1433,17 +1659,48 @@ function startAutomation(dependencies) {
             }
             if (!getIsAutomationRunning()) break; // Check again after pause
             
-            // Check 10-minute failsafe: if level is taking too long, trigger clickaround
-            if (!tenMinuteFailsafeFired && getCurrentLevelStartTime) {
+            // Check if level name changed (new level started) and reset buildCompletionCount
+            const currentLevelNameCheck = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+            if (currentLevelNameCheck && currentLevelNameCheck !== lastLevelName) {
+                if (lastLevelName !== '') {
+                    // Level changed from one level to another
+                    console.log(`DEBUG: Level changed from "${lastLevelName}" to "${currentLevelNameCheck}". Resetting buildCompletionCount to 0.`);
+                } else {
+                    // First time we have a level name (starting first level)
+                    console.log(`DEBUG: First level detected: "${currentLevelNameCheck}". Resetting buildCompletionCount to 0.`);
+                }
+                buildCompletionCount = 0; // Always reset when level name changes (including first level)
+                lastKnownLevelForBuildCount = currentLevelNameCheck; // Also update the closure variable
+                lastLevelName = currentLevelNameCheck;
+                // Reset failsafe timer when level changes
+                lastFailsafeTime = null;
+            }
+            
+            // Check 10-minute failsafe: runs every 10 minutes until level finishes
+            if (getCurrentLevelStartTime) {
                 const levelStartTime = getCurrentLevelStartTime();
                 if (levelStartTime) {
                     const elapsedTime = Date.now() - levelStartTime;
-                    if (elapsedTime >= TEN_MINUTE_FAILSAFE_MS) {
-                        tenMinuteFailsafeFired = true;
-                        console.log(`FAILSAFE: Level has been running for ${(elapsedTime / 1000 / 60).toFixed(1)} minutes. Triggering clickaround failsafe.`);
-                        updateStatus('10-minute failsafe triggered: Executing clickaround to unstick level...', 'warn');
+                    
+                    // Check if it's time for a failsafe (every 10 minutes)
+                    const timeSinceLastFailsafe = lastFailsafeTime ? Date.now() - lastFailsafeTime : elapsedTime;
+                    if (timeSinceLastFailsafe >= TEN_MINUTE_FAILSAFE_MS) {
+                        lastFailsafeTime = Date.now();
+                        const minutes = (elapsedTime / 1000 / 60).toFixed(1);
+                        console.log(`FAILSAFE: Level has been running for ${minutes} minutes. Running failsafe (scroll to top + clickaround with 10 chunks).`);
+                        updateStatus(`10-minute failsafe triggered: Scrolling to top and running clickaround...`, 'warn');
                         
-                        // Execute clickaround with 1 chunk, 0 scrolls
+                        // Step 1: Scroll to top
+                        const { scrollToTop } = require('./scrolling');
+                        await scrollToTop({ 
+                            updateCurrentFunction: dependencies.updateCurrentFunction,
+                            performClick: dependencies.performClick,
+                            CLICK_AREAS: dependencies.CLICK_AREAS,
+                            iphoneMirroringRegion: dependencies.iphoneMirroringRegion
+                        });
+                        console.log('FAILSAFE: Scrolled to top.');
+                        
+                        // Step 2: Execute clickaround with 10 chunks, all other scrolling values 0
                         const clickAroundDependencies = {
                             updateStatus: dependencies.updateStatus,
                             detectRedBlobs: dependencies.redBlobDetectorDetect,
@@ -1477,7 +1734,7 @@ function startAutomation(dependencies) {
                         const { clickAround } = require('./clickAround');
                         const failsafeClickaroundOptions = {
                             excludeRedBlobs: true,
-                            clickaroundChunks: 1,
+                            clickaroundChunks: 10,
                             scrollUpDistance: 0,
                             scrollUpCount: 0,
                             initialScrollDown: 0,
@@ -1486,7 +1743,7 @@ function startAutomation(dependencies) {
                         
                         await clickAround(clickAroundDependencies, true, failsafeClickaroundOptions);
                         console.log('FAILSAFE: Clickaround completed. Continuing level...');
-                        updateStatus('10-minute failsafe clickaround completed. Continuing level...', 'info');
+                        updateStatus('10-minute failsafe completed. Continuing level...', 'info');
                     }
                 }
             }
@@ -1588,7 +1845,8 @@ function startAutomation(dependencies) {
                 if (prepBuildStatus === 'max_build_achieved') {
                     updateStatus('Finish Build reported MAX build. Finish Level continuing loop.', 'success');
                     console.log('DEBUG: Finish Build reported MAX build. Finish Level continuing loop.');
-                    // Do not break; continue the loop
+                    // Continue the loop to search for red blobs
+                    continue;
                 } else if (prepBuildStatus === 'finish_build_launched') {
                     updateStatus('Finish Build automation successfully launched from prepBuild.', 'info');
                     console.log('DEBUG: Finish Build automation successfully launched.');

@@ -18,6 +18,7 @@ const imageComparison = require('./utils/image-comparison');
 const scrollingFunctions = require('./src/automation/scrolling');
 const clickAroundFunctions = require('./src/automation/clickAround');
 const activeSkillFunctions = require('./src/automation/activeSkill');
+const adsFunctions = require('./src/automation/ads');
 const ocrUtils = require('./utils/ocr');
 const statistics = require('./lib/statistics');
 const historicalStats = require('./lib/historicalStats');
@@ -36,6 +37,7 @@ let isHoldingBlueBox = false; // Add state to track if a blue box is being held
 let isAutomationRunning = false; // New flag to control the automation loop in finishBuild.js
 let isFinishLevelRunning = false; // For Finish Level automation
 let isClickAroundRunning = false; // For Click Around automation
+let isAdsRunning = false; // For Ads automation
 let isClickAroundPaused = false; // For pausing Click Around on mouse movement
 let isAutomationPaused = false; // Global pause flag for spacebar pause/resume
 let clickAroundCallCounter = 0; // Global counter for clickAround calls since level start
@@ -1336,6 +1338,7 @@ const CLICK_AREAS = {
   "CONFIRM_EXIT": { x: 238, y: 745 },
   "START_LEVEL": { x: 232, y: 631 },
   "EXIT_LEVEL": { x: 51, y: 890 }, // New: Named click area for the exit level red blob
+  AD_START_CLICK: { x: 230, y: 950 }, // Click location to start watching an ad
 };
 
 // New functions for click and hold using robotjs
@@ -2568,6 +2571,16 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     updateDetectionTime: updateDetectionTime,
     checkConnectionHealth: checkConnectionHealth,
     attemptReconnection: attemptReconnection,
+    // Stop automation function for failsafe
+    stopAutomation: () => {
+      console.log('CRITICAL FAILSAFE: Stopping automation via stopAutomation dependency');
+      isFinishLevelRunning = false;
+      isAutomationRunning = false;
+      isAutomationPaused = false;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('finish-build-status', 'Automation stopped by critical failsafe', 'error');
+      }
+    },
   };
 
   if (isRunning) {
@@ -2721,6 +2734,55 @@ ipcMain.handle('activate-active-skill', async (event) => {
   
   const result = await activeSkillFunctions.activateActiveSkill(activeSkillDependencies);
   return result;
+});
+
+ipcMain.handle('trigger-ads', async (event, showModal = true) => {
+  console.log('DEBUG: trigger-ads IPC handler called, showModal:', showModal);
+  
+  // Set ads running flag and register shortcuts
+  isAdsRunning = true;
+  registerAutomationShortcuts();
+  
+  // Bring the iPhone Mirroring app to the front first
+  await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
+  await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after activation
+  
+  const adsDependencies = {
+    performClick: performClick,
+    captureScreenRegion: captureScreenRegion,
+    iphoneMirroringRegion: iphoneMirroringRegion,
+    CLICK_AREAS: CLICK_AREAS,
+    captureAndOCR: ocrUtils.captureAndOCR,
+    getIsAutomationPaused: () => isAutomationPaused,
+    getIsAdsRunning: () => isAdsRunning, // Pass getter to check if ads should stop
+    waitIfPaused: waitIfPaused,
+    showModal: showModal, // Pass flag to control modal display
+    updateStatus: (message, type) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        statusMessageHistory.push({ message, type, timestamp: new Date().toLocaleTimeString() });
+        if (statusMessageHistory.length > STATUS_MESSAGE_LIMIT) {
+          statusMessageHistory.shift();
+        }
+        mainWindow.webContents.send('finish-build-status', message, type);
+        mainWindow.webContents.send('finish-build-status-list', statusMessageHistory);
+        // Only send to ads modal if showModal is true
+        if (showModal) {
+          mainWindow.webContents.send('ads-status-update', message, type);
+        }
+      }
+    },
+    updateCurrentFunction: updateCurrentFunction
+  };
+  
+  try {
+    const result = await adsFunctions.triggerAds(adsDependencies);
+    return result;
+  } finally {
+    // Always clear flags and unregister shortcuts when done
+    isAdsRunning = false;
+    isAutomationPaused = false;
+    unregisterAutomationShortcuts();
+  }
 });
 
 ipcMain.handle('toggle-click-around', async (event, isRunning, exclude_red_blobs = true) => {
@@ -2908,7 +2970,7 @@ function unregisterAutomationShortcuts() {
 // Pause/resume toggle function
 function toggleAutomationPause() {
   // Only allow pause if automation is actually running
-  if (!isAutomationRunning && !isFinishLevelRunning && !isClickAroundRunning) {
+  if (!isAutomationRunning && !isFinishLevelRunning && !isClickAroundRunning && !isAdsRunning) {
     console.log('DEBUG: Cannot pause - no automation is running');
     return;
   }
@@ -2929,7 +2991,7 @@ function toggleAutomationPause() {
 
 // Helper function to wait while paused (to be called in automation loops)
 async function waitIfPaused() {
-  while (isAutomationPaused && (isAutomationRunning || isFinishLevelRunning || isClickAroundRunning)) {
+  while (isAutomationPaused && (isAutomationRunning || isFinishLevelRunning || isClickAroundRunning || isAdsRunning)) {
     await new Promise(resolve => setTimeout(resolve, 100)); // Check every 100ms
   }
 }
@@ -2939,10 +3001,11 @@ async function emergencyInterrupt() {
   console.log('🚨 EMERGENCY INTERRUPT: Stopping all automation immediately');
   
   // Set all automation flags to false immediately
-  const wasRunning = isAutomationRunning || isFinishLevelRunning || isClickAroundRunning;
+  const wasRunning = isAutomationRunning || isFinishLevelRunning || isClickAroundRunning || isAdsRunning;
   isAutomationRunning = false;
   isFinishLevelRunning = false;
   isClickAroundRunning = false;
+  isAdsRunning = false; // Also stop ads
   isClickAroundPaused = false; // Also clear pause state on interrupt
   isAutomationPaused = false; // Clear global pause flag
   

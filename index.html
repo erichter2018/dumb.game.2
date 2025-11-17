@@ -179,7 +179,7 @@
                         <button id="stopBtn" class="btn btn-danger">Stop</button>
                         <button id="settingsBtn" class="btn btn-secondary">⚙️ Settings</button>
                         <button id="allStatisticsBtn" class="btn btn-info">📊 All Statistics</button>
-                        <button id="activateActiveSkillBtn" class="btn btn-warning">⚡ Active Skill</button>
+                        <button id="triggerAdsBtn" class="btn btn-warning">📺 Trigger Ads</button>
                     </div>
 
                     <!-- Direction Mode Controls -->
@@ -684,6 +684,34 @@
                         </div>
                     </div>
 
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ads Modal -->
+    <div id="adsModal" class="ads-modal" style="display: none;">
+        <div class="ads-modal-content">
+            <div class="ads-modal-header">
+                <h2>📺 Trigger Ads</h2>
+                <button id="closeAdsBtn" class="ads-close">&times;</button>
+            </div>
+            
+            <div class="ads-modal-body">
+                <!-- Image Section (Fixed at top) -->
+                <div class="ads-image-section">
+                    <div class="ads-image-label">OpenCV Analysis Region</div>
+                    <img id="adsAnalysisImage" src="" alt="OpenCV Analysis" class="ads-analysis-image">
+                </div>
+                
+                <!-- Log Messages Section (Scrollable below image) -->
+                <div class="ads-log-section">
+                    <div id="adsStatusMessages" class="ads-status-messages">
+                        <div class="ads-status-item">
+                            <span class="ads-status-icon">⏳</span>
+                            <span class="ads-status-text">Initializing...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

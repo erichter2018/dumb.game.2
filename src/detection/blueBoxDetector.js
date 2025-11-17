@@ -627,11 +627,19 @@ async function detect(imageDataUrl, captureRegion, isWindowCapture = false) {
             finalBoxCounter++;
         }
 
+        // Prioritize grey_max detection - if grey_max is found, return it (even if blue_build also exists)
+        // This handles the transition case where a build goes from blue to grey_max
+        const hasGreyMaxBox = detections.some(box => box.state === 'grey_max');
+        if (hasGreyMaxBox) {
+            console.log('DEBUG: A \'grey_max\' box was detected. Prioritizing grey_max over other boxes.');
+            return detections.filter(box => box.state === 'grey_max');
+        }
+
         // New filtering logic: if a 'blue_build' box is found, ONLY return blue_build boxes
         // There should never be a situation where a real blue build coexists with a max build
         const hasBlueBuildBox = detections.some(box => box.state === 'blue_build');
         if (hasBlueBuildBox) {
-            console.log('DEBUG: A \'blue_build\' box was detected. Filtering out all other boxes (grey_max, unknown, green_excluded) - only returning blue_build.');
+            console.log('DEBUG: A \'blue_build\' box was detected. Filtering out all other boxes (unknown, green_excluded) - only returning blue_build.');
             return detections.filter(box => box.state === 'blue_build');
         }
 

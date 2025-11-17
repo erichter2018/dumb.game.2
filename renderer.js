@@ -20,7 +20,10 @@ const finishBuildStatusList = document.getElementById('finishBuildStatusList');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const allStatisticsBtn = document.getElementById('allStatisticsBtn');
-const activateActiveSkillBtn = document.getElementById('activateActiveSkillBtn');
+const triggerAdsBtn = document.getElementById('triggerAdsBtn');
+if (!triggerAdsBtn) {
+    console.error('ERROR: triggerAdsBtn element not found!');
+}
 
 // New DOM Elements for Function Display
 const currentFunctionDisplay = document.getElementById('currentFunction');
@@ -224,23 +227,198 @@ allStatisticsBtn.addEventListener('click', async () => {
     await openStatisticsModal();
 });
 
-// Active Skill button event listener
-activateActiveSkillBtn.addEventListener('click', async () => {
-    console.log('DEBUG: Active Skill button clicked');
-    updateStatus('Activating Active Skill...', 'info');
-    
-    try {
-        const result = await ipcRenderer.invoke('activate-active-skill');
-        if (result && result.success) {
-            updateStatus('Active Skill activated successfully!', 'success');
-        } else {
-            updateStatus('Active Skill activation failed', 'error');
+// Ads Modal Functions
+function openAdsModal() {
+    const modal = document.getElementById('adsModal');
+    const messagesContainer = document.getElementById('adsStatusMessages');
+    messagesContainer.innerHTML = '<div class="ads-status-item"><span class="ads-status-icon">⏳</span><span class="ads-status-text">Initializing...</span></div>';
+    modal.style.display = 'flex';
+}
+
+function closeAdsModal() {
+    const modal = document.getElementById('adsModal');
+    modal.style.display = 'none';
+}
+
+function addAdsModalMessage(message, type = 'info') {
+    const messagesContainer = document.getElementById('adsStatusMessages');
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
+    const item = document.createElement('div');
+    item.className = `ads-status-item ${type}`;
+    item.innerHTML = `<span class="ads-status-icon">${icon}</span><span class="ads-status-text">${message}</span>`;
+    messagesContainer.appendChild(item);
+    // Auto-scroll to bottom (newest messages)
+    const logSection = messagesContainer.closest('.ads-log-section');
+    if (logSection) {
+        logSection.scrollTop = logSection.scrollHeight;
+    }
+}
+
+// Trigger Ads button event listener
+if (triggerAdsBtn) {
+    triggerAdsBtn.addEventListener('click', async () => {
+        console.log('DEBUG: Trigger Ads button clicked');
+        openAdsModal();
+        addAdsModalMessage('Starting ad trigger process...', 'info');
+        
+        try {
+            // Pass showModal=true to indicate this is a UI-initiated call
+            const result = await ipcRenderer.invoke('trigger-ads', true);
+            if (result && result.success) {
+                // Don't add redundant messages here - screenshots and completion message are already sent from ads.js
+                // Auto-close after 3 seconds on success
+                // COMMENTED OUT: Leave modal open for now
+                // setTimeout(() => {
+                //     closeAdsModal();
+                // }, 3000);
+            } else {
+                const errorMsg = result?.error || 'Unknown error';
+                addAdsModalMessage(`Ads trigger failed: ${errorMsg}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error triggering ads:', error);
+            addAdsModalMessage(`Ads trigger error: ${error.message}`, 'error');
         }
-    } catch (error) {
-        console.error('Error activating active skill:', error);
-        updateStatus('Active Skill activation error', 'error');
+    });
+} else {
+    console.error('ERROR: Cannot attach triggerAdsBtn event listener - button not found');
+}
+
+// Close ads modal button
+document.getElementById('closeAdsBtn').addEventListener('click', () => {
+    closeAdsModal();
+});
+
+// Close ads modal when clicking outside
+document.getElementById('adsModal').addEventListener('click', (e) => {
+    if (e.target.id === 'adsModal') {
+        closeAdsModal();
     }
 });
+
+        // Listen for ads status updates from main process
+        ipcRenderer.on('ads-status-update', (event, message, type) => {
+            // Check if this is an image update (for the main analysis image)
+            if (message && message.startsWith('image-update:')) {
+                const imageDataUrl = message.replace('image-update:', '');
+                console.log('DEBUG: Received image update, length:', imageDataUrl.length);
+                const img = document.getElementById('adsAnalysisImage');
+                if (img) {
+                    console.log('DEBUG: Setting image src');
+                    img.src = imageDataUrl;
+                    img.onload = () => console.log('DEBUG: Image loaded successfully');
+                    img.onerror = (e) => console.error('ERROR: Image failed to load:', e);
+                } else {
+                    console.error('ERROR: adsAnalysisImage element not found');
+                }
+                return;
+            }
+            
+            // Check if this is multiple X screenshots for horizontal display (format: x-screenshots|||label|||jsonData)
+            if (message && message.startsWith('x-screenshots|||')) {
+                console.log(`DEBUG: Received x-screenshots message, length: ${message.length}`);
+                const parts = message.split('|||');
+                if (parts.length >= 3) {
+                    const label = parts[1];
+                    const jsonData = parts.slice(2).join('|||'); // Rejoin in case JSON contains ||| (unlikely but safe)
+                    try {
+                        const screenshotsData = JSON.parse(jsonData);
+                        console.log(`DEBUG: Parsed ${screenshotsData.length} X button screenshots`);
+                        
+                        // Create a horizontal container for all screenshots
+                        let screenshotsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;">`;
+                        screenshotsData.forEach((item, index) => {
+                            screenshotsHtml += `
+                                <div style="display: flex; flex-direction: column; align-items: center;">
+                                    <div style="font-size: 0.75em; color: #888; margin-bottom: 3px;">#${item.number}</div>
+                                    <img src="${item.screenshot}" 
+                                         style="max-width: 80px; max-height: 80px; border: 1px solid #ccc; border-radius: 4px;" 
+                                         alt="X button ${item.number} ${item.coords}" 
+                                         title="X button ${item.number} ${item.coords}"
+                                         onerror="console.error('Image failed to load:', this.src.substring(0, 50))" />
+                                </div>
+                            `;
+                        });
+                        screenshotsHtml += `</div>`;
+                        
+                        addAdsModalMessage(`${label}<br>${screenshotsHtml}`, type || 'info');
+                        console.log(`DEBUG: Added ${screenshotsData.length} X button screenshots horizontally`);
+                    } catch (e) {
+                        console.error(`ERROR: Failed to parse x-screenshots JSON:`, e);
+                        addAdsModalMessage(`${label} (failed to parse screenshots)`, 'error');
+                    }
+                } else {
+                    console.error(`ERROR: Invalid x-screenshots format - parts: ${parts.length}`);
+                }
+                return;
+            }
+            
+            // Check if this is a single screenshot for the log (format: screenshot|||label|||dataUrl)
+            if (message && message.startsWith('screenshot|||')) {
+                console.log(`DEBUG: Received screenshot message, length: ${message.length}`);
+                const parts = message.split('|||');
+                console.log(`DEBUG: Screenshot parts count: ${parts.length}`);
+                if (parts.length >= 3) {
+                    const label = parts[1];
+                    const imageDataUrl = parts.slice(2).join('|||'); // Rejoin in case data URL contains ||| (unlikely but safe)
+                    
+                    console.log(`DEBUG: Screenshot label: "${label}", imageDataUrl starts with: ${imageDataUrl.substring(0, 50)}...`);
+                    
+                    // Create a message with embedded image
+                    const imgHtml = `<img src="${imageDataUrl}" style="max-width: 200px; max-height: 200px; border: 1px solid #ccc; margin: 5px 0; display: block;" alt="${label}" onerror="console.error('Image failed to load:', this.src.substring(0, 50))" />`;
+                    addAdsModalMessage(`${label}<br>${imgHtml}`, type || 'info');
+                    console.log(`DEBUG: Added screenshot to log: ${label}, imageDataUrl length: ${imageDataUrl.length}`);
+                } else {
+                    console.error(`ERROR: Invalid screenshot format - parts: ${parts.length}, message start: ${message.substring(0, 100)}`);
+                }
+                return;
+            }
+            
+            // Filter messages - only show relevant ones
+            const lowerMessage = message.toLowerCase();
+            
+            // Always show: screenshots, errors, warnings, success messages, start/completion messages
+            const isRelevant = 
+                // Screenshots (already handled above)
+                message.startsWith('screenshot') ||
+                // Start/completion messages
+                lowerMessage.includes('starting ad') ||
+                lowerMessage.includes('triggering ads') ||
+                lowerMessage.includes('successfully exited') ||
+                lowerMessage.includes('complete') ||
+                lowerMessage.includes('target reached') ||
+                lowerMessage.includes('need more ads') ||
+                // X button clicked messages
+                lowerMessage.includes('clicked') && (lowerMessage.includes('x') || lowerMessage.includes('button')) ||
+                // Errors and warnings
+                type === 'error' ||
+                type === 'warn' ||
+                // Countdown messages
+                lowerMessage.includes('countdown') ||
+                // Stopped messages
+                lowerMessage.includes('stopped') ||
+                lowerMessage.includes('timeout');
+            
+            // Skip verbose debug messages
+            const isVerboseDebug = 
+                lowerMessage.includes('opencv match') ||
+                lowerMessage.includes('template matching') ||
+                lowerMessage.includes('edge detection') ||
+                lowerMessage.includes('no x button found') ||
+                lowerMessage.includes('using opencv template') ||
+                lowerMessage.includes('searching for ad') ||
+                lowerMessage.includes('found') && lowerMessage.includes('button') && !lowerMessage.includes('clicked') ||
+                lowerMessage.includes('match passed') ||
+                lowerMessage.includes('line detection') ||
+                lowerMessage.includes('validated') ||
+                lowerMessage.includes('rejected match') ||
+                lowerMessage.includes('confirming boost') ||
+                lowerMessage.includes('checking if already');
+            
+            if (isRelevant && !isVerboseDebug) {
+                addAdsModalMessage(message, type || 'info');
+            }
+        });
 
 // Scroll button event listeners removed - scroll controls are now handled internally by automation
 
@@ -4497,13 +4675,29 @@ ipcRenderer.on('level-action-completed', (event, actionType) => {
     console.log(`🔔 RENDERER: Event object:`, event);
     console.log(`🔔 RENDERER: Action type:`, actionType);
     
+    // Map action types to HTML element IDs
+    // NOTE: These must match the IDs in index.html exactly
     const actionMap = {
         'startup': 'actionStartup',
-        'first_build': 'actionFirstBuild',
-        'after_first_build': 'actionAfterFirstBuild',
-        'second_build': 'actionSecondBuild',
-        'after_second_build': 'actionAfterSecondBuild'
+        'first_build': 'actionFirstBuild',           // Maps to "First Build" checkbox
+        'after_first_build': 'actionAfterFirstBuild', // Maps to "After 1st Build" checkbox
+        'second_build': 'actionSecondBuild',         // Maps to "Second Build" checkbox
+        'after_second_build': 'actionAfterSecondBuild' // Maps to "After 2nd Build" checkbox
     };
+    
+    // Debug: Log the mapping to verify it's correct
+    console.log(`🔍 RENDERER: Mapping "${actionType}" to element ID: ${actionMap[actionType]}`);
+    
+    // Verify the mapping is correct - log what we expect vs what we're mapping
+    if (actionType === 'first_build') {
+        console.log(`🔍 RENDERER: VERIFY - first_build should map to actionFirstBuild, got: ${actionMap[actionType]}`);
+    } else if (actionType === 'second_build') {
+        console.log(`🔍 RENDERER: VERIFY - second_build should map to actionSecondBuild, got: ${actionMap[actionType]}`);
+    } else if (actionType === 'after_first_build') {
+        console.log(`🔍 RENDERER: VERIFY - after_first_build should map to actionAfterFirstBuild, got: ${actionMap[actionType]}`);
+    } else if (actionType === 'after_second_build') {
+        console.log(`🔍 RENDERER: VERIFY - after_second_build should map to actionAfterSecondBuild, got: ${actionMap[actionType]}`);
+    }
     
     const elementId = actionMap[actionType];
     console.log(`📍 RENDERER: Mapped to element ID: ${elementId}`);

@@ -19,7 +19,9 @@
     "electron-rebuild": "^3.2.9"
   },
   "dependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0",
     "node-screenshots": "^0.2.1",
+    "opencv.js": "^1.2.1",
     "robotjs": "^0.6.0",
     "screenshot-desktop": "^1.15.3",
     "sharp": "^0.33.2",
