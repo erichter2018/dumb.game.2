@@ -616,11 +616,82 @@ function startAutomation(dependencies) {
                 return 'exit_level_detected';
             }
 
-            // Handle activeSkill completion - exit immediately to check for red blobs (blue box disappeared)
+            // Handle activeSkill completion - execute after-build actions BEFORE exiting
+            // The scroll action should happen whether the build finishes or not
             if (buildStatus === 'custom_trigger_activeskill_completed') {
-                updateStatus('Active Skill completed. Blue box disappeared. Exiting prepBuild to check for red blobs.', 'info');
-                console.log('DEBUG: Active Skill completed. Blue box disappeared. Exiting prepBuild to immediately check for red blobs.');
-                return buildStatus; // Return immediately, skip after-build actions
+                updateStatus('Active Skill completed. Blue box disappeared. Executing after-build actions before checking for red blobs.', 'info');
+                console.log('DEBUG: Active Skill completed. Blue box disappeared. Executing after-build actions before checking for red blobs.');
+                
+                // Get current build attempt number (build was interrupted, so use attempt number)
+                const currentBuildAttempt = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+                // Since the build was interrupted, we need to subtract 1 to get the actual attempt number
+                // (markFinishBuildRunForCurrentLevel increments at start, so currentBuildAttempt is the NEXT build)
+                const actualBuildAttempt = Math.max(1, currentBuildAttempt - 1);
+                
+                // Get current level name to check settings
+                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+                const eff = selectEffectiveDirectionOnce(settingsLevelName);
+                const levelSettings = (() => {
+                    const global = settingsManager.getLevelSettings(settingsLevelName);
+                    const dirSettings = settingsManager.getDirectionSettings(settingsLevelName, eff.dir);
+                    return {
+                        ...dirSettings,
+                        ...global, // Include all global settings (including scrollAfterFirstBuild, scrollAfterSecondBuild)
+                        scrollDirection: eff.dir
+                    };
+                })();
+                
+                // Check scroll action after build based on build attempt number
+                let scrollSetting = { action: 'nothing' };
+                if (actualBuildAttempt === 1) {
+                    scrollSetting = levelSettings.scrollAfterFirstBuild || { action: 'nothing' };
+                } else if (actualBuildAttempt === 2) {
+                    scrollSetting = levelSettings.scrollAfterSecondBuild || { action: 'nothing' };
+                }
+                
+                console.log(`DEBUG: [ACTIVESKILL INTERRUPT] scrollAfterFirstBuild:`, JSON.stringify(levelSettings.scrollAfterFirstBuild));
+                console.log(`DEBUG: [ACTIVESKILL INTERRUPT] scrollAfterSecondBuild:`, JSON.stringify(levelSettings.scrollAfterSecondBuild));
+                console.log(`DEBUG: [ACTIVESKILL INTERRUPT] scrollSetting for build attempt #${actualBuildAttempt}:`, JSON.stringify(scrollSetting));
+                
+                if (scrollSetting.action !== 'nothing') {
+                    // Click off before scrolling
+                    if (performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                        await performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                        await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay after click off
+                    }
+                    
+                    const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                    const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                    
+                    console.log(`DEBUG: [ACTIVESKILL INTERRUPT] Scroll after build attempt #${actualBuildAttempt}: ${scrollSetting.action} (direction: ${scrollSetting.direction || 'N/A'}, distance: ${scrollSetting.distance || 'N/A'})`);
+                    
+                    if (scrollSetting.action === 'scrollToBottom') {
+                        await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                    } else if (scrollSetting.action === 'scrollToTop') {
+                        await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+                    } else if (scrollSetting.action === 'scrollCustom') {
+                        const distance = scrollSetting.distance || 300;
+                        if (scrollSetting.direction === 'up') {
+                            await scrollUpWithDistance(scrollX, scrollY, distance);
+                            console.log(`DEBUG: [ACTIVESKILL INTERRUPT] Scrolled UP ${distance}px after build attempt #${actualBuildAttempt}`);
+                        } else {
+                            await scrollDown(scrollX, scrollY, distance);
+                            console.log(`DEBUG: [ACTIVESKILL INTERRUPT] Scrolled DOWN ${distance}px after build attempt #${actualBuildAttempt}`);
+                        }
+                    }
+                    if (!getIsAutomationRunning()) return 'stopped';
+                    
+                    // Send after-build action signal
+                    const afterBuildAction = actualBuildAttempt === 1 ? 'after_first_build' : 'after_second_build';
+                    if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
+                        console.log(`🎯 [ACTIVESKILL INTERRUPT] Sending ${afterBuildAction} action completed signal (build interrupted by activeSkill)`);
+                        dependencies.mainWindow.webContents.send('level-action-completed', afterBuildAction);
+                    }
+                }
+                
+                // Now return to check for red blobs
+                return buildStatus;
             }
             
             if (buildStatus !== 'stopped' && buildStatus !== 'error' && buildStatus !== 'max_build_at_startup') {
@@ -1323,8 +1394,10 @@ function startAutomation(dependencies) {
                         // IMMEDIATELY calculate and update previous level duration
                         // This happens RIGHT AT OCR success, before any clicks or scrolling
                         const rawDuration = levelTransitionTimestamp - getCurrentLevelStartTime();
-                        const compensatedDuration = rawDuration - getReconnectionDowntimeMs();
-                        console.log(`⏱️ TIMING: Level ended at transition (OCR success), duration: ${(compensatedDuration / 1000).toFixed(1)}s`);
+                        const reconnectionDowntime = getReconnectionDowntimeMs();
+                        const pauseTime = exitDependencies.getAccumulatedPauseTimeMs ? exitDependencies.getAccumulatedPauseTimeMs() : 0;
+                        const compensatedDuration = rawDuration - reconnectionDowntime - pauseTime;
+                        console.log(`⏱️ TIMING: Level ended at transition (OCR success), raw duration: ${(rawDuration / 1000).toFixed(1)}s, reconnection downtime: ${(reconnectionDowntime / 1000).toFixed(1)}s, pause time: ${(pauseTime / 1000).toFixed(1)}s, compensated: ${(compensatedDuration / 1000).toFixed(1)}s`);
                         
                         // 1. Add previous level to stage tracking FIRST (dependency version)
                         updatePreviousLevelDuration(compensatedDuration);
@@ -1362,8 +1435,10 @@ function startAutomation(dependencies) {
             // If OCR failed, use current time as fallback
             levelTransitionTimestamp = Date.now();
             const rawDuration = levelTransitionTimestamp - getCurrentLevelStartTime();
-            const compensatedDuration = rawDuration - getReconnectionDowntimeMs();
-            console.log(`⏱️ TIMING: OCR failed - using fallback timestamp for transition, duration: ${(compensatedDuration / 1000).toFixed(1)}s`);
+            const reconnectionDowntime = getReconnectionDowntimeMs();
+            const pauseTime = exitDependencies.getAccumulatedPauseTimeMs ? exitDependencies.getAccumulatedPauseTimeMs() : 0;
+            const compensatedDuration = rawDuration - reconnectionDowntime - pauseTime;
+            console.log(`⏱️ TIMING: OCR failed - using fallback timestamp for transition, raw duration: ${(rawDuration / 1000).toFixed(1)}s, reconnection downtime: ${(reconnectionDowntime / 1000).toFixed(1)}s, pause time: ${(pauseTime / 1000).toFixed(1)}s, compensated: ${(compensatedDuration / 1000).toFixed(1)}s`);
             
             // Add previous level to stage tracking
             updatePreviousLevelDuration(compensatedDuration);

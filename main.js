@@ -60,6 +60,8 @@ let shortestLevelDurationMs = null; // New: To store the shortest level duration
 let levelsFinishedCount = 0; // New: To track the number of levels finished
 let totalLevelsDurationMs = 0; // New: To accumulate total duration for average calculation
 let longestLevels = []; // New: Array to store top 3 longest levels with names
+let pauseStartTime = null; // Track when pause was started
+let accumulatedPauseTimeMs = 0; // Track total pause time for current level
 
 // Stage tracking variables
 let currentStage = null; // Current stage info: { name, startTime, levels: [], id: timestamp }
@@ -141,6 +143,13 @@ function getCurrentLevelName() {
 
 function updateCurrentLevelName(levelName) {
     const originalLevelName = levelName || 'Unknown Level';
+    
+    // Reset build name tracking for new level
+    if (originalLevelName !== 'Unknown Level' && originalLevelName !== 'Unnamed Level' && originalLevelName !== '' && originalLevelName !== currentLevelName) {
+        const buildNameTracker = require('./lib/buildNameTracker');
+        buildNameTracker.resetLevelTracking(originalLevelName);
+        console.log(`DEBUG: Reset build name tracking for new level: "${originalLevelName}"`);
+    }
     
     // Skip processing for temporary "Unknown Level" or empty names during level transitions
     if (originalLevelName === 'Unknown Level' || originalLevelName === 'Unnamed Level' || originalLevelName === '') {
@@ -1128,19 +1137,13 @@ function getBuildNumberForCurrentLevel() {
 }
 
 function markFinishBuildRunForCurrentLevel() {
-    const currentCount = levelBuildCounts.get(currentLevelName) || 0;
-    const lastBuildCompleted = levelBuildCompletionStatus.get(currentLevelName);
-    
-    // Only increment if this is the first build OR the last build completed successfully
-    if (currentCount === 0 || lastBuildCompleted === true) {
-        levelBuildCounts.set(currentLevelName, currentCount + 1);
-        console.log(`DEBUG: Marked finishBuild run for level: "${currentLevelName}", new count: ${currentCount + 1} (last build completed: ${lastBuildCompleted ?? 'N/A - first build'})`);
-    } else {
-        console.log(`DEBUG: NOT incrementing build count for "${currentLevelName}" - last build was interrupted (count stays at ${currentCount})`);
-    }
+    // NOTE: Build numbers are now determined by build names via buildNameTracker
+    // This function is kept for compatibility but no longer increments counters
+    // The counter-based system is only used as a fallback when OCR fails
     
     // Reset completion status for this new build attempt
     levelBuildCompletionStatus.set(currentLevelName, false);
+    console.log(`DEBUG: Marked finishBuild run for level: "${currentLevelName}" (build number will be determined by build name)`);
 }
 
 function markBuildAsCompleted() {
@@ -1273,6 +1276,8 @@ function updatePreviousLevelDuration(durationMs, transitionTimestamp = null) {
     // This ensures the new level timer starts exactly when OCR detected the new level
     if (transitionTimestamp) {
         currentLevelStartTime = transitionTimestamp;
+        accumulatedPauseTimeMs = 0; // Reset pause time for new level
+        pauseStartTime = null; // Clear any active pause start time
         const elapsedSinceTransition = Date.now() - transitionTimestamp;
         console.log(`⏱️ TIMING: New level timer started at transition timestamp (${transitionTimestamp})`);
         console.log(`⏱️ TIMING: Elapsed since transition: ${(elapsedSinceTransition / 1000).toFixed(1)}s - updating display immediately`);
@@ -2335,6 +2340,8 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     updateCurrentFunction('toggle-finish-level'); // Update current function
     currentLevelStartTime = Date.now(); // Start timer for current level
     reconnectionDowntimeMs = 0; // Reset reconnection downtime for new level
+    accumulatedPauseTimeMs = 0; // Reset pause time for new level
+    pauseStartTime = null; // Clear any active pause start time
     updatePreviousLevelDuration(previousLevelDurationMs); // Display previous level duration
     updateLongestLevelDuration(longestLevelDurationMs); // New: Display longest level duration
     updateShortestLevelDuration(shortestLevelDurationMs); // New: Display shortest level duration
@@ -2537,6 +2544,8 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     // New: Pass a setter function for the current level start time
     setCurrentLevelStartTime: (timestamp) => {
         currentLevelStartTime = timestamp;
+        accumulatedPauseTimeMs = 0; // Reset pause time for new level
+        pauseStartTime = null; // Clear any active pause start time
         // Also update the display immediately
         const elapsedSinceTransition = Date.now() - timestamp;
         updateCurrentLevelDuration(elapsedSinceTransition);
@@ -2544,6 +2553,14 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     },
     // New: Pass a getter function for the reconnection downtime
     getReconnectionDowntimeMs: () => reconnectionDowntimeMs,
+    getAccumulatedPauseTimeMs: () => {
+        // If currently paused, include the current pause duration
+        let currentPauseTime = 0;
+        if (pauseStartTime) {
+            currentPauseTime = Date.now() - pauseStartTime;
+        }
+        return accumulatedPauseTimeMs + currentPauseTime;
+    },
     // New: Pass counter functions for clickAround calls
     getClickAroundCallCounter: getClickAroundCallCounter,
     incrementClickAroundCallCounter: incrementClickAroundCallCounter,
@@ -2975,9 +2992,23 @@ function toggleAutomationPause() {
     return;
   }
   
+  const wasPaused = isAutomationPaused;
   isAutomationPaused = !isAutomationPaused;
   const status = isAutomationPaused ? 'paused' : 'resumed';
   console.log(`⏸️ Automation ${status}`);
+  
+  // Track pause time for current level
+  if (isAutomationPaused && !wasPaused) {
+    // Pause started - record start time
+    pauseStartTime = Date.now();
+    console.log(`⏸️ Pause started at ${pauseStartTime} - tracking pause time for level`);
+  } else if (!isAutomationPaused && wasPaused && pauseStartTime) {
+    // Pause ended - accumulate pause duration
+    const pauseDuration = Date.now() - pauseStartTime;
+    accumulatedPauseTimeMs += pauseDuration;
+    console.log(`⏸️ Pause ended - duration: ${(pauseDuration / 1000).toFixed(1)}s, total accumulated: ${(accumulatedPauseTimeMs / 1000).toFixed(1)}s`);
+    pauseStartTime = null;
+  }
   
   // Notify renderer
   if (mainWindow && !mainWindow.isDestroyed()) {

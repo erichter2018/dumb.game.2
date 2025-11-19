@@ -77,8 +77,8 @@ async function checkCustomTriggersDuringBuild(levelName, buildNumber, elapsedTim
                         }
                     } else {
                         // "after" timing - fire immediately when build completes
-                        shouldTrigger = true;
-                        console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
+                    shouldTrigger = true;
+                    console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
                     }
                 }
             }
@@ -165,8 +165,8 @@ async function checkCustomTriggersAfterBuild(levelName, buildNumber, elapsedTime
                         }
                     } else {
                         // "after" timing - fire immediately when build completes
-                        shouldTrigger = true;
-                        console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
+                    shouldTrigger = true;
+                    console.log(`DEBUG: Build name trigger condition met: "${buildName}" contains "${trigger.triggerValue}"`);
                     }
                 }
             }
@@ -728,19 +728,12 @@ async function runBuildProtocol(dependencies) {
     
     console.log(`DEBUG: Loading settings for "${settingsLevelName}" with effective direction: ${effectiveDirection || 'unknown (using saved preference)'}`);
     
-    const buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
-    const minBuildCount = dependencies.getMinimumBuildCount ? dependencies.getMinimumBuildCount(currentLevelName) : null;
-    console.log(`DEBUG: runBuildProtocol - Level: "${currentLevelName}", buildNumber: ${buildNumber}, minBuildCount: ${minBuildCount}`);
-    
     // Variable to store build name (will be captured via OCR)
     let buildName = '';
+    let buildNumber = 1; // Default fallback
     
-    // Format build number display with "X/Y" if minimum build count is available
-    const buildDisplay = minBuildCount ? `${buildNumber}/${minBuildCount}` : `${buildNumber}`;
-    console.log(`DEBUG: runBuildProtocol - buildDisplay: "${buildDisplay}"`);
-    updateCurrentFunction(`runBuildProtocol ${buildDisplay}`); // Update current function display with build number
-    
-    // Mark that finishBuild is being run for this level (after getting the build number)
+    // Mark that finishBuild is being run for this level (before capturing build name)
+    // This ensures the level tracking is initialized
     if (dependencies.markFinishBuildRunForCurrentLevel) {
         dependencies.markFinishBuildRunForCurrentLevel();
     }
@@ -752,23 +745,7 @@ async function runBuildProtocol(dependencies) {
     // Get max build time from settings (default 3 minutes if not specified)
     const maxBuildTimeMs = levelSettings.maxBuildTimeMs || 180000;
     
-    console.log(`DEBUG: Build actions from settings for "${settingsLevelName}"${currentLevelName !== settingsLevelName ? ` (internal name: "${currentLevelName}")` : ''}:`, {
-        first: firstBuildAction,
-        second: secondBuildAction,
-        buildNumber: buildNumber
-    });
-    
-    // Determine which action to use based on build number
-    // Only first and second builds have actions; third+ builds have no actions
-    let currentBuildAction = { action: 'nothing', triggerTimeMs: null };
-    if (buildNumber === 1) {
-        currentBuildAction = firstBuildAction;
-    } else if (buildNumber === 2) {
-        currentBuildAction = secondBuildAction;
-    }
-    const actionTriggerTime = currentBuildAction.triggerTimeMs;
-    
-    console.log(`DEBUG: Build #${buildNumber} - Using action: ${currentBuildAction.action} at ${actionTriggerTime}ms`);
+    // Build actions will be determined after build name is captured
     
     let timerInterval = null; // To hold the interval ID for clearing
 
@@ -816,27 +793,59 @@ async function runBuildProtocol(dependencies) {
         updateStatus(`Initial build box active at X:${blueBoxCoords.x}, Y:${blueBoxCoords.y} (State: ${initialDetectedBox.state})`, 'info');
         console.log(`DEBUG: Initial build box found: ${JSON.stringify(omitImageFromLog(initialDetectedBox))}`);
 
-        // Capture build name via OCR asynchronously (don't block build start)
+        // Capture build name via OCR FIRST - this determines the build number
         if (captureScreenRegion) {
-            updateStatus('Capturing build name via OCR (async)...', 'info');
-            // Start OCR but don't await - it will update buildName when ready
-            captureBuildName(initialDetectedBox, captureScreenRegion).then(name => {
-                if (name) {
-                    buildName = name; // Update the variable when ready
-                    console.log(`DEBUG: Build name captured asynchronously: "${buildName}"`);
-                    // Update display with the build name
-                    const nameDisplay = buildName ? ` ${buildName}` : '';
-                    const elapsedTime = Date.now() - startTime;
-                    const minutes = Math.floor(elapsedTime / 60000);
-                    const seconds = Math.floor((elapsedTime % 60000) / 1000);
-                    updateCurrentFunction(`runBuildProtocol ${buildDisplay}${nameDisplay} (${minutes}m ${seconds}s)`);
-                } else {
-                    console.log('DEBUG: Failed to capture build name asynchronously, continuing without it');
+            updateStatus('Capturing build name via OCR...', 'info');
+            buildName = await captureBuildName(initialDetectedBox, captureScreenRegion);
+            if (buildName && currentLevelName) {
+                console.log(`DEBUG: Build name captured successfully: "${buildName}"`);
+                
+                // Get or assign build number based on build name
+                // This ensures same build name = same build number (even if interrupted)
+                const buildNameTracker = require('../../lib/buildNameTracker');
+                buildNumber = buildNameTracker.getOrAssignBuildNumber(currentLevelName, buildName);
+                if (!buildNumber) {
+                    // Fallback if build name tracking fails
+                    buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+                    console.log(`DEBUG: Build name tracking failed, using fallback build number: ${buildNumber}`);
+            } else {
+                    console.log(`DEBUG: Build number assigned based on build name "${buildName}": ${buildNumber}`);
                 }
-            }).catch(err => {
-                console.error('DEBUG: Error capturing build name:', err);
-            });
+            } else {
+                console.log('DEBUG: Failed to capture build name, using counter-based build number');
+                // Fallback to counter-based system if OCR fails
+                buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+            }
+        } else {
+            // No capture function available, use counter-based fallback
+            buildNumber = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
         }
+        
+        const minBuildCount = dependencies.getMinimumBuildCount ? dependencies.getMinimumBuildCount(currentLevelName) : null;
+        console.log(`DEBUG: runBuildProtocol - Level: "${currentLevelName}", buildNumber: ${buildNumber} (from build name: "${buildName || 'N/A'}"), minBuildCount: ${minBuildCount}`);
+        
+        // Format build number display with "X/Y" if minimum build count is available
+        const buildDisplay = minBuildCount ? `${buildNumber}/${minBuildCount}` : `${buildNumber}`;
+        const nameDisplay = buildName ? ` ${buildName}` : '';
+        updateCurrentFunction(`runBuildProtocol ${buildDisplay}${nameDisplay}`); // Update current function display with build number
+        
+        // Now determine build actions based on the build number
+        // Determine which action to use based on build number
+        // Only first and second builds have actions; third+ builds have no actions
+        let currentBuildAction = { action: 'nothing', triggerTimeMs: null };
+        if (buildNumber === 1) {
+            currentBuildAction = firstBuildAction;
+        } else if (buildNumber === 2) {
+            currentBuildAction = secondBuildAction;
+        }
+        const actionTriggerTime = currentBuildAction.triggerTimeMs;
+        
+        console.log(`DEBUG: Build actions from settings for "${settingsLevelName}"${currentLevelName !== settingsLevelName ? ` (internal name: "${currentLevelName}")` : ''}:`, {
+            first: firstBuildAction,
+            second: secondBuildAction,
+            buildNumber: buildNumber
+        });
+        console.log(`DEBUG: Build #${buildNumber} - Using action: ${currentBuildAction.action} at ${actionTriggerTime}ms`);
 
         // Step 2: Start a loop
         let isFirstLoopIteration = true; // Flag to skip detection on first iteration when we have confirmed box

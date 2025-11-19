@@ -383,9 +383,9 @@ async function readAdCountdown(dependencies) {
     
     try {
         const countdownRegion = {
-            x: 195,
+            x: 180,  // Extended 15px to the left (was 195)
             y: 979,  // Moved up by 4 pixels (was 983)
-            width: 272 - 195,  // 77px width
+            width: 272 - 180,  // 92px width (extended by 15px)
             height: 1002 - 983  // 19px height
         };
         
@@ -1811,9 +1811,9 @@ async function triggerAds(dependencies) {
                                 const imageBuffer = Buffer.from(base64Data, 'base64');
                                 
                                 const countdownRegion = {
-                                    x: 195,
+                                    x: 180,  // Extended 15px to the left (was 195)
                                     y: 979,
-                                    width: 272 - 195,
+                                    width: 272 - 180,  // Extended by 15px
                                     height: 1002 - 983
                                 };
                                 

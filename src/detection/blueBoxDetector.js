@@ -509,21 +509,17 @@ async function detect(imageDataUrl, captureRegion, isWindowCapture = false) {
             if (greenPixelDensity > greenPixelThreshold) {
                 boxState = 'green_excluded'; // Exclude if too much green
                 console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as GREEN_EXCLUDED (density: ${greenPixelDensity.toFixed(2)}).`);
-            } else if (isGrey(averageColor)) {
-                console.log(`DEBUG: Box at x:${box.x}, y:${box.y} is generally Grey. Avg RGB: (${averageColor.r.toFixed(0)}, ${averageColor.g.toFixed(0)}, ${averageColor.b.toFixed(0)}). hasRedText: ${hasRedTextResult}, hasWhiteText: ${hasWhiteText}.`);
-                if (!hasRedTextResult && hasWhiteText) {
-                    boxState = 'grey_max';
-                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as GREY MAX (no red, has white).`);
-                } else if (hasRedTextResult && hasWhiteText) {
-                    boxState = 'grey_build'; // Grey with red text
-                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as GREY BUILD (has red, has white).`);
-                } else {
-                    boxState = 'other_grey'; // Grey without specific text patterns
-                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as OTHER GREY (no specific text).`);
-                }
-            } else if (hasRedOrangeCircle && hasWhiteText) { // Blue build box criteria
+            } 
+            // TEMPORARY FIX: Check blue_build pattern BEFORE grey check
+            // REASON: Blue builds with prominent white text (like "518K") can have grey-ish average colors
+            // when white text dominates the average. This causes them to be misclassified as grey_max
+            // even though they have circle + white text (blue_build pattern).
+            // REVERSIBLE: If this causes issues, revert to checking grey first (original order below).
+            // Original order was: green_excluded -> isGrey() -> blue_build check
+            // New order: green_excluded -> blue_build check (if circle+text) -> isGrey()
+            else if (hasRedOrangeCircle && hasWhiteText) { // Blue build box criteria - CHECK BEFORE GREY
                 console.log(`DEBUG: [DECISION] Blue build box check - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}.`);
-                console.log(`DEBUG: [DECISION] Entering BLUE BUILD detection path`);
+                console.log(`DEBUG: [DECISION] Entering BLUE BUILD detection path (checked before grey)`);
                 
                 // TODO: POTENTIAL FUTURE ENHANCEMENT - Add blue content requirement
                 // Uncomment the line below if we want to require >50% blue content for blue_build classification
@@ -575,6 +571,20 @@ async function detect(imageDataUrl, captureRegion, isWindowCapture = false) {
                         boxState = 'other_non_blue'; // Not grey, not blue build
                         console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as OTHER NON-BLUE (blue density: ${blueDensity.toFixed(2)}).`);
                     }
+                }
+            } else if (isGrey(averageColor)) {
+                // ORIGINAL ORDER: This grey check was BEFORE blue_build check
+                // REVERT: Move this block back above the blue_build check to restore original behavior
+                console.log(`DEBUG: Box at x:${box.x}, y:${box.y} is generally Grey. Avg RGB: (${averageColor.r.toFixed(0)}, ${averageColor.g.toFixed(0)}, ${averageColor.b.toFixed(0)}). hasRedText: ${hasRedTextResult}, hasWhiteText: ${hasWhiteText}.`);
+                if (!hasRedTextResult && hasWhiteText) {
+                    boxState = 'grey_max';
+                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as GREY MAX (no red, has white).`);
+                } else if (hasRedTextResult && hasWhiteText) {
+                    boxState = 'grey_build'; // Grey with red text
+                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as GREY BUILD (has red, has white).`);
+                } else {
+                    boxState = 'other_grey'; // Grey without specific text patterns
+                    console.log(`DEBUG: Identified box at x:${box.x}, y:${box.y} as OTHER GREY (no specific text).`);
                 }
             } else { // Neither grey nor blue build criteria met
                 console.log(`DEBUG: [DECISION] UNKNOWN path - hasRedOrangeCircle: ${hasRedOrangeCircle}, hasWhiteText: ${hasWhiteText}`);

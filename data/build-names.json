@@ -1,0 +1,451 @@
+{
+  "unknown level": {
+    "buildNames": [
+      "Oyster",
+      "Fish n' Chips",
+      "Grape Juice",
+      "Soda",
+      "Pizza",
+      "Doner Kebab",
+      "Burger",
+      "Bucket",
+      "Chicken Bucket",
+      "Hot Dog",
+      "Nuggets",
+      "Onion Rings",
+      "Fries",
+      "Milk Shake",
+      "Ice Cream",
+      "Muffins",
+      "Cookies",
+      "Coffee",
+      "Croissant",
+      "Donut",
+      "Sausages",
+      "Ramen",
+      "Kare-Raisu 2",
+      "Green Tea",
+      "Knafeh",
+      "Sweet Balls",
+      "Turkish Delight",
+      "Baklava"
+    ],
+    "lastUpdated": 1763533799676,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763533799677
+  },
+  "fish and chips shop": {
+    "buildNames": [
+      "Fish n' Chips",
+      "Sausages",
+      "Burger",
+      "Fries",
+      "Soda"
+    ],
+    "lastUpdated": 1763466126496
+  },
+  "restaurant": {
+    "buildNames": [
+      "Grape Juice",
+      "Tomato Soup",
+      "Turkey",
+      "Lobster",
+      "Steak",
+      "Cheese Cake",
+      "Special Burger",
+      "Fish",
+      "Spaghetti",
+      "Salad"
+    ],
+    "lastUpdated": 1763466485197
+  },
+  "ice cream stand": {
+    "buildNames": [
+      "Ice Cream"
+    ],
+    "lastUpdated": 1763466525589
+  },
+  "waffle stand": {
+    "buildNames": [
+      "Waffles",
+      "Donut"
+    ],
+    "lastUpdated": 1763466555434
+  },
+  "coffee truck": {
+    "buildNames": [
+      "Coffee",
+      "Sandwich",
+      "Croissant"
+    ],
+    "lastUpdated": 1763466607079,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763466607080
+  },
+  "dessert co": {
+    "buildNames": [
+      "Milk Shake",
+      "Sweet Balls",
+      "Pancakes",
+      "Waffles",
+      "Tiramisu"
+    ],
+    "lastUpdated": 1763466709947
+  },
+  "pizzeria": {
+    "buildNames": [
+      "Pizza",
+      "Garlic bread",
+      "Soda",
+      "Calzone"
+    ],
+    "lastUpdated": 1763533032176
+  },
+  "hot dog stand": {
+    "buildNames": [
+      "Hot Dog"
+    ],
+    "lastUpdated": 1763529181987
+  },
+  "food stand": {
+    "buildNames": [
+      "Soda",
+      "Hot Dog"
+    ],
+    "lastUpdated": 1763529200469
+  },
+  "ramen truck": {
+    "buildNames": [
+      "Ramen",
+      "Green Tea",
+      "Kare-Raisu"
+    ],
+    "lastUpdated": 1763529266320
+  },
+  "cafe": {
+    "buildNames": [
+      "Coffee",
+      "Sandwich",
+      "Muffins",
+      "Cheese Cake"
+    ],
+    "lastUpdated": 1763529325423
+  },
+  "joghurt house": {
+    "buildNames": [
+      "Frozen Joghurt",
+      "Milk Shake",
+      "Ice Cream",
+      "Popsicle"
+    ],
+    "lastUpdated": 1763529384477
+  },
+  "lobster house": {
+    "buildNames": [
+      "Grape Juice",
+      "Tomato Soup",
+      "Lobster",
+      "Oyster",
+      "Fish n' Chips",
+      "Salad"
+    ],
+    "lastUpdated": 1763529497917,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763529497917
+  },
+  "diner": {
+    "buildNames": [
+      "Coffee",
+      "Soda",
+      "Fries",
+      "Pizza",
+      "Burger",
+      "Ice Cream",
+      "Pancakes",
+      "Waffles",
+      "Egg",
+      "Onion Rings"
+    ],
+    "lastUpdated": 1763529750400
+  },
+  "news stand": {
+    "buildNames": [
+      "NewsPaper",
+      "Moon Bar"
+    ],
+    "lastUpdated": 1763529787764
+  },
+  "food truck": {
+    "buildNames": [
+      "Fries",
+      "Milk Shake",
+      "Wrap"
+    ],
+    "lastUpdated": 1763529819813
+  },
+  "fast food": {
+    "buildNames": [
+      "Soda",
+      "Pizza",
+      "Nuggets",
+      "Fries",
+      "Burger 2"
+    ],
+    "lastUpdated": 1763529894961
+  },
+  "mocktail bar": {
+    "buildNames": [
+      "Mocktail",
+      "Grape Juice",
+      "Nuts",
+      "Sandwich"
+    ],
+    "lastUpdated": 1763529948805
+  },
+  "drive thru take out": {
+    "buildNames": [
+      "Soda",
+      "Onion Rings",
+      "Nuggets",
+      "Hot Dog",
+      "Fries",
+      "YChicken Bucket",
+      "Burger",
+      "Fish n' Chips",
+      "Doner Kebab",
+      "Pizza"
+    ],
+    "lastUpdated": 1763530124876
+  },
+  "lemonade stand": {
+    "buildNames": [
+      "Lemonade"
+    ],
+    "lastUpdated": 1763530142546
+  },
+  "big ice cream stand": {
+    "buildNames": [
+      "Ice Cream",
+      "Popsicle"
+    ],
+    "lastUpdated": 1763530161280
+  },
+  "ice cream truck": {
+    "buildNames": [
+      "Cream",
+      "Moon Bar",
+      "Popsicle",
+      "Ice Cream"
+    ],
+    "lastUpdated": 1763534164412,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763534164413
+  },
+  "kebab shop": {
+    "buildNames": [
+      "Doner Kebab",
+      "Turkish Coffee",
+      "Wrap",
+      "Soda",
+      "Burger"
+    ],
+    "lastUpdated": 1763534277810
+  },
+  "cafe napolita": {
+    "buildNames": [
+      "Coffee",
+      "Baguette",
+      "Muffins 2",
+      "Moon Bar"
+    ],
+    "lastUpdated": 1763530879327
+  },
+  "seafood restaurant": {
+    "buildNames": [
+      "Grape Juice",
+      "Salad",
+      "Oyster",
+      "Lobster",
+      "Sweet Balls 2",
+      "Shrimps",
+      "Fish",
+      "Fishn' Chips",
+      "Garlic bread",
+      "Tomato Soup"
+    ],
+    "lastUpdated": 1763531112995,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763531112996
+  },
+  "street nuts": {
+    "buildNames": [
+      "Nuts"
+    ],
+    "lastUpdated": 1763531139067
+  },
+  "cheese shop": {
+    "buildNames": [
+      "Cheddar",
+      "Mozzarella",
+      "Baguette",
+      "Cottage Cheese",
+      "Feta",
+      "Blue Cheese"
+    ],
+    "lastUpdated": 1763531351575
+  },
+  "drive thru": {
+    "buildNames": [
+      "Donut"
+    ],
+    "lastUpdated": 1763531366351
+  },
+  "the fresh kitchen": {
+    "buildNames": [
+      "Grape Juice",
+      "Tomato Soup",
+      "Lasagne",
+      "Ramen",
+      "Fish",
+      "Oyster",
+      "Apple Juice",
+      "Spaghetti",
+      "Ravioli",
+      "Shish Taouk"
+    ],
+    "lastUpdated": 1763531948385
+  },
+  "floral stand": {
+    "buildNames": [
+      "Rose",
+      "Cactus"
+    ],
+    "lastUpdated": 1763531986821
+  },
+  "dumpling hut": {
+    "buildNames": [
+      "Dumplings",
+      "Sweet Balls",
+      "Dango",
+      "Tomato Soup"
+    ],
+    "lastUpdated": 1763532090373
+  },
+  "burrito king": {
+    "buildNames": [
+      "Soda",
+      "Milk Shake",
+      "Tacos",
+      "Wrap"
+    ],
+    "lastUpdated": 1763532542065
+  },
+  "big drive thru": {
+    "buildNames": [
+      "Soda",
+      "Special Burger",
+      "Hot Dog",
+      "Milk Shake",
+      "Chicken Bucket",
+      "Pizza",
+      "Nuggets",
+      "Onion Rings",
+      "Fries",
+      "Burger -"
+    ],
+    "lastUpdated": 1763532783662,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763532783663
+  },
+  "dango stand": {
+    "buildNames": [
+      "Dango"
+    ],
+    "lastUpdated": 1763532803659
+  },
+  "sushi bar": {
+    "buildNames": [
+      "Sushi",
+      "Sashimi",
+      "Green Tea",
+      "Kare-Raisu",
+      "Mochi"
+    ],
+    "lastUpdated": 1763533098306
+  },
+  "baklava shop": {
+    "buildNames": [
+      "Baklava",
+      "Knafeh",
+      "Sweet Balls",
+      "Turkish Delight"
+    ],
+    "lastUpdated": 1763534408534
+  },
+  "tapas bar": {
+    "buildNames": [
+      "Apple Juice 20",
+      "Sandwich",
+      "Olives",
+      "Shrimps"
+    ],
+    "lastUpdated": 1763533854770
+  },
+  "italiano": {
+    "buildNames": [
+      "Salad",
+      "Ravioli",
+      "Tiramisu",
+      "Tomato Soup",
+      "Mozzarella",
+      "Grape Juice",
+      "Spaghetti",
+      "Lasagne",
+      "Calzone",
+      "Pizza"
+    ],
+    "lastUpdated": 1763534110399
+  },
+  "coffee house": {
+    "buildNames": [
+      "Turkish Coffee",
+      "Mocktail",
+      "Sandwich",
+      "Nuts",
+      "Baklava",
+      "Knafeh"
+    ],
+    "lastUpdated": 1763534354542
+  },
+  "mezze bar": {
+    "buildNames": [
+      "Doner Kebab",
+      "Salad",
+      "Mocktail",
+      "Steak",
+      "Shish Taouk",
+      "Knafeh",
+      "Baklava",
+      "Falafel",
+      "Hummus",
+      "Turkish Coffee"
+    ],
+    "lastUpdated": 1763534634880,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763534634881
+  },
+  "curry wurst stand": {
+    "buildNames": [
+      "Soda",
+      "Curry Wurst"
+    ],
+    "lastUpdated": 1763534679977
+  },
+  "apple juice bar": {
+    "buildNames": [
+      "Apple Juice",
+      "Mocktail"
+    ],
+    "lastUpdated": 1763534952755
+  }
+}

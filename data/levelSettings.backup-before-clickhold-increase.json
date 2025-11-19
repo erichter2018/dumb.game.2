@@ -50,7 +50,7 @@
     "lemonade stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 2500,
+      "blueBoxClickHoldDuration": 2750,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -124,12 +124,13 @@
         "customTriggers": []
       },
       "customTriggers": [],
-      "minBuildCount": 1
+      "minBuildCount": 1,
+      "_blueBoxClickHoldDuration_original": 2500
     },
     "food stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3000,
+      "blueBoxClickHoldDuration": 3300,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -198,12 +199,13 @@
           "distance": 300
         }
       },
-      "minBuildCount": 2
+      "minBuildCount": 2,
+      "_blueBoxClickHoldDuration_original": 3000
     },
     "food truck": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3500,
+      "blueBoxClickHoldDuration": 3850,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -246,12 +248,13 @@
         },
         "optimized": true
       },
-      "minBuildCount": 3
+      "minBuildCount": 3,
+      "_blueBoxClickHoldDuration_original": 3500
     },
     "cafe": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -324,12 +327,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "fast food": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -402,12 +406,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 5
+      "minBuildCount": 5,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "drive thru": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -503,12 +508,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 7
+      "minBuildCount": 7,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "restaurant": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": true,
@@ -613,12 +619,13 @@
           }
         ]
       },
-      "minBuildCount": 10
+      "minBuildCount": 10,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "hot dog stand": {
       "doResearch": false,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 2500,
+      "blueBoxClickHoldDuration": 2750,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -691,12 +698,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 1
+      "minBuildCount": 1,
+      "_blueBoxClickHoldDuration_original": 2500
     },
     "news stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3000,
+      "blueBoxClickHoldDuration": 3300,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -769,12 +777,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 2
+      "minBuildCount": 2,
+      "_blueBoxClickHoldDuration_original": 3000
     },
     "coffee truck": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3500,
+      "blueBoxClickHoldDuration": 3850,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -843,12 +852,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 3
+      "minBuildCount": 3,
+      "_blueBoxClickHoldDuration_original": 3500
     },
     "pizzeria": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -917,12 +927,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "n/a": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -966,12 +977,13 @@
             "scrollToBottomAtEnd": false
           }
         }
-      }
+      },
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "coffee house": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "perfectStartingPosition": {
           "action": "wait",
@@ -1044,12 +1056,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 6
+      "minBuildCount": 6,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "diner": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": true,
@@ -1145,12 +1158,13 @@
           }
         ]
       },
-      "minBuildCount": 10
+      "minBuildCount": 10,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "ice cream stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 2500,
+      "blueBoxClickHoldDuration": 2750,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -1219,12 +1233,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 1
+      "minBuildCount": 1,
+      "_blueBoxClickHoldDuration_original": 2500
     },
     "taco stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3000,
+      "blueBoxClickHoldDuration": 3300,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -1297,12 +1312,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 2
+      "minBuildCount": 2,
+      "_blueBoxClickHoldDuration_original": 3000
     },
     "ice cream truck": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 3500,
+      "blueBoxClickHoldDuration": 3850,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -1389,12 +1405,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 1,
+      "_blueBoxClickHoldDuration_original": 3500
     },
     "mocktail bar": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -1467,12 +1484,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "joghurt house": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -1545,12 +1563,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "tapas bar": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -1623,12 +1642,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "big drive thru": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": true,
@@ -1820,12 +1840,13 @@
           }
         }
       ],
-      "minBuildCount": 10
+      "minBuildCount": 9,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "sushi bar": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": true,
@@ -1894,12 +1915,13 @@
           "distance": 500
         }
       },
-      "minBuildCount": 5
+      "minBuildCount": 5,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "seafood restaurant": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -1986,12 +2008,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 10
+      "minBuildCount": 9,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "street nuts": {
       "doResearch": false,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 2500,
+      "blueBoxClickHoldDuration": 2750,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2060,12 +2083,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 1
+      "minBuildCount": 1,
+      "_blueBoxClickHoldDuration_original": 2500
     },
     "floral stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3000,
+      "blueBoxClickHoldDuration": 3300,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2134,12 +2158,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 2
+      "minBuildCount": 2,
+      "_blueBoxClickHoldDuration_original": 3000
     },
     "cheese shop": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -2212,12 +2237,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 6
+      "minBuildCount": 6,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "fish and chips shop": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -2290,12 +2316,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 5
+      "minBuildCount": 5,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "dango stand": {
       "doResearch": false,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 2500,
+      "blueBoxClickHoldDuration": 2750,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2368,12 +2395,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 1
+      "minBuildCount": 1,
+      "_blueBoxClickHoldDuration_original": 2500
     },
     "big ice cream stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3000,
+      "blueBoxClickHoldDuration": 3300,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2445,12 +2473,13 @@
       "directionMode": "random",
       "optimized": true,
       "savedDirection": "up",
-      "minBuildCount": 2
+      "minBuildCount": 2,
+      "_blueBoxClickHoldDuration_original": 3000
     },
     "ramen truck": {
       "doResearch": true,
-      "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 3500,
+      "scrollDirection": "up",
+      "blueBoxClickHoldDuration": 3850,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2458,7 +2487,7 @@
           "action": "scroll_and_wait",
           "waitTimeMs": 1200,
           "scrollDirection": "up",
-          "scrollDistance": 100
+          "scrollDistance": 180
         },
         "firstBuildAction": {
           "action": "clickaround",
@@ -2499,7 +2528,7 @@
           "action": "scroll_and_wait",
           "waitTimeMs": 1200,
           "scrollDirection": "up",
-          "scrollDistance": 100
+          "scrollDistance": 180
         },
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2537,12 +2566,13 @@
           "distance": 300
         }
       },
-      "minBuildCount": 3
+      "minBuildCount": 3,
+      "_blueBoxClickHoldDuration_original": 3500
     },
     "waffle stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3000,
+      "blueBoxClickHoldDuration": 3300,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2612,12 +2642,13 @@
         "customTriggers": []
       },
       "customTriggers": [],
-      "minBuildCount": 2
+      "minBuildCount": 2,
+      "_blueBoxClickHoldDuration_original": 3000
     },
     "cafe napolita": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -2690,12 +2721,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "dessert co": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -2768,12 +2800,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 5
+      "minBuildCount": 5,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "italiano": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -2877,12 +2910,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 10
+      "minBuildCount": 10,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "baklava shop": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -2893,18 +2927,11 @@
           "scrollDistance": 100
         },
         "firstBuildAction": {
-          "action": "clickaround",
-          "triggerTimeMs": 15000,
+          "action": "nothing",
+          "triggerTimeMs": null,
           "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": false,
-            "clickaroundChunks": 1,
-            "scrollUpDistance": 0,
-            "scrollUpCount": 0,
-            "initialScrollDown": 0,
-            "scrollToBottomAtEnd": false
-          }
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
@@ -2936,18 +2963,11 @@
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
-          "action": "clickaround",
-          "triggerTimeMs": 15000,
+          "action": "nothing",
+          "triggerTimeMs": null,
           "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {
-            "excludeRedBlobs": false,
-            "clickaroundChunks": 1,
-            "scrollUpDistance": 0,
-            "scrollUpCount": 0,
-            "initialScrollDown": 0,
-            "scrollToBottomAtEnd": false
-          }
+          "clickaroundOptions": {}
         },
         "secondBuildAction": {
           "action": "nothing",
@@ -2998,12 +3018,13 @@
       "directionMode": "random",
       "optimized": true,
       "savedDirection": "up",
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "kebab shop": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -3076,12 +3097,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 5
+      "minBuildCount": 5,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "mezze bar": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": true,
@@ -3195,12 +3217,13 @@
         }
       },
       "customTriggers": [],
-      "minBuildCount": 10
+      "minBuildCount": 9,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "curry wurst stand": {
       "doResearch": false,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 3000,
+      "blueBoxClickHoldDuration": 3300,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -3269,12 +3292,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 2
+      "minBuildCount": 2,
+      "_blueBoxClickHoldDuration_original": 3000
     },
     "apple juice bar": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": true,
@@ -3378,12 +3402,13 @@
         }
       },
       "customTriggers": [],
-      "minBuildCount": 10
+      "minBuildCount": 10,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "lobster house": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": true,
@@ -3544,12 +3569,13 @@
           }
         ]
       },
-      "minBuildCount": 6
+      "minBuildCount": 5,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "dumpling hut": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -3623,12 +3649,13 @@
         }
       },
       "customTriggers": [],
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "the fresh kitchen": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": true,
@@ -3734,12 +3761,13 @@
         }
       },
       "customTriggers": [],
-      "minBuildCount": 10
+      "minBuildCount": 10,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "burrito king": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
@@ -3808,12 +3836,13 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 4,
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "drive thru take out": {
       "doResearch": true,
       "scrollDirection": "up",
-      "blueBoxClickHoldDuration": 6500,
+      "blueBoxClickHoldDuration": 7150,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
         "scrollToBottomAfterSecondBuild": false,
@@ -3895,7 +3924,8 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 10
+      "minBuildCount": 10,
+      "_blueBoxClickHoldDuration_original": 6500
     },
     "_global": {
       "directionMode": "lastWorst"
@@ -3903,7 +3933,7 @@
     "unknown level": {
       "doResearch": true,
       "scrollDirection": "down",
-      "blueBoxClickHoldDuration": 4500,
+      "blueBoxClickHoldDuration": 4950,
       "directionUp": {
         "optimized": true,
         "perfectStartingPosition": {
@@ -3983,7 +4013,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 28
+      "_blueBoxClickHoldDuration_original": 4500
     },
     "level 1": {
       "minBuildCount": 15
