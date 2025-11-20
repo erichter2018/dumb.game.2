@@ -3912,7 +3912,7 @@
       "minBuildCount": 11
     },
     "_global": {
-      "directionMode": "best"
+      "directionMode": "random"
     },
     "unknown level": {
       "doResearch": true,
@@ -4004,7 +4004,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 59
+      "minBuildCount": 60
     },
     "level 1": {
       "minBuildCount": 15

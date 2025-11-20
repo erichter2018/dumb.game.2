@@ -5040,8 +5040,8 @@
       "avgStageTime": 541361
     },
     "2025-11-20": {
-      "levelsCompleted": 217,
-      "stagesCompleted": 30,
+      "levelsCompleted": 219,
+      "stagesCompleted": 31,
       "levelTimes": [
         20112,
         61517,
@@ -5233,7 +5233,8 @@
         28073,
         56829,
         259357,
-        85228
+        85228,
+        15682
       ],
       "stageTimes": [
         543623,
@@ -5257,18 +5258,18 @@
       ],
       "minLevelTime": 12519,
       "maxLevelTime": 363786,
-      "avgLevelTime": 71706,
+      "avgLevelTime": 71414,
       "minStageTime": 344613,
       "maxStageTime": 791386,
       "avgStageTime": 541815
     }
   },
   "lastKnownLevel": {
-    "stageName": "Frankfurt",
-    "stageNumber": 54,
-    "levelName": "Sushi Bar",
-    "levelPosition": 6,
-    "timestamp": "2025-11-20T10:33:08.898Z"
+    "stageName": "Quebec",
+    "stageNumber": 55,
+    "levelName": "Hot Dog Stand",
+    "levelPosition": 1,
+    "timestamp": "2025-11-20T10:41:29.445Z"
   },
-  "lastSaveDate": "2025-11-20T10:33:08.898Z"
+  "lastSaveDate": "2025-11-20T10:41:29.445Z"
 }

@@ -2052,6 +2052,11 @@ function startAutomation(dependencies) {
         let lastFailsafeTime = null; // Track when the last failsafe ran
         const TEN_MINUTE_FAILSAFE_MS = 600000; // 10 minutes
         
+        // 15-second start-of-level failsafe: triggers clickaround if no build starts within 15 seconds
+        let levelStartTime = null; // Track when current level started
+        let startFailsafeTimeout = null; // Timeout for start failsafe
+        const START_FAILSAFE_MS = 15000; // 15 seconds
+        
         while (getIsAutomationRunning()) {
             // Check for pause state and wait if paused
             if (dependencies.waitIfPaused) {
@@ -2074,6 +2079,74 @@ function startAutomation(dependencies) {
                 lastLevelName = currentLevelNameCheck;
                 // Reset failsafe timer when level changes
                 lastFailsafeTime = null;
+                
+                // Start 15-second failsafe timer for new level
+                if (startFailsafeTimeout) {
+                    clearTimeout(startFailsafeTimeout);
+                    startFailsafeTimeout = null;
+                }
+                levelStartTime = Date.now();
+                console.log(`DEBUG: 🚨 Starting 15-second failsafe timer for level "${currentLevelNameCheck}" - will trigger clickaround if no build starts`);
+                startFailsafeTimeout = setTimeout(async () => {
+                    // Check if a build has started (buildCompletionCount > 0 or prepBuild was called)
+                    const currentLevelNameForFailsafe = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                    if (currentLevelNameForFailsafe === currentLevelNameCheck && buildCompletionCount === 0 && getIsAutomationRunning()) {
+                        console.log(`DEBUG: 🚨 START FAILSAFE TRIGGERED: No build started within 15 seconds for level "${currentLevelNameForFailsafe}" - executing clickaround`);
+                        updateStatus(`🚨 Start failsafe: No build triggered in 15s - executing clickaround...`, 'warn');
+                        
+                        try {
+                            const clickAroundDependencies = {
+                                updateStatus: dependencies.updateStatus,
+                                detectRedBlobs: dependencies.redBlobDetectorDetect,
+                                performClick: dependencies.performClick,
+                                performBatchedClicks: performBatchedClicks || (async (clickArray) => {
+                                    console.warn('WARNING: Using performBatchedClicks FALLBACK - this will be much slower!');
+                                    if (!Array.isArray(clickArray)) return { success: false, error: 'Invalid click array' };
+                                    for (const click of clickArray) {
+                                        await dependencies.performClick(click.x, click.y);
+                                    }
+                                    return { success: true };
+                                }),
+                                iphoneMirroringRegion: dependencies.iphoneMirroringRegion,
+                                updateCurrentFunction: dependencies.updateCurrentFunction,
+                                CLICK_AREAS: dependencies.CLICK_AREAS,
+                                captureScreenRegion: dependencies.captureScreenRegion,
+                                sendDetectionResults: (detections) => {
+                                    if (mainWindow && !mainWindow.isDestroyed()) {
+                                        mainWindow.webContents.send('detection-results', detections);
+                                    }
+                                },
+                                getIsClickAroundRunning: () => dependencies.getIsAutomationRunning(),
+                                getIsClickAroundPaused: () => false,
+                                scrollToBottom: dependencies.scrollToBottom,
+                                scrollSwipeDistance: dependencies.scrollSwipeDistance,
+                                scrollToBottomIterations: dependencies.scrollToBottomIterations,
+                                compareBottomRegions: dependencies.compareBottomRegions,
+                                captureBottomRegion: dependencies.captureBottomRegion,
+                            };
+                            
+                            const { clickAround } = require('./clickAround');
+                            const startFailsafeClickaroundOptions = {
+                                excludeRedBlobs: true,
+                                clickaroundChunks: 1, // 1 chunk as requested
+                                scrollUpDistance: 0, // 0 scrolls
+                                scrollUpCount: 0, // 0 scrolls
+                                initialScrollDown: 0, // 0 scrolls
+                                scrollToBottomAtEnd: false // No scroll to bottom
+                            };
+                            
+                            await clickAround(clickAroundDependencies, true, startFailsafeClickaroundOptions);
+                            console.log(`DEBUG: 🚨 START FAILSAFE: Clickaround completed - should have unstuck the level`);
+                            updateStatus(`Start failsafe clickaround completed`, 'success');
+                        } catch (error) {
+                            console.error(`DEBUG: 🚨 START FAILSAFE ERROR:`, error);
+                            updateStatus(`Start failsafe error: ${error.message}`, 'error');
+                        }
+                    } else {
+                        console.log(`DEBUG: 🚨 START FAILSAFE: Skipped - build already started (buildCompletionCount: ${buildCompletionCount}, level: "${currentLevelNameForFailsafe}")`);
+                    }
+                    startFailsafeTimeout = null;
+                }, START_FAILSAFE_MS);
             }
             
             // Check 10-minute failsafe: runs every 10 minutes until level finishes
@@ -2209,6 +2282,12 @@ function startAutomation(dependencies) {
                 console.log('DEBUG: Blue build box found. Launching prepBuild.');
                 redBlobsTried.clear(); // Reset tried blobs if a blue box is found and build is about to start
                 redBlobRetryCount.clear(); // Reset retry counters when starting a build
+                // Clear start failsafe timer - build is being triggered
+                if (startFailsafeTimeout) {
+                    clearTimeout(startFailsafeTimeout);
+                    startFailsafeTimeout = null;
+                    console.log(`DEBUG: 🚨 Cleared start failsafe timer - build triggered via prepBuild`);
+                }
                 const result = await prepBuild(lastRedBlobCoords);
                 if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during prepBuild
                 updateCurrentFunction('runFinishLevelProtocol'); // Update current function display after prepBuild returns
@@ -2299,6 +2378,12 @@ function startAutomation(dependencies) {
                     nextBuildCachedRedBlobCoords = null;
                     
                     if (!getIsAutomationRunning()) break;
+                    // Clear start failsafe timer - build is being triggered
+                    if (startFailsafeTimeout) {
+                        clearTimeout(startFailsafeTimeout);
+                        startFailsafeTimeout = null;
+                        console.log(`DEBUG: 🚨 Cleared start failsafe timer - build triggered via prepBuild (cached coords)`);
+                    }
                     const prepBuildResult = await prepBuild(cachedCoords);
                     if (!getIsAutomationRunning()) break;
                     
@@ -2540,6 +2625,12 @@ function startAutomation(dependencies) {
                         console.log(`DEBUG: Clicking near red blob at X:${Math.round(clickX)}, Y:${Math.round(clickY)}`);
                         await performClick(Math.round(clickX), Math.round(clickY));
                         if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during performClick
+                        // Clear start failsafe timer - build is being triggered
+                        if (startFailsafeTimeout) {
+                            clearTimeout(startFailsafeTimeout);
+                            startFailsafeTimeout = null;
+                            console.log(`DEBUG: 🚨 Cleared start failsafe timer - build triggered via prepBuild (target blob)`);
+                        }
                         const prepBuildResult = await prepBuild(targetBlob ? { x: targetBlob.x, y: targetBlob.y, width: targetBlob.width, height: targetBlob.height } : null);
                         if (!getIsAutomationRunning()) break; // Exit loop if automation stopped during prepBuild
 
@@ -2714,6 +2805,9 @@ function startAutomation(dependencies) {
 }
 
 function stopAutomation(dependencies) {
+    // Clear start failsafe timer if automation is stopped
+    // Note: This will be set by runFinishLevelProtocol if it's running
+    // We can't directly access it here, but it will be cleared when the loop exits
     const { updateStatus, setIsAutomationRunning } = dependencies;
     setIsAutomationRunning(false);
     updateStatus('Finish Level Automation Stopped', 'info');

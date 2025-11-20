@@ -1003,7 +1003,7 @@
       ]
     },
     "Hot Dog Stand": {
-      "averageDuration": 15819,
+      "averageDuration": 15813,
       "totalCompletions": 10,
       "bestTime": 13981,
       "worstTime": 18840,
@@ -1013,11 +1013,11 @@
       "allTimeBestTimeUp": 15575,
       "allTimeBestTimeDown": 13726,
       "completionsUp": [
-        15738,
         15817,
         15839,
         15575,
-        18840
+        18840,
+        15682
       ],
       "completionsDown": [
         13981,
@@ -1936,7 +1936,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-11-20T10:33:08.897Z",
+    "lastUpdated": "2025-11-20T10:41:29.444Z",
     "totalLevelsTracked": 44,
     "totalStagesTracked": 60,
     "lastCompletedStage": {
