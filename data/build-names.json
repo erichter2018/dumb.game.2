@@ -60,11 +60,12 @@
       "Calzone",
       "Mozzarella",
       "Shrimps",
-      "Wurst"
+      "Wurst",
+      "NT dl"
     ],
-    "lastUpdated": 1763635196685,
+    "lastUpdated": 1763637521290,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763635196686
+    "autoUpdatedAt": 1763637521290
   },
   "fish and chips shop": {
     "buildNames": [

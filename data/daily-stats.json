@@ -5040,8 +5040,8 @@
       "avgStageTime": 541361
     },
     "2025-11-20": {
-      "levelsCompleted": 233,
-      "stagesCompleted": 32,
+      "levelsCompleted": 252,
+      "stagesCompleted": 34,
       "levelTimes": [
         20112,
         61517,
@@ -5242,7 +5242,21 @@
         15894,
         21451,
         25286,
-        88858
+        88858,
+        51516,
+        233390,
+        15204,
+        21247,
+        33997,
+        71846,
+        81137,
+        200430,
+        14758,
+        19332,
+        27878,
+        56378,
+        95943,
+        51177
       ],
       "stageTimes": [
         543623,
@@ -5266,18 +5280,18 @@
       ],
       "minLevelTime": 12519,
       "maxLevelTime": 363786,
-      "avgLevelTime": 71446,
+      "avgLevelTime": 71324,
       "minStageTime": 344613,
       "maxStageTime": 791386,
       "avgStageTime": 541815
     }
   },
   "lastKnownLevel": {
-    "stageName": "Naples",
-    "stageNumber": 56,
-    "levelName": "Dessert Co",
-    "levelPosition": 4,
-    "timestamp": "2025-11-20T11:08:07.783Z"
+    "stageName": "Pretoria",
+    "stageNumber": 58,
+    "levelName": "Mocktail Bar",
+    "levelPosition": 6,
+    "timestamp": "2025-11-20T11:48:42.769Z"
   },
-  "lastSaveDate": "2025-11-20T11:08:07.783Z"
+  "lastSaveDate": "2025-11-20T11:48:42.769Z"
 }

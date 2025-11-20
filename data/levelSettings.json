@@ -4004,7 +4004,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 60
+      "minBuildCount": 61
     },
     "level 1": {
       "minBuildCount": 15
