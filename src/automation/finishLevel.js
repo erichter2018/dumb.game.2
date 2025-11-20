@@ -1275,8 +1275,8 @@ function startAutomation(dependencies) {
             // This ensures the signal is sent immediately when clickaround completes, not delayed
             if (buildResult === 'finish_build_clickaround_completed' || buildResult === 'finish_build_custom_trigger_clickaround_completed') {
                 console.log(`DEBUG: ⚠️ OPTIMIZATION: Clickaround handler already sent after-build signal - skipping general completion handler to prevent delay`);
-                // Continue to red blob detection - don't process general completion logic
-                continue;
+                // Return immediately - signal was already sent, no need to process general completion logic
+                return buildResult;
             }
 
             // Check if we should scroll to bottom after build completion based on settings
