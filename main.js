@@ -777,18 +777,32 @@ function calculateLevelComparisons(actualTime, levelName, direction = 'up', prev
     // Calculate average
     const avg = directionCompletions.reduce((sum, time) => sum + time, 0) / directionCompletions.length;
     
-    // Find best time for delta calculation - use previous best if provided, otherwise current best
+    // ============================================================================
+    // TEMPORARY CHANGE: Calculate "all-time best" from lowest of 5 available times
+    // TODO: REMOVE THIS TEMPORARY LOGIC - Restore original stored value behavior
+    // ============================================================================
+    // Find best time for delta calculation
+    // TEMPORARY: Always calculate from current completions instead of using stored values
     let best;
     if (previousBestTime !== null) {
         // Use previous best time for delta calculation (when a new best was just achieved)
+        // TEMPORARY: previousBestTime is now calculated from completions, not stored value
         best = previousBestTime;
-    } else if (levelStats.allTimeBestTimeUp && direction === 'up') {
-        best = levelStats.allTimeBestTimeUp;
-    } else if (levelStats.allTimeBestTimeDown && direction === 'down') {
-        best = levelStats.allTimeBestTimeDown;
     } else {
-        best = Math.min(...directionCompletions);
+        // TEMPORARY: Always calculate from current completions
+        // ORIGINAL BEHAVIOR (to restore):
+        //   if (levelStats.allTimeBestTimeUp && direction === 'up') {
+        //       best = levelStats.allTimeBestTimeUp;
+        //   } else if (levelStats.allTimeBestTimeDown && direction === 'down') {
+        //       best = levelStats.allTimeBestTimeDown;
+        //   } else {
+        //       best = Math.min(...directionCompletions);
+        //   }
+        best = directionCompletions.length > 0 ? Math.min(...directionCompletions) : null;
     }
+    // ============================================================================
+    // END TEMPORARY CHANGE
+    // ============================================================================
     
     // Calculate average comparison
     const avgDiffMs = actualTime - avg;

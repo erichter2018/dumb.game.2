@@ -26,21 +26,21 @@
       ]
     },
     "Ice Cream Truck": {
-      "averageDuration": 35923,
+      "averageDuration": 33125,
       "totalCompletions": 10,
-      "bestTime": 28854,
-      "worstTime": 53263,
+      "bestTime": 25286,
+      "worstTime": 52886,
       "lastTime": 33180,
-      "bestDirection": "down",
+      "bestDirection": "up",
       "lastDirection": "down",
-      "allTimeBestTimeUp": 29016,
+      "allTimeBestTimeUp": 25286,
       "allTimeBestTimeDown": 28661,
       "completionsUp": [
-        53263,
         32115,
         32460,
         34792,
-        29016
+        29016,
+        25286
       ],
       "completionsDown": [
         30918,
@@ -276,11 +276,11 @@
       ]
     },
     "Floral Stand": {
-      "averageDuration": 21308,
+      "averageDuration": 21292,
       "totalCompletions": 10,
       "bestTime": 20906,
       "worstTime": 21903,
-      "lastTime": 21512,
+      "lastTime": 21451,
       "bestDirection": "up",
       "lastDirection": "down",
       "allTimeBestTimeUp": 20906,
@@ -293,19 +293,19 @@
         20999
       ],
       "completionsDown": [
-        21616,
         21690,
         20934,
         21903,
-        21512
+        21512,
+        21451
       ]
     },
     "Cheese Shop": {
-      "averageDuration": 79004,
+      "averageDuration": 79141,
       "totalCompletions": 10,
       "bestTime": 72455,
       "worstTime": 91643,
-      "lastTime": 77132,
+      "lastTime": 79090,
       "bestDirection": "up",
       "lastDirection": "down",
       "allTimeBestTimeUp": 72455,
@@ -318,11 +318,11 @@
         78116
       ],
       "completionsDown": [
-        77728,
         90241,
         73858,
         79299,
-        77132
+        77132,
+        79090
       ]
     },
     "Pizzeria": {
@@ -351,21 +351,21 @@
       ]
     },
     "Fish and Chips Shop": {
-      "averageDuration": 71533,
+      "averageDuration": 68834,
       "totalCompletions": 10,
       "bestTime": 64352,
-      "worstTime": 99947,
+      "worstTime": 75174,
       "lastTime": 68625,
       "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 68738,
       "allTimeBestTimeDown": 64352,
       "completionsUp": [
-        99947,
         72432,
         68738,
         75174,
-        71012
+        71012,
+        72954
       ],
       "completionsDown": [
         64796,
@@ -426,11 +426,11 @@
       ]
     },
     "Ramen Truck": {
-      "averageDuration": 51605,
+      "averageDuration": 50335,
       "totalCompletions": 10,
       "bestTime": 31028,
       "worstTime": 90772,
-      "lastTime": 41761,
+      "lastTime": 39766,
       "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 43432,
@@ -443,11 +443,11 @@
         62159
       ],
       "completionsDown": [
-        52462,
         34079,
         32710,
         31028,
-        41761
+        41761,
+        39766
       ]
     },
     "Fast Food": {
@@ -476,11 +476,11 @@
       ]
     },
     "Restaurant": {
-      "averageDuration": 259798,
+      "averageDuration": 257224,
       "totalCompletions": 10,
       "bestTime": 232773,
       "worstTime": 338589,
-      "lastTime": 232773,
+      "lastTime": 234369,
       "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 246470,
@@ -493,11 +493,11 @@
         246470
       ],
       "completionsDown": [
-        260106,
         242613,
         338589,
         260104,
-        232773
+        232773,
+        234369
       ]
     },
     "Waffle Stand": {
@@ -551,21 +551,21 @@
       ]
     },
     "Dessert Co": {
-      "averageDuration": 73690,
+      "averageDuration": 74498,
       "totalCompletions": 10,
       "bestTime": 62182,
-      "worstTime": 83754,
+      "worstTime": 88858,
       "lastTime": 65359,
       "bestDirection": "down",
       "lastDirection": "down",
       "allTimeBestTimeUp": 80718,
       "allTimeBestTimeDown": 62182,
       "completionsUp": [
-        80776,
         83136,
         80718,
         81762,
-        83754
+        83754,
+        88858
       ],
       "completionsDown": [
         62182,
@@ -953,11 +953,11 @@
       ]
     },
     "Street Nuts": {
-      "averageDuration": 14255,
+      "averageDuration": 14259,
       "totalCompletions": 10,
       "bestTime": 13159,
       "worstTime": 16234,
-      "lastTime": 16234,
+      "lastTime": 15894,
       "bestDirection": "up",
       "lastDirection": "down",
       "allTimeBestTimeUp": 13159,
@@ -970,11 +970,11 @@
         13916
       ],
       "completionsDown": [
-        15849,
         14215,
         13759,
         14060,
-        16234
+        16234,
+        15894
       ]
     },
     "Ice Cream Stand": {
@@ -1936,7 +1936,7 @@
     }
   },
   "metadata": {
-    "lastUpdated": "2025-11-20T10:41:29.444Z",
+    "lastUpdated": "2025-11-20T11:08:07.781Z",
     "totalLevelsTracked": 44,
     "totalStagesTracked": 60,
     "lastCompletedStage": {
