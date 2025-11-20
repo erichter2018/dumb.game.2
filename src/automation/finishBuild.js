@@ -995,6 +995,13 @@ async function runBuildProtocol(dependencies) {
                     cachedRedBlobCoords = null;
                     console.log('DEBUG: [PREDICTIVE] Cache invalidated due to build action (clickaround)');
                     
+                    // Send build action completion signal (first_build or second_build)
+                    // This happens when the action executes, not when the build completes
+                    const buildActionSignal = buildNumber === 1 ? 'first_build' : 'second_build';
+                    if (dependencies.sendActionCompletionSignal) {
+                        dependencies.sendActionCompletionSignal(buildActionSignal, currentLevelName);
+                    }
+                    
                     updateStatus('Finish Build: Action completed. Returning control to Finish Level.', 'success');
                     console.log('DEBUG: Finish Build: Action completed. Returning control to Finish Level.');
                     return 'clickaround_completed';
@@ -1002,6 +1009,13 @@ async function runBuildProtocol(dependencies) {
                     // Perform click off action
                     if (dependencies.performClick && dependencies.CLICK_AREAS.CLICK_OFF) {
                         await dependencies.performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                        
+                        // Send build action completion signal
+                        const buildActionSignal = buildNumber === 1 ? 'first_build' : 'second_build';
+                        if (dependencies.sendActionCompletionSignal) {
+                            dependencies.sendActionCompletionSignal(buildActionSignal, currentLevelName);
+                        }
+                        
                         updateStatus('Finish Build: Click off completed.', 'success');
                         return 'click_off_completed';
                     }
@@ -1038,6 +1052,12 @@ async function runBuildProtocol(dependencies) {
                         cachedRedBlobCoords = null;
                         console.log('DEBUG: [PREDICTIVE] Cache invalidated due to build action (click_off_and_scroll)');
                         
+                        // Send build action completion signal
+                        const buildActionSignal = buildNumber === 1 ? 'first_build' : 'second_build';
+                        if (dependencies.sendActionCompletionSignal) {
+                            dependencies.sendActionCompletionSignal(buildActionSignal, currentLevelName);
+                        }
+                        
                         return 'click_off_scroll_completed';
                     }
                 } else if (currentBuildAction.action === 'scroll_to_bottom') {
@@ -1054,6 +1074,13 @@ async function runBuildProtocol(dependencies) {
                             performClick: dependencies.performClick, 
                             CLICK_AREAS: dependencies.CLICK_AREAS 
                         });
+                        
+                        // Send build action completion signal
+                        const buildActionSignal = buildNumber === 1 ? 'first_build' : 'second_build';
+                        if (dependencies.sendActionCompletionSignal) {
+                            dependencies.sendActionCompletionSignal(buildActionSignal, currentLevelName);
+                        }
+                        
                         updateStatus('Finish Build: Scroll to bottom completed.', 'success');
                         return 'scroll_to_bottom_completed';
                     }

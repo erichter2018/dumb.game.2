@@ -402,7 +402,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 5
+      "minBuildCount": 6
     },
     "drive thru": {
       "doResearch": true,
@@ -1591,17 +1591,24 @@
         "perfectStartingPosition": {
           "action": "scroll_and_wait",
           "waitTimeMs": 1800,
-          "scrollDirection": "down",
-          "scrollDistance": 25
+          "scrollDirection": "up",
+          "scrollDistance": 100
         },
         "scrollToBottomAfterFirstBuild": false,
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
-          "action": "nothing",
-          "triggerTimeMs": null,
+          "action": "clickaround",
+          "triggerTimeMs": 30000,
           "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {}
+          "clickaroundOptions": {
+            "excludeRedBlobs": false,
+            "clickaroundChunks": 1,
+            "scrollUpDistance": 0,
+            "scrollUpCount": 0,
+            "initialScrollDown": 0,
+            "scrollToBottomAtEnd": false
+          }
         },
         "secondBuildAction": {
           "action": "nothing",
@@ -1623,7 +1630,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 5
     },
     "big drive thru": {
       "doResearch": true,
@@ -1820,7 +1827,7 @@
           }
         }
       ],
-      "minBuildCount": 10
+      "minBuildCount": 11
     },
     "sushi bar": {
       "doResearch": true,
@@ -2690,7 +2697,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 5
     },
     "dessert co": {
       "doResearch": true,
@@ -2772,7 +2779,7 @@
     },
     "italiano": {
       "doResearch": true,
-      "scrollDirection": "up",
+      "scrollDirection": "down",
       "blueBoxClickHoldDuration": 6500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -2851,7 +2858,7 @@
           "clickaroundOptions": {
             "excludeRedBlobs": true,
             "clickaroundChunks": 1,
-            "scrollUpDistance": 180,
+            "scrollUpDistance": 170,
             "scrollUpCount": 2,
             "initialScrollDown": 0,
             "scrollToBottomAtEnd": false
@@ -3076,7 +3083,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 5
+      "minBuildCount": 6
     },
     "mezze bar": {
       "doResearch": true,
@@ -3169,7 +3176,7 @@
           {
             "timing": "after",
             "triggerType": "buildNumber",
-            "triggerValue": 6,
+            "triggerValue": 7,
             "action": "scrollToTop",
             "actionParams": 5000,
             "actionDistance": 200
@@ -3195,7 +3202,7 @@
         }
       },
       "customTriggers": [],
-      "minBuildCount": 10
+      "minBuildCount": 11
     },
     "curry wurst stand": {
       "doResearch": false,
@@ -3704,7 +3711,7 @@
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
             "excludeRedBlobs": false,
-            "clickaroundChunks": 3,
+            "clickaroundChunks": 2,
             "scrollUpDistance": 230,
             "scrollUpCount": 3,
             "initialScrollDown": 0,
@@ -3730,11 +3737,11 @@
         "scrollAfterSecondBuild": {
           "action": "scrollCustom",
           "direction": "down",
-          "distance": 200
+          "distance": 240
         }
       },
       "customTriggers": [],
-      "minBuildCount": 10
+      "minBuildCount": 11
     },
     "burrito king": {
       "doResearch": true,
@@ -3895,10 +3902,10 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 10
+      "minBuildCount": 11
     },
     "_global": {
-      "directionMode": "lastWorst"
+      "directionMode": "best"
     },
     "unknown level": {
       "doResearch": true,
@@ -3983,7 +3990,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 28
+      "minBuildCount": 58
     },
     "level 1": {
       "minBuildCount": 15

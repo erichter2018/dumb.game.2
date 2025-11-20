@@ -38,6 +38,7 @@ let isAutomationRunning = false; // New flag to control the automation loop in f
 let isFinishLevelRunning = false; // For Finish Level automation
 let isClickAroundRunning = false; // For Click Around automation
 let isAdsRunning = false; // For Ads automation
+let isCenterClicksRunning = false; // For Center Clicks automation
 let isClickAroundPaused = false; // For pausing Click Around on mouse movement
 let isAutomationPaused = false; // Global pause flag for spacebar pause/resume
 let clickAroundCallCounter = 0; // Global counter for clickAround calls since level start
@@ -54,6 +55,7 @@ let levelDirections = new Map(); // Store direction used for each level
 let levelBuildCounts = new Map(); // Track build count per level (levelName -> buildCount)
 let levelBuildCompletionStatus = new Map(); // Track if last build completed successfully (levelName -> boolean)
 let levelBuildActionsExecuted = new Map(); // Track which build actions have been executed (levelName-buildNumber -> boolean)
+let levelActionSignalsSent = new Map(); // Track which action signals have been sent to prevent duplicates (levelName-actionType -> boolean)
 let previousLevelDurationMs = null; // New: To store the duration of the previous level
 let longestLevelDurationMs = null; // New: To store the longest level duration
 let shortestLevelDurationMs = null; // New: To store the shortest level duration
@@ -223,7 +225,10 @@ function updateCurrentLevelName(levelName) {
         Array.from(levelBuildActionsExecuted.keys())
             .filter(key => key.startsWith(`${currentLevelName}-`))
             .forEach(key => levelBuildActionsExecuted.delete(key));
-        console.log(`DEBUG: [STAGE START] Reset build count to 0 for level: "${currentLevelName}"`);
+        Array.from(levelActionSignalsSent.keys())
+            .filter(key => key.startsWith(`${currentLevelName}-`))
+            .forEach(key => levelActionSignalsSent.delete(key));
+        console.log(`DEBUG: [STAGE START] Reset build count and action tracking for level: "${currentLevelName}"`);
         
         // Send level data to renderer
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -281,6 +286,10 @@ function updateCurrentLevelName(levelName) {
     Array.from(levelBuildActionsExecuted.keys())
         .filter(key => key.startsWith(`${currentLevelName}-`))
         .forEach(key => levelBuildActionsExecuted.delete(key));
+    // Clear any tracked action signals for this level
+    Array.from(levelActionSignalsSent.keys())
+        .filter(key => key.startsWith(`${currentLevelName}-`))
+        .forEach(key => levelActionSignalsSent.delete(key));
     console.log(`DEBUG: Reset build count to 0, completion status to false, and cleared action tracking for level: "${currentLevelName}"`);
     
     // Send to renderer for UI update
@@ -1160,6 +1169,55 @@ function markBuildActionAsExecuted(levelName, buildNumber) {
     const key = `${levelName}-${buildNumber}`;
     levelBuildActionsExecuted.set(key, true);
     console.log(`DEBUG: Build action marked as EXECUTED for "${levelName}" build #${buildNumber}`);
+}
+
+/**
+ * Check if an action signal has already been sent for this level
+ * Prevents duplicate signals from being sent
+ * @param {string} levelName - The level name
+ * @param {string} actionType - The action type ('first_build', 'after_first_build', 'second_build', 'after_second_build', 'startup')
+ * @returns {boolean} True if signal was already sent
+ */
+function hasActionSignalBeenSent(levelName, actionType) {
+    const key = `${levelName}-${actionType}`;
+    return levelActionSignalsSent.get(key) === true;
+}
+
+/**
+ * Mark an action signal as sent for this level
+ * @param {string} levelName - The level name
+ * @param {string} actionType - The action type ('first_build', 'after_first_build', 'second_build', 'after_second_build', 'startup')
+ */
+function markActionSignalAsSent(levelName, actionType) {
+    const key = `${levelName}-${actionType}`;
+    levelActionSignalsSent.set(key, true);
+    console.log(`DEBUG: Action signal "${actionType}" marked as SENT for level "${levelName}"`);
+}
+
+/**
+ * Send an action completion signal to the renderer (only once per level)
+ * @param {string} actionType - The action type ('first_build', 'after_first_build', 'second_build', 'after_second_build', 'startup')
+ * @param {string} levelName - The level name (optional, uses currentLevelName if not provided)
+ */
+function sendActionCompletionSignal(actionType, levelName = null) {
+    const level = levelName || currentLevelName;
+    
+    // Check if signal was already sent for this level
+    if (hasActionSignalBeenSent(level, actionType)) {
+        console.log(`DEBUG: Skipping duplicate "${actionType}" signal for level "${level}" (already sent)`);
+        return;
+    }
+    
+    // Mark as sent
+    markActionSignalAsSent(level, actionType);
+    
+    // Send signal to renderer
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        console.log(`🎯 Sending "${actionType}" signal for level "${level}"`);
+        mainWindow.webContents.send('level-action-completed', actionType);
+    } else {
+        console.warn(`⚠️ Cannot send "${actionType}" signal - mainWindow not available`);
+    }
 }
 
 function saveMinimumBuildCount(levelName, buildCount) {
@@ -2249,6 +2307,8 @@ async function startFinishBuildAutomationLoop() {
     markBuildAsCompleted: markBuildAsCompleted,
     hasBuildActionBeenExecuted: hasBuildActionBeenExecuted,
     markBuildActionAsExecuted: markBuildActionAsExecuted,
+    sendActionCompletionSignal: sendActionCompletionSignal,
+    hasActionSignalBeenSent: hasActionSignalBeenSent,
     getMinimumBuildCount: getMinimumBuildCount,
     getEffectiveDirectionForLevel: () => currentEffectiveDirection,
     // Connection health and reconnection
@@ -2554,12 +2614,12 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     // New: Pass a getter function for the reconnection downtime
     getReconnectionDowntimeMs: () => reconnectionDowntimeMs,
     getAccumulatedPauseTimeMs: () => {
-        // If currently paused, include the current pause duration
-        let currentPauseTime = 0;
-        if (pauseStartTime) {
-            currentPauseTime = Date.now() - pauseStartTime;
-        }
-        return accumulatedPauseTimeMs + currentPauseTime;
+        // Since levels can't finish while paused, we only need to return accumulated pause time
+        // (pause time from pauses that have already ended)
+        // If pauseStartTime exists, it means we're currently paused, but since the level can't finish
+        // while paused, we shouldn't include current pause time in the calculation
+        console.log(`⏱️ getAccumulatedPauseTimeMs: accumulated=${(accumulatedPauseTimeMs/1000).toFixed(1)}s, isPaused=${isAutomationPaused}, pauseStartTime=${pauseStartTime ? 'set' : 'null'}`);
+        return accumulatedPauseTimeMs;
     },
     // New: Pass counter functions for clickAround calls
     getClickAroundCallCounter: getClickAroundCallCounter,
@@ -2576,6 +2636,8 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
     markBuildAsCompleted: markBuildAsCompleted,
     hasBuildActionBeenExecuted: hasBuildActionBeenExecuted,
     markBuildActionAsExecuted: markBuildActionAsExecuted,
+    sendActionCompletionSignal: sendActionCompletionSignal,
+    hasActionSignalBeenSent: hasActionSignalBeenSent,
     saveMinimumBuildCount: saveMinimumBuildCount,
     getMinimumBuildCount: getMinimumBuildCount,
     // New: Image comparison functions for scroll top detection
@@ -2692,6 +2754,53 @@ ipcMain.handle('activate-iphone-mirroring', async () => {
   await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
   await new Promise(resolve => setTimeout(resolve, 100)); // Short delay after activation
   return { success: true };
+});
+
+// Center Clicks automation - repeatedly clicks at x230, y680
+ipcMain.handle('toggle-center-clicks', async (event, start) => {
+  if (start) {
+    // Start center clicks
+    isCenterClicksRunning = true;
+    console.log('🎯 Starting Center Clicks automation');
+    
+    // Register Escape key shortcut for stopping
+    registerAutomationShortcuts();
+    
+    // Activate iPhone Mirroring app
+    await execAsync(`osascript -e 'tell application "iPhone Mirroring" to activate'`);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Start clicking loop
+    const clickLoop = async () => {
+      while (isCenterClicksRunning) {
+        try {
+          await performClick(230, 680);
+          await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between clicks
+        } catch (error) {
+          console.error('Error in center clicks loop:', error);
+          break;
+        }
+      }
+      console.log('🎯 Center Clicks stopped');
+      // Unregister shortcuts if no other automation is running
+      unregisterAutomationShortcuts();
+    };
+    
+    clickLoop().catch(error => {
+      console.error('Error in center clicks loop:', error);
+      isCenterClicksRunning = false;
+      unregisterAutomationShortcuts();
+    });
+    
+    return { success: true };
+  } else {
+    // Stop center clicks
+    isCenterClicksRunning = false;
+    console.log('🎯 Stopping Center Clicks automation');
+    // Unregister shortcuts if no other automation is running
+    unregisterAutomationShortcuts();
+    return { success: true };
+  }
 });
 
 ipcMain.handle('scroll-down', async (event, x, y, distance) => {
@@ -2974,7 +3083,7 @@ function registerAutomationShortcuts() {
 // Unregister automation shortcuts (only if no automation is running)
 function unregisterAutomationShortcuts() {
   // Only unregister if no automation is running
-  if (isAutomationRunning || isFinishLevelRunning || isClickAroundRunning) {
+  if (isAutomationRunning || isFinishLevelRunning || isClickAroundRunning || isCenterClicksRunning) {
     console.log('DEBUG: Not unregistering shortcuts - automation still running');
     return;
   }
@@ -2987,6 +3096,7 @@ function unregisterAutomationShortcuts() {
 // Pause/resume toggle function
 function toggleAutomationPause() {
   // Only allow pause if automation is actually running
+  // Note: Center clicks doesn't support pause/resume, only stop
   if (!isAutomationRunning && !isFinishLevelRunning && !isClickAroundRunning && !isAdsRunning) {
     console.log('DEBUG: Cannot pause - no automation is running');
     return;
@@ -3032,11 +3142,12 @@ async function emergencyInterrupt() {
   console.log('🚨 EMERGENCY INTERRUPT: Stopping all automation immediately');
   
   // Set all automation flags to false immediately
-  const wasRunning = isAutomationRunning || isFinishLevelRunning || isClickAroundRunning || isAdsRunning;
+  const wasRunning = isAutomationRunning || isFinishLevelRunning || isClickAroundRunning || isAdsRunning || isCenterClicksRunning;
   isAutomationRunning = false;
   isFinishLevelRunning = false;
   isClickAroundRunning = false;
   isAdsRunning = false; // Also stop ads
+  isCenterClicksRunning = false; // Also stop center clicks
   isClickAroundPaused = false; // Also clear pause state on interrupt
   isAutomationPaused = false; // Clear global pause flag
   

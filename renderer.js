@@ -21,8 +21,12 @@ const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const allStatisticsBtn = document.getElementById('allStatisticsBtn');
 const triggerAdsBtn = document.getElementById('triggerAdsBtn');
+const centerClicksBtn = document.getElementById('centerClicksBtn');
 if (!triggerAdsBtn) {
     console.error('ERROR: triggerAdsBtn element not found!');
+}
+if (!centerClicksBtn) {
+    console.error('ERROR: centerClicksBtn element not found!');
 }
 
 // New DOM Elements for Function Display
@@ -283,6 +287,65 @@ if (triggerAdsBtn) {
 } else {
     console.error('ERROR: Cannot attach triggerAdsBtn event listener - button not found');
 }
+
+// Center Clicks button event listener
+let isCenterClicksRunning = false;
+if (centerClicksBtn) {
+    centerClicksBtn.addEventListener('click', async () => {
+        try {
+            if (!isCenterClicksRunning) {
+                // Start center clicks
+                isCenterClicksRunning = true;
+                centerClicksBtn.textContent = '⏹️ Stop Center Clicks';
+                centerClicksBtn.classList.remove('btn-primary');
+                centerClicksBtn.classList.add('btn-danger');
+                updateStatus('Starting Center Clicks...', 'info');
+                const result = await ipcRenderer.invoke('toggle-center-clicks', true);
+                if (result && result.success) {
+                    updateStatus('Center Clicks started - Press Escape to stop', 'success');
+                } else {
+                    isCenterClicksRunning = false;
+                    centerClicksBtn.textContent = '🎯 Center Clicks';
+                    centerClicksBtn.classList.remove('btn-danger');
+                    centerClicksBtn.classList.add('btn-primary');
+                    updateStatus('Failed to start Center Clicks', 'error');
+                }
+            } else {
+                // Stop center clicks
+                isCenterClicksRunning = false;
+                centerClicksBtn.textContent = '🎯 Center Clicks';
+                centerClicksBtn.classList.remove('btn-danger');
+                centerClicksBtn.classList.add('btn-primary');
+                updateStatus('Stopping Center Clicks...', 'info');
+                const result = await ipcRenderer.invoke('toggle-center-clicks', false);
+                if (result && result.success) {
+                    updateStatus('Center Clicks stopped', 'success');
+                } else {
+                    updateStatus('Failed to stop Center Clicks', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling center clicks:', error);
+            updateStatus(`Center Clicks error: ${error.message}`, 'error');
+            isCenterClicksRunning = false;
+            centerClicksBtn.textContent = '🎯 Center Clicks';
+            centerClicksBtn.classList.remove('btn-danger');
+            centerClicksBtn.classList.add('btn-primary');
+        }
+    });
+} else {
+    console.error('ERROR: Cannot attach centerClicksBtn event listener - button not found');
+}
+
+// Listen for emergency interrupt to stop center clicks
+ipcRenderer.on('emergency-interrupt', () => {
+    if (isCenterClicksRunning) {
+        isCenterClicksRunning = false;
+        centerClicksBtn.textContent = '🎯 Center Clicks';
+        centerClicksBtn.classList.remove('btn-danger');
+        centerClicksBtn.classList.add('btn-primary');
+    }
+});
 
 // Close ads modal button
 document.getElementById('closeAdsBtn').addEventListener('click', () => {

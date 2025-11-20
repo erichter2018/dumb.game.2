@@ -28,11 +28,41 @@
       "Knafeh",
       "Sweet Balls",
       "Turkish Delight",
-      "Baklava"
+      "Baklava",
+      "Curry Wurst",
+      "Steak",
+      "Garlic bread",
+      "Nuts",
+      "Mocktail",
+      "Apple Juice",
+      "Salad",
+      "Lobster",
+      "Tomato Soup",
+      "Sandwich",
+      "Shrimps gg",
+      "Olives",
+      "Shish Taouk",
+      "Fish",
+      "Lasagne",
+      "Ravioli",
+      "Spaghetti",
+      "Soup",
+      "Pancakes",
+      "Waffles",
+      "Egg",
+      "Turkey",
+      "Cheese Cake",
+      "Special Burger",
+      "Kare-Raisu",
+      "Mochi",
+      "Tiramisu",
+      "Lasagne B",
+      "Calzone",
+      "Mozzarella"
     ],
-    "lastUpdated": 1763533799676,
+    "lastUpdated": 1763556270977,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763533799677
+    "autoUpdatedAt": 1763556270977
   },
   "fish and chips shop": {
     "buildNames": [
@@ -189,9 +219,12 @@
       "Pizza",
       "Nuggets",
       "Fries",
-      "Burger 2"
+      "Burger 2",
+      "Burger"
     ],
-    "lastUpdated": 1763529894961
+    "lastUpdated": 1763537470897,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763537470898
   },
   "mocktail bar": {
     "buildNames": [
@@ -213,9 +246,12 @@
       "Burger",
       "Fish n' Chips",
       "Doner Kebab",
-      "Pizza"
+      "Pizza",
+      "Bucket"
     ],
-    "lastUpdated": 1763530124876
+    "lastUpdated": 1763540105519,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763540105520
   },
   "lemonade stand": {
     "buildNames": [
@@ -247,18 +283,24 @@
       "Turkish Coffee",
       "Wrap",
       "Soda",
-      "Burger"
+      "Burger",
+      "Pits"
     ],
-    "lastUpdated": 1763534277810
+    "lastUpdated": 1763623613150,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763623613151
   },
   "cafe napolita": {
     "buildNames": [
       "Coffee",
       "Baguette",
       "Muffins 2",
-      "Moon Bar"
+      "Moon Bar",
+      "Muffins"
     ],
-    "lastUpdated": 1763530879327
+    "lastUpdated": 1763537031650,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763537031650
   },
   "seafood restaurant": {
     "buildNames": [
@@ -269,11 +311,11 @@
       "Sweet Balls 2",
       "Shrimps",
       "Fish",
-      "Fishn' Chips",
+      "Fish n' Chips",
       "Garlic bread",
       "Tomato Soup"
     ],
-    "lastUpdated": 1763531112995,
+    "lastUpdated": 1763542871072,
     "autoUpdatedCount": true,
     "autoUpdatedAt": 1763531112996
   },
@@ -296,9 +338,15 @@
   },
   "drive thru": {
     "buildNames": [
-      "Donut"
+      "Donut",
+      "Croissant",
+      "Coffee",
+      "Cookies",
+      "Muffins",
+      "Milk Shake",
+      "Ice Cream"
     ],
-    "lastUpdated": 1763531366351
+    "lastUpdated": 1763540516563
   },
   "the fresh kitchen": {
     "buildNames": [
@@ -311,9 +359,12 @@
       "Apple Juice",
       "Spaghetti",
       "Ravioli",
-      "Shish Taouk"
+      "Shish Taouk",
+      "Soup"
     ],
-    "lastUpdated": 1763531948385
+    "lastUpdated": 1763539288109,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763539288110
   },
   "floral stand": {
     "buildNames": [
@@ -351,11 +402,12 @@
       "Nuggets",
       "Onion Rings",
       "Fries",
-      "Burger -"
+      "Burger -",
+      "Burger"
     ],
-    "lastUpdated": 1763532783662,
+    "lastUpdated": 1763538911448,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763532783663
+    "autoUpdatedAt": 1763538911449
   },
   "dango stand": {
     "buildNames": [
@@ -387,9 +439,12 @@
       "Apple Juice 20",
       "Sandwich",
       "Olives",
-      "Shrimps"
+      "Shrimps",
+      "Apple Juice"
     ],
-    "lastUpdated": 1763533854770
+    "lastUpdated": 1763539784945,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763539784946
   },
   "italiano": {
     "buildNames": [
@@ -428,11 +483,12 @@
       "Baklava",
       "Falafel",
       "Hummus",
-      "Turkish Coffee"
+      "Turkish Coffee",
+      "Coffee"
     ],
-    "lastUpdated": 1763534634880,
+    "lastUpdated": 1763538304370,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763534634881
+    "autoUpdatedAt": 1763538304370
   },
   "curry wurst stand": {
     "buildNames": [
@@ -444,8 +500,23 @@
   "apple juice bar": {
     "buildNames": [
       "Apple Juice",
-      "Mocktail"
+      "Mocktail",
+      "Nuts",
+      "Fries",
+      "Garlic bread",
+      "Grape Juice",
+      "Pizza",
+      "Steak",
+      "Curry Wurst",
+      "Burger"
     ],
-    "lastUpdated": 1763534952755
+    "lastUpdated": 1763545678930
+  },
+  "taco stand": {
+    "buildNames": [
+      "Tacos",
+      "Wrap"
+    ],
+    "lastUpdated": 1763539740225
   }
 }
