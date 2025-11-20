@@ -2682,69 +2682,7 @@ ipcMain.handle('toggle-finish-level', async (event, isRunning, scrollSwipeDistan
   }
 });
 
-ipcMain.handle('pause-automation-on-mouse-move', async () => {
-  // Only pause if any relevant automation is running
-  if (!isAutomationRunning && !isFinishLevelRunning && !isClickAroundRunning) {
-    return; 
-  }
-
-  // Handle Click Around pausing
-  if (isClickAroundRunning && !isClickAroundPaused) {
-    isClickAroundPaused = true;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('finish-build-status', 'Paused: Mouse moved (Click Around - resuming in 10s)...', 'warning');
-    }
-    // Clear any existing pause timeout to restart the countdown
-    if (pauseTimeout) {
-      clearTimeout(pauseTimeout);
-    }
-    pauseTimeout = setTimeout(() => {
-      isClickAroundPaused = false;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('finish-build-status', 'Resuming Click Around automation...', 'info');
-      }
-      pauseTimeout = null;
-    }, 10000); // 10 seconds for Click Around
-    return;
-  }
-
-  if (!isAutomationRunning) { // Only pause if Finish Build automation is actually running
-    return;
-  }
-
-  isAutomationRunning = false; // Temporarily stop the loop in finishBuild.js
-
-  // If we were holding a click, explicitly release it
-  if (isHoldingBlueBox && lastBlueBoxClickCoords) {
-    await new Promise(resolve => setTimeout(resolve, 50)); // Small delay before clickUp
-    await clickUp(lastBlueBoxClickCoords.x, lastBlueBoxClickCoords.y);
-    isHoldingBlueBox = false; // Update state in main process
-  }
-
-  // Reset automation state in finishBuild.js on pause
-  finishBuildAutomation.resetAutomationState();
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('finish-build-status', 'Paused: Mouse moved (resuming in 5s)...', 'warning');
-  }
-
-  // Clear any existing pause timeout to restart the 5-second countdown
-  if (pauseTimeout) {
-    clearTimeout(pauseTimeout);
-  }
-  pauseTimeout = setTimeout(async () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('finish-build-status', 'Resuming automation...', 'info');
-    }
-    // Blue box re-detection is now handled by finishBuild.js when !blueBoxCoords or !lastBlueBoxFound
-    // lastBlueBoxClickCoords is not reset here to allow finishBuild.js to use its own blueBoxCoords
-
-    isAutomationRunning = true; // Set to true BEFORE calling startFinishBuildAutomationLoop
-    await startFinishBuildAutomationLoop();
-    pauseTimeout = null;
-  }, 5000); // Pause for 5 seconds
-
-  return { success: true, message: 'Automation paused.' };
-});
+// Mouse movement pause detection removed - using Escape key and Space key interrupts instead
 
 ipcMain.handle('simulate-click', async (event, x, y) => {
   return performClick(x, y);

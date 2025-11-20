@@ -462,11 +462,15 @@ function startAutomation(dependencies) {
         const startTime = Date.now();
         const endTime = startTime + searchDurationMs;
         const detectionInterval = 200; // Check every 200ms
+        let cycleCount = 0;
         
         console.log(`DEBUG: Starting red blob search for ${searchDurationMs}ms (checking every ${detectionInterval}ms)`);
         updateStatus(`Searching for red blobs for ${(searchDurationMs / 1000).toFixed(1)}s...`, 'info');
         
         while (Date.now() < endTime && getIsAutomationRunning()) {
+            cycleCount++;
+            const cycleStartTime = Date.now();
+            
             // Check for pause state and wait if paused
             if (dependencies.waitIfPaused) {
                 await dependencies.waitIfPaused();
@@ -475,11 +479,15 @@ function startAutomation(dependencies) {
             
             // DOUBLE red blob detection per screen to catch blobs that might be missed in one pass
             // But optimize: if first pass finds a blob, return immediately (no delay)
-            console.log(`DEBUG: searchForRedBlobsDuringWait - Performing first red blob detection pass...`);
+            console.log(`DEBUG: searchForRedBlobsDuringWait - Cycle ${cycleCount}: Performing first red blob detection pass...`);
+            const capture1StartTime = Date.now();
             const fullScreenDataUrl1 = await captureScreenRegion();
+            const capture1Duration = Date.now() - capture1StartTime;
             if (!getIsAutomationRunning()) return null;
             
+            const detect1StartTime = Date.now();
             const redBlobs1 = await redBlobDetectorDetect(fullScreenDataUrl1, iphoneMirroringRegion);
+            const detect1Duration = Date.now() - detect1StartTime;
             if (!getIsAutomationRunning()) return null;
             
             // Filter out named blobs from first pass
@@ -489,22 +497,27 @@ function startAutomation(dependencies) {
             if (actionableRedBlobs1.length > 0) {
                 const firstBlob = actionableRedBlobs1[0];
                 const elapsed = Date.now() - startTime;
-                console.log(`DEBUG: Red blob found on FIRST pass after ${elapsed}ms (${(elapsed / 1000).toFixed(1)}s) - blob at (${firstBlob.x}, ${firstBlob.y}) - returning immediately`);
+                const cycleDuration = Date.now() - cycleStartTime;
+                console.log(`DEBUG: ⏱️ TIMING: Red blob found on FIRST pass after ${elapsed}ms (${(elapsed / 1000).toFixed(1)}s) - Cycle ${cycleCount} took ${cycleDuration}ms (capture: ${capture1Duration}ms, detect: ${detect1Duration}ms) - blob at (${firstBlob.x}, ${firstBlob.y}) - returning immediately`);
                 updateStatus(`Red blob found after ${(elapsed / 1000).toFixed(1)}s - proceeding to prepBuild`, 'success');
                 return firstBlob;
             }
             
             // First pass didn't find actionable blobs - try second pass (blobs might be wiggling)
-            console.log(`DEBUG: searchForRedBlobsDuringWait - First pass found ${redBlobs1?.length || 0} blob(s) but ${actionableRedBlobs1.length} actionable - trying second pass...`);
+            console.log(`DEBUG: searchForRedBlobsDuringWait - Cycle ${cycleCount}: First pass found ${redBlobs1?.length || 0} blob(s) but ${actionableRedBlobs1.length} actionable - trying second pass...`);
             
             // Small delay between detections (like clickAround does) - only if first pass didn't find anything
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            console.log(`DEBUG: searchForRedBlobsDuringWait - Performing second red blob detection pass...`);
+            console.log(`DEBUG: searchForRedBlobsDuringWait - Cycle ${cycleCount}: Performing second red blob detection pass...`);
+            const capture2StartTime = Date.now();
             const fullScreenDataUrl2 = await captureScreenRegion();
+            const capture2Duration = Date.now() - capture2StartTime;
             if (!getIsAutomationRunning()) return null;
             
+            const detect2StartTime = Date.now();
             const redBlobs2 = await redBlobDetectorDetect(fullScreenDataUrl2, iphoneMirroringRegion);
+            const detect2Duration = Date.now() - detect2StartTime;
             if (!getIsAutomationRunning()) return null;
             
             // Merge results from both detections (deduplicate by coordinates)
@@ -520,11 +533,15 @@ function startAutomation(dependencies) {
                 }
             }
             
+            const cycleDuration = Date.now() - cycleStartTime;
+            const totalCaptureTime = capture1Duration + capture2Duration;
+            const totalDetectTime = detect1Duration + detect2Duration;
+            
             // Debug logging to see what was detected
             if (uniqueRedBlobs && uniqueRedBlobs.length > 0) {
-                console.log(`DEBUG: searchForRedBlobsDuringWait - Detected ${uniqueRedBlobs.length} red blob(s) (pass 1: ${redBlobs1?.length || 0}, pass 2: ${redBlobs2?.length || 0}):`, uniqueRedBlobs.map(b => ({ x: b.x, y: b.y, name: b.name || 'none' })));
+                console.log(`DEBUG: ⏱️ TIMING: searchForRedBlobsDuringWait - Cycle ${cycleCount} took ${cycleDuration}ms (capture: ${totalCaptureTime}ms, detect: ${totalDetectTime}ms) - Detected ${uniqueRedBlobs.length} red blob(s) (pass 1: ${redBlobs1?.length || 0}, pass 2: ${redBlobs2?.length || 0}):`, uniqueRedBlobs.map(b => ({ x: b.x, y: b.y, name: b.name || 'none' })));
             } else {
-                console.log(`DEBUG: searchForRedBlobsDuringWait - No red blobs detected in this attempt (pass 1: ${redBlobs1?.length || 0}, pass 2: ${redBlobs2?.length || 0})`);
+                console.log(`DEBUG: ⏱️ TIMING: searchForRedBlobsDuringWait - Cycle ${cycleCount} took ${cycleDuration}ms (capture: ${totalCaptureTime}ms, detect: ${totalDetectTime}ms) - No red blobs detected in this attempt (pass 1: ${redBlobs1?.length || 0}, pass 2: ${redBlobs2?.length || 0})`);
             }
             
             // Filter out named blobs (exit level, research) - we only want actionable red blobs
@@ -533,12 +550,22 @@ function startAutomation(dependencies) {
             if (actionableRedBlobs.length > 0) {
                 const firstBlob = actionableRedBlobs[0];
                 const elapsed = Date.now() - startTime;
-                console.log(`DEBUG: Red blob found on SECOND pass after ${elapsed}ms (${(elapsed / 1000).toFixed(1)}s) - blob at (${firstBlob.x}, ${firstBlob.y})`);
+                console.log(`DEBUG: ⏱️ TIMING: Red blob found on SECOND pass after ${elapsed}ms (${(elapsed / 1000).toFixed(1)}s) - Cycle ${cycleCount} took ${cycleDuration}ms - blob at (${firstBlob.x}, ${firstBlob.y})`);
                 updateStatus(`Red blob found after ${(elapsed / 1000).toFixed(1)}s - proceeding to prepBuild`, 'success');
                 return firstBlob;
             } else if (uniqueRedBlobs && uniqueRedBlobs.length > 0) {
                 // All blobs were named (exit level or research) - log this
                 console.log(`DEBUG: searchForRedBlobsDuringWait - Found ${uniqueRedBlobs.length} blob(s) but all were named (exit level/research) - filtering out`);
+            }
+            
+            // OPTIMIZATION: If cycle took longer than expected (e.g., > 1 second), add a small delay before next cycle
+            // This prevents overwhelming the system if screen capture is slow
+            if (cycleDuration > 1000) {
+                const remainingTime = endTime - Date.now();
+                if (remainingTime > 100) {
+                    console.log(`DEBUG: ⏱️ OPTIMIZATION: Cycle ${cycleCount} took ${cycleDuration}ms (slow), adding 100ms delay before next cycle`);
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
             }
             
             // Continue immediately to next detection attempt (no delay - run continuously)
@@ -550,7 +577,7 @@ function startAutomation(dependencies) {
         }
         
         const elapsed = Date.now() - startTime;
-        console.log(`DEBUG: Red blob search completed after ${elapsed}ms - no red blobs found`);
+        console.log(`DEBUG: ⏱️ TIMING: Red blob search completed after ${elapsed}ms (${(elapsed / 1000).toFixed(1)}s) - ${cycleCount} cycles completed - no red blobs found`);
         updateStatus(`Red blob search completed - no blobs found in ${(elapsed / 1000).toFixed(1)}s`, 'info');
         return null;
     }
@@ -1709,7 +1736,15 @@ function startAutomation(dependencies) {
         
         console.log(`DEBUG: Perfect starting position for "${settingsLevelName}": ${perfectStartingPositionAction} (scroll direction: ${scrollDirection})`);
         
-        // Notify that startup action is complete (always mark it, even if "nothing")
+        // OPTIMIZATION: Track if perfectStartingPosition has been executed for this level to prevent duplicate execution
+        // This prevents scroll_and_wait from running multiple times if exitAndStartNewLevel is called multiple times
+        if (dependencies.hasActionSignalBeenSent && dependencies.hasActionSignalBeenSent(currentLevelName, 'startup')) {
+            console.log(`DEBUG: ⚠️ OPTIMIZATION: Perfect starting position already executed for "${currentLevelName}" - skipping to prevent duplicate execution`);
+            // Still continue to main loop - startup was already handled
+        } else {
+            // Execute perfect starting position action
+        
+            // Notify that startup action is complete (always mark it, even if "nothing")
         if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
             console.log('🚀 Sending startup action completed signal');
             console.log('🚀 MainWindow state:', {
@@ -1860,6 +1895,7 @@ function startAutomation(dependencies) {
             console.log(`DEBUG: No specific scrolling action needed for level "${currentLevelName}".`);
             updateStatus(`No level-specific scrolling needed for: ${currentLevelName}`, 'info');
         }
+        } // End of startup action execution check (prevents duplicate execution)
         
         if (!getIsAutomationRunning()) { return; }
 

@@ -884,46 +884,7 @@ previewCanvas.addEventListener('mousemove', async (e) => { // Added async here
     coordinates.textContent = `Mouse: (${actualScreenX}, ${actualScreenY})`;
 });
 
-// Mouse movement debounce and IPC
-let mouseMoveTimer = null;
-const MOUSE_MOVE_THRESHOLD = 1; // Pixels
-const MOUSE_MOVE_DEBOUNCE_TIME = 20; // Milliseconds
-
-let lastMouseX = -1;
-let lastMouseY = -1;
-
-document.addEventListener('mousemove', (e) => {
-  if (!isFinishBuildRunning && !isFinishLevelRunning && !isClickAroundRunning) { // Only active if any automation is running
-    return;
-  }
-
-  const currentMouseX = e.screenX;
-  const currentMouseY = e.screenY;
-
-  if (lastMouseX === -1 || lastMouseY === -1) {
-    lastMouseX = currentMouseX;
-    lastMouseY = currentMouseY;
-    return;
-  }
-
-  const distance = Math.sqrt(
-    Math.pow(currentMouseX - lastMouseX, 2) + Math.pow(currentMouseY - lastMouseY, 2)
-  );
-
-  if (distance > MOUSE_MOVE_THRESHOLD) {
-    lastMouseX = currentMouseX;
-    lastMouseY = currentMouseY;
-
-    if (mouseMoveTimer) {
-      clearTimeout(mouseMoveTimer);
-    }
-
-    mouseMoveTimer = setTimeout(async () => {
-      console.log('Significant mouse movement detected, signaling main process to pause automation.');
-      await ipcRenderer.invoke('pause-automation-on-mouse-move');
-    }, MOUSE_MOVE_DEBOUNCE_TIME);
-  }
-});
+// Mouse movement detection removed - using Escape key and Space key interrupts instead
 
 // IPC event listeners
 ipcRenderer.on('live-view-update', (event, imageData) => {
