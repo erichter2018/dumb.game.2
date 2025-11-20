@@ -58,11 +58,12 @@
       "Tiramisu",
       "Lasagne B",
       "Calzone",
-      "Mozzarella"
+      "Mozzarella",
+      "Shrimps"
     ],
-    "lastUpdated": 1763556270977,
+    "lastUpdated": 1763628644719,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763556270977
+    "autoUpdatedAt": 1763628644719
   },
   "fish and chips shop": {
     "buildNames": [
@@ -85,9 +86,12 @@
       "Special Burger",
       "Fish",
       "Spaghetti",
-      "Salad"
+      "Salad",
+      "LhJIN"
     ],
-    "lastUpdated": 1763466485197
+    "lastUpdated": 1763632947664,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763632947665
   },
   "ice cream stand": {
     "buildNames": [
@@ -231,9 +235,12 @@
       "Mocktail",
       "Grape Juice",
       "Nuts",
-      "Sandwich"
+      "Sandwich",
+      "Grapeuice"
     ],
-    "lastUpdated": 1763529948805
+    "lastUpdated": 1763630430978,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763630430979
   },
   "drive thru take out": {
     "buildNames": [
@@ -245,11 +252,11 @@
       "YChicken Bucket",
       "Burger",
       "Fish n' Chips",
-      "Doner Kebab",
+      "Donner Kebab",
       "Pizza",
       "Bucket"
     ],
-    "lastUpdated": 1763540105519,
+    "lastUpdated": 1763627395526,
     "autoUpdatedCount": true,
     "autoUpdatedAt": 1763540105520
   },

@@ -613,7 +613,7 @@
           }
         ]
       },
-      "minBuildCount": 10
+      "minBuildCount": 11
     },
     "hot dog stand": {
       "doResearch": false,
@@ -1467,7 +1467,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 5
     },
     "joghurt house": {
       "doResearch": true,
@@ -1549,7 +1549,7 @@
     },
     "tapas bar": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": true,
@@ -1561,11 +1561,18 @@
           "scrollDistance": 25
         },
         "firstBuildAction": {
-          "action": "nothing",
-          "triggerTimeMs": null,
+          "action": "clickaround",
+          "triggerTimeMs": 20000,
           "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {}
+          "clickaroundOptions": {
+            "excludeRedBlobs": false,
+            "clickaroundChunks": 1,
+            "scrollUpDistance": 0,
+            "scrollUpCount": 0,
+            "initialScrollDown": 0,
+            "scrollToBottomAtEnd": false
+          }
         },
         "secondBuildAction": {
           "action": "nothing",
@@ -1598,7 +1605,7 @@
         "scrollToBottomAfterSecondBuild": false,
         "firstBuildAction": {
           "action": "clickaround",
-          "triggerTimeMs": 30000,
+          "triggerTimeMs": 20000,
           "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
           "clickaroundOptions": {
@@ -3975,11 +3982,18 @@
           "distance": 300
         },
         "firstBuildAction": {
-          "action": "nothing",
-          "triggerTimeMs": null,
+          "action": "clickaround",
+          "triggerTimeMs": 25000,
           "clickOffAndScrollDirection": "down",
           "clickOffAndScrollDistance": 150,
-          "clickaroundOptions": {}
+          "clickaroundOptions": {
+            "excludeRedBlobs": true,
+            "clickaroundChunks": 1,
+            "scrollUpDistance": 0,
+            "scrollUpCount": 0,
+            "initialScrollDown": 0,
+            "scrollToBottomAtEnd": false
+          }
         },
         "secondBuildAction": {
           "action": "nothing",
@@ -3990,7 +4004,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 58
+      "minBuildCount": 59
     },
     "level 1": {
       "minBuildCount": 15

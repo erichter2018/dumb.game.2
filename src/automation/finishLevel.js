@@ -1271,12 +1271,103 @@ function startAutomation(dependencies) {
             isFinishBuildRunningInternal = false;
             if (!getIsAutomationRunning()) return 'stopped';
 
-            // OPTIMIZATION: If clickaround already handled the after-build signal, skip general completion handler
-            // This ensures the signal is sent immediately when clickaround completes, not delayed
-            if (buildResult === 'finish_build_clickaround_completed' || buildResult === 'finish_build_custom_trigger_clickaround_completed') {
-                console.log(`DEBUG: ⚠️ OPTIMIZATION: Clickaround handler already sent after-build signal - skipping general completion handler to prevent delay`);
-                // Return immediately - signal was already sent, no need to process general completion logic
-                return buildResult;
+            // Handle clickaround completion HERE TOO (for the second finishBuild call path)
+            // This ensures the signal is sent immediately when clickaround completes, even if blue box was found after red blob clicks
+            if (buildResult === 'clickaround_completed' || buildResult === 'custom_trigger_clickaround_completed') {
+                updateStatus('Build action (clickaround) completed. Build was interrupted, but action completed.', 'success');
+                console.log('DEBUG: [SECOND PATH] Build action (clickaround) completed. Build was interrupted, but action completed.');
+                
+                // Determine which build number executed clickaround by checking which build action signal was sent
+                const currentLevelNameForCheck = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                let currentBuildAttempt = 1; // Default to 1
+                if (dependencies.hasActionSignalBeenSent) {
+                    if (dependencies.hasActionSignalBeenSent(currentLevelNameForCheck, 'second_build')) {
+                        currentBuildAttempt = 2;
+                    } else if (dependencies.hasActionSignalBeenSent(currentLevelNameForCheck, 'first_build')) {
+                        currentBuildAttempt = 1;
+                    } else {
+                        currentBuildAttempt = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+                        console.log(`DEBUG: [SECOND PATH] No build action signals found, using fallback: build #${currentBuildAttempt}`);
+                    }
+                } else {
+                    currentBuildAttempt = dependencies.getBuildNumberForCurrentLevel ? dependencies.getBuildNumberForCurrentLevel() : 1;
+                }
+                console.log(`DEBUG: [SECOND PATH] Build action completed during build attempt #${currentBuildAttempt} (build NOT completed, inferred from sent signals)`);
+                
+                // Get settings and execute scroll action (same logic as first path handler)
+                const currentLevelName = dependencies.getCurrentLevelName ? dependencies.getCurrentLevelName() : '';
+                const settingsLevelName = dependencies.getLevelNameForSettings ? dependencies.getLevelNameForSettings() : currentLevelName;
+                const eff = selectEffectiveDirectionOnce(settingsLevelName);
+                const baseSettings = settingsManager.getLevelSettings(settingsLevelName);
+                const dirSettings = settingsManager.getDirectionSettings(settingsLevelName, eff.dir);
+                const globalSettings = {
+                    doResearch: baseSettings.doResearch,
+                    blueBoxClickHoldDuration: baseSettings.blueBoxClickHoldDuration,
+                    maxBuildTimeMs: baseSettings.maxBuildTimeMs,
+                    minBuildCount: baseSettings.minBuildCount,
+                    customTriggers: baseSettings.customTriggers
+                };
+                const levelSettings = {
+                    ...globalSettings,
+                    ...dirSettings,
+                    scrollDirection: eff.dir
+                };
+                
+                let scrollSetting = { action: 'nothing' };
+                if (currentBuildAttempt === 1) {
+                    scrollSetting = levelSettings.scrollAfterFirstBuild || { action: 'nothing' };
+                } else if (currentBuildAttempt === 2) {
+                    scrollSetting = levelSettings.scrollAfterSecondBuild || { action: 'nothing' };
+                }
+                
+                let scrollExecuted = false;
+                if (scrollSetting.action !== 'nothing') {
+                    try {
+                        if (performClick && dependencies.CLICK_AREAS && dependencies.CLICK_AREAS.CLICK_OFF) {
+                            await performClick(dependencies.CLICK_AREAS.CLICK_OFF.x, dependencies.CLICK_AREAS.CLICK_OFF.y);
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        }
+                        const scrollX = iphoneMirroringRegion.x + iphoneMirroringRegion.width / 2;
+                        const scrollY = iphoneMirroringRegion.y + iphoneMirroringRegion.height / 2;
+                        
+                        if (scrollSetting.action === 'scrollToBottom') {
+                            await scrollToBottom(scrollX, scrollY, scrollSwipeDistance, scrollToBottomIterations, { updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS });
+                            scrollExecuted = true;
+                        } else if (scrollSetting.action === 'scrollToTop') {
+                            await scrollToTop({ updateCurrentFunction, performClick, CLICK_AREAS: dependencies.CLICK_AREAS, iphoneMirroringRegion });
+                            scrollExecuted = true;
+                        } else if (scrollSetting.action === 'scrollCustom') {
+                            const distance = scrollSetting.distance || 300;
+                            if (scrollSetting.direction === 'up') {
+                                await scrollUpWithDistance(scrollX, scrollY, distance);
+                                scrollExecuted = true;
+                            } else if (scrollSetting.direction === 'down') {
+                                await scrollDown(scrollX, scrollY, distance);
+                                scrollExecuted = true;
+                            }
+                        }
+                        if (!getIsAutomationRunning()) return 'stopped';
+                    } catch (error) {
+                        console.error(`DEBUG: [SECOND PATH] Error executing scroll:`, error);
+                    }
+                }
+                
+                // Send after-build signal IMMEDIATELY
+                const buildActionSignal = currentBuildAttempt === 1 ? 'first_build' : 'second_build';
+                const afterBuildAction = currentBuildAttempt === 1 ? 'after_first_build' : 'after_second_build';
+                
+                if (dependencies.sendActionCompletionSignal && dependencies.hasActionSignalBeenSent) {
+                    if (dependencies.hasActionSignalBeenSent(currentLevelNameForCheck, buildActionSignal)) {
+                        console.log(`DEBUG: [SECOND PATH] ⚡ IMMEDIATELY sending ${afterBuildAction} signal (build attempt #${currentBuildAttempt}, scroll executed: ${scrollExecuted}, scroll action: '${scrollSetting.action}', level: '${currentLevelNameForCheck}')`);
+                        dependencies.sendActionCompletionSignal(afterBuildAction, currentLevelNameForCheck);
+                        console.log(`DEBUG: [SECOND PATH] ✅ ${afterBuildAction} signal SENT IMMEDIATELY (build attempt #${currentBuildAttempt}, level: '${currentLevelNameForCheck}')`);
+                    } else {
+                        console.log(`DEBUG: [SECOND PATH] Skipping ${afterBuildAction} signal - ${buildActionSignal} signal was not sent`);
+                    }
+                }
+                
+                // Return immediately - signal was sent, no need to process general completion logic
+                return 'finish_build_clickaround_completed';
             }
 
             // Check if we should scroll to bottom after build completion based on settings
