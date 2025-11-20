@@ -866,8 +866,10 @@ function startAutomation(dependencies) {
                         // Build action was executed, safe to send after-build signal
                         // Send signal even if scroll action was 'nothing' or didn't execute - checkbox should reflect completion
                         // CRITICAL: Use currentLevelNameForCheck (not currentLevelName) to ensure correct level name is used
+                        // CRITICAL: Send signal IMMEDIATELY when clickaround completes - don't wait for general completion handler
+                        console.log(`DEBUG: [CLICKAROUND] ⚡ IMMEDIATELY sending ${afterBuildAction} signal (build attempt #${currentBuildAttempt}, scroll executed: ${scrollExecuted}, scroll action: '${scrollSetting.action}', level: '${currentLevelNameForCheck}')`);
                         dependencies.sendActionCompletionSignal(afterBuildAction, currentLevelNameForCheck);
-                        console.log(`DEBUG: [CLICKAROUND] Sent ${afterBuildAction} signal (build attempt #${currentBuildAttempt}, scroll executed: ${scrollExecuted}, scroll action: '${scrollSetting.action}', level: '${currentLevelNameForCheck}')`);
+                        console.log(`DEBUG: [CLICKAROUND] ✅ ${afterBuildAction} signal SENT IMMEDIATELY (build attempt #${currentBuildAttempt}, level: '${currentLevelNameForCheck}')`);
                     } else {
                         console.log(`DEBUG: [CLICKAROUND] Skipping ${afterBuildAction} signal - ${buildActionSignal} signal was not sent (build action was 'nothing' or didn't execute)`);
                     }
@@ -1268,6 +1270,14 @@ function startAutomation(dependencies) {
             // Reset internal flag after finishBuildAutomation returns
             isFinishBuildRunningInternal = false;
             if (!getIsAutomationRunning()) return 'stopped';
+
+            // OPTIMIZATION: If clickaround already handled the after-build signal, skip general completion handler
+            // This ensures the signal is sent immediately when clickaround completes, not delayed
+            if (buildResult === 'finish_build_clickaround_completed' || buildResult === 'finish_build_custom_trigger_clickaround_completed') {
+                console.log(`DEBUG: ⚠️ OPTIMIZATION: Clickaround handler already sent after-build signal - skipping general completion handler to prevent delay`);
+                // Continue to red blob detection - don't process general completion logic
+                continue;
+            }
 
             // Check if we should scroll to bottom after build completion based on settings
             if (buildResult !== 'stopped' && buildResult !== 'error') {
@@ -1744,7 +1754,7 @@ function startAutomation(dependencies) {
         } else {
             // Execute perfect starting position action
         
-            // Notify that startup action is complete (always mark it, even if "nothing")
+        // Notify that startup action is complete (always mark it, even if "nothing")
         if (dependencies.mainWindow && !dependencies.mainWindow.isDestroyed()) {
             console.log('🚀 Sending startup action completed signal');
             console.log('🚀 MainWindow state:', {

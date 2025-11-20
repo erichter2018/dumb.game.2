@@ -5040,8 +5040,8 @@
       "avgStageTime": 541361
     },
     "2025-11-20": {
-      "levelsCompleted": 97,
-      "stagesCompleted": 13,
+      "levelsCompleted": 121,
+      "stagesCompleted": 16,
       "levelTimes": [
         20112,
         61517,
@@ -5127,7 +5127,29 @@
         21690,
         29016,
         52420,
-        93431
+        93431,
+        79437,
+        250412,
+        15015,
+        20782,
+        28788,
+        57717,
+        78512,
+        68225,
+        218273,
+        13159,
+        20130,
+        31692,
+        77031,
+        129079,
+        65248,
+        260104,
+        14864,
+        21133,
+        31817,
+        62860,
+        61352,
+        51246
       ],
       "stageTimes": [
         543623,
@@ -5136,22 +5158,24 @@
         630377,
         467366,
         637362,
-        435349
+        435349,
+        487309,
+        596441
       ],
-      "minLevelTime": 14558,
+      "minLevelTime": 13159,
       "maxLevelTime": 338589,
-      "avgLevelTime": 69352,
+      "avgLevelTime": 70578,
       "minStageTime": 434579,
       "maxStageTime": 637362,
-      "avgStageTime": 512280
+      "avgStageTime": 518856
     }
   },
   "lastKnownLevel": {
-    "stageName": "Marrakesh",
-    "stageNumber": 38,
-    "levelName": "Kebab Shop",
-    "levelPosition": 5,
-    "timestamp": "2025-11-20T07:27:39.611Z"
+    "stageName": "Florence",
+    "stageNumber": 41,
+    "levelName": "Cafe Napolita",
+    "levelPosition": 6,
+    "timestamp": "2025-11-20T08:04:27.000Z"
   },
-  "lastSaveDate": "2025-11-20T07:27:39.612Z"
+  "lastSaveDate": "2025-11-20T08:04:27.000Z"
 }

@@ -2858,7 +2858,7 @@
           "clickaroundOptions": {
             "excludeRedBlobs": true,
             "clickaroundChunks": 1,
-            "scrollUpDistance": 170,
+            "scrollUpDistance": 150,
             "scrollUpCount": 2,
             "initialScrollDown": 0,
             "scrollToBottomAtEnd": false
