@@ -61,11 +61,18 @@
       "Mozzarella",
       "Shrimps",
       "Wurst",
-      "NT dl"
+      "NT dl",
+      "Cheddar",
+      "Feta",
+      "Blue Cheese",
+      "Cottage Cheese",
+      "Baguette",
+      "Popsicle",
+      "Wrap"
     ],
-    "lastUpdated": 1763637521290,
+    "lastUpdated": 1763799507743,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763637521290
+    "autoUpdatedAt": 1763799507744
   },
   "fish and chips shop": {
     "buildNames": [
@@ -163,9 +170,12 @@
       "Coffee",
       "Sandwich",
       "Muffins",
-      "Cheese Cake"
+      "Cheese Cake",
+      "SEPA"
     ],
-    "lastUpdated": 1763529325423
+    "lastUpdated": 1763713087211,
+    "autoUpdatedCount": true,
+    "autoUpdatedAt": 1763713087212
   },
   "joghurt house": {
     "buildNames": [
@@ -183,11 +193,12 @@
       "Lobster",
       "Oyster",
       "Fish n' Chips",
-      "Salad"
+      "Salad",
+      "Fish n'Chips 1"
     ],
-    "lastUpdated": 1763529497917,
+    "lastUpdated": 1763791153804,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763529497917
+    "autoUpdatedAt": 1763791153805
   },
   "diner": {
     "buildNames": [
@@ -226,11 +237,13 @@
       "Nuggets",
       "Fries",
       "Burger 2",
-      "Burger"
+      "Burger",
+      "A pr",
+      "J D-"
     ],
-    "lastUpdated": 1763537470897,
+    "lastUpdated": 1763793521368,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763537470898
+    "autoUpdatedAt": 1763793521369
   },
   "mocktail bar": {
     "buildNames": [
@@ -238,11 +251,12 @@
       "Grape Juice",
       "Nuts",
       "Sandwich",
-      "Grapeuice"
+      "Grapeuice",
+      "Pits"
     ],
-    "lastUpdated": 1763630430978,
+    "lastUpdated": 1763725963674,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763630430979
+    "autoUpdatedAt": 1763725963675
   },
   "drive thru take out": {
     "buildNames": [
@@ -293,11 +307,12 @@
       "Wrap",
       "Soda",
       "Burger",
-      "Pits"
+      "Pits",
+      "J p  -  4"
     ],
-    "lastUpdated": 1763623613150,
+    "lastUpdated": 1763796991420,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763623613151
+    "autoUpdatedAt": 1763796991420
   },
   "cafe napolita": {
     "buildNames": [
@@ -449,11 +464,13 @@
       "Sandwich",
       "Olives",
       "Shrimps",
-      "Apple Juice"
+      "Apple Juice",
+      "Shrimps 3d",
+      "Sandwich N"
     ],
-    "lastUpdated": 1763539784945,
+    "lastUpdated": 1763799650474,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763539784946
+    "autoUpdatedAt": 1763799650475
   },
   "italiano": {
     "buildNames": [
@@ -493,11 +510,13 @@
       "Falafel",
       "Hummus",
       "Turkish Coffee",
-      "Coffee"
+      "Coffee",
+      "Steak -",
+      "Baklava q"
     ],
-    "lastUpdated": 1763538304370,
+    "lastUpdated": 1763796768030,
     "autoUpdatedCount": true,
-    "autoUpdatedAt": 1763538304370
+    "autoUpdatedAt": 1763796768031
   },
   "curry wurst stand": {
     "buildNames": [

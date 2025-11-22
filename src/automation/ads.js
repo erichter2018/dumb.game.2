@@ -104,20 +104,19 @@ async function detectBoostBox(dependencies) {
         console.log(`DEBUG: Saved boost box region screenshot to ${debugPath}`);
         
         // Apply preprocessing for better OCR (resize, greyscale, contrast)
-        // Boost box text is white on blue, so we need to enhance contrast
-        // Try multiple preprocessing approaches and use the best result
+        // Boost box text is white on blue, so we need to enhance contrast.
+        // IMPORTANT: For the boost box to be considered "present" it MUST contain
+        // the word "Boost" (case-insensitive). We do NOT rely on color-only
+        // heuristics or the countdown timer for this decision anymore.
         
-        // Helper function to check if OCR text matches boost pattern
+        // Helper function to check if OCR text contains "Boost"
         function matchesBoostPattern(text) {
             if (!text) return false;
             const hasBoost = /boost/i.test(text);
-            const hasPlus40Min = /\+40\s*min/i.test(text) || /\+40min/i.test(text) || /iomin/i.test(text); // Handle OCR error "iomin" for "+40min"
-            const hasX12 = /x12/i.test(text) || /\bx\s*12\b/i.test(text) || /xI2/i.test(text) || /xl2/i.test(text); // Handle OCR errors "xI2", "xl2" for "x12"
-            return hasBoost && (hasPlus40Min || hasX12);
+            return hasBoost;
         }
         
         const ocrWorker = await initializeOCR();
-        let bestResult = null;
         let bestConfidence = 0;
         let bestText = '';
         let bestProcessedBuffer = null;
@@ -128,17 +127,16 @@ async function detectBoostBox(dependencies) {
             const result0 = await ocrWorker.recognize(rawCroppedBuffer);
             const text0 = result0.data.text.trim();
             const matches0 = matchesBoostPattern(text0);
-            // Prioritize results that match the pattern, even with lower confidence
-            if ((matches0 && !bestMatchesPattern) || 
+            // Prioritize results that contain "Boost", even with lower confidence
+            if ((matches0 && !bestMatchesPattern) ||
                 (matches0 && bestMatchesPattern && result0.data.confidence > bestConfidence) ||
                 (!bestMatchesPattern && result0.data.confidence > bestConfidence && text0.length > 0)) {
                 bestConfidence = result0.data.confidence;
                 bestText = text0;
-                bestResult = result0;
                 bestProcessedBuffer = rawCroppedBuffer;
                 bestMatchesPattern = matches0;
             }
-            console.log(`DEBUG: Boost box OCR (raw) - text: "${text0}", confidence: ${result0.data.confidence}, matches: ${matches0}`);
+            console.log(`DEBUG: Boost box OCR (raw) - text: "${text0}", confidence: ${result0.data.confidence}, hasBoost: ${matches0}`);
         } catch (e) {
             console.error('ERROR: OCR raw failed:', e);
         }
@@ -161,11 +159,10 @@ async function detectBoostBox(dependencies) {
                 (!bestMatchesPattern && result1.data.confidence > bestConfidence && text1.length > 0)) {
                 bestConfidence = result1.data.confidence;
                 bestText = text1;
-                bestResult = result1;
                 bestProcessedBuffer = processedImageBuffer1;
                 bestMatchesPattern = matches1;
             }
-            console.log(`DEBUG: Boost box OCR (approach 1 - moderate) - text: "${text1}", confidence: ${result1.data.confidence}, matches: ${matches1}`);
+            console.log(`DEBUG: Boost box OCR (approach 1 - moderate) - text: "${text1}", confidence: ${result1.data.confidence}, hasBoost: ${matches1}`);
         } catch (e) {
             console.error('ERROR: OCR approach 1 failed:', e);
         }
@@ -190,11 +187,10 @@ async function detectBoostBox(dependencies) {
                 (!bestMatchesPattern && result2.data.confidence > bestConfidence && text2.length > 0)) {
                 bestConfidence = result2.data.confidence;
                 bestText = text2;
-                bestResult = result2;
                 bestProcessedBuffer = processedImageBuffer2;
                 bestMatchesPattern = matches2;
             }
-            console.log(`DEBUG: Boost box OCR (approach 2 - inverted) - text: "${text2}", confidence: ${result2.data.confidence}, matches: ${matches2}`);
+            console.log(`DEBUG: Boost box OCR (approach 2 - inverted) - text: "${text2}", confidence: ${result2.data.confidence}, hasBoost: ${matches2}`);
         } catch (e) {
             console.error('ERROR: OCR approach 2 failed:', e);
         }
@@ -218,11 +214,10 @@ async function detectBoostBox(dependencies) {
                 (!bestMatchesPattern && result3.data.confidence > bestConfidence && text3.length > 0)) {
                 bestConfidence = result3.data.confidence;
                 bestText = text3;
-                bestResult = result3;
                 bestProcessedBuffer = processedImageBuffer3;
                 bestMatchesPattern = matches3;
             }
-            console.log(`DEBUG: Boost box OCR (approach 3 - high contrast) - text: "${text3}", confidence: ${result3.data.confidence}, matches: ${matches3}`);
+            console.log(`DEBUG: Boost box OCR (approach 3 - high contrast) - text: "${text3}", confidence: ${result3.data.confidence}, hasBoost: ${matches3}`);
         } catch (e) {
             console.error('ERROR: OCR approach 3 failed:', e);
         }
@@ -240,129 +235,19 @@ async function detectBoostBox(dependencies) {
         console.log(`DEBUG: Boost box OCR - Best confidence: ${bestConfidence}`);
         
         const ocrText = rawText ? rawText.trim() : '';
-        const hasOcrText = ocrText.length > 0;
         
-        // Check if the best result matches the boost pattern (using the helper function)
+        // Check if the best result contains the word "Boost"
         const boostBoxPresent = bestMatchesPattern;
         
         if (boostBoxPresent) {
-            console.log(`DEBUG: Boost box detected via OCR - text: "${ocrText}", confidence: ${bestConfidence}`);
-            return true; // OCR found it, we're good
+            console.log(`DEBUG: Boost box detected via OCR (requires "Boost") - text: "${ocrText}", confidence: ${bestConfidence}`);
+            return true; // OCR found the word "Boost", we're confident the real boost box is present
         }
         
-        // OCR didn't match boost pattern - check countdown timer as fallback
-        // If countdown timer is detected, we're definitely on game screen (not in ad)
-        // So assume boost box is present even if we can't detect it
-        console.log(`DEBUG: OCR text "${ocrText}" didn't match boost pattern - checking countdown timer as fallback indicator...`);
-        try {
-            const countdownText = await readAdCountdown({ captureScreenRegion });
-            if (countdownText && countdownText.trim().length > 0) {
-                console.log(`DEBUG: Countdown timer detected: "${countdownText}" - assuming boost box is present (on game screen)`);
-                return true; // Countdown present = we're on game screen = boost box is there
-            } else {
-                console.log('DEBUG: No countdown timer detected either - likely in an ad');
-            }
-        } catch (e) {
-            console.error('ERROR: Failed to check countdown timer:', e);
-        }
-        
-        // OCR found text but didn't match, and countdown not detected
-        // Try color detection only if OCR found SOME text (suggests we're on game screen)
-        if (hasOcrText) {
-            console.log('DEBUG: OCR found text but didn\'t match boost pattern, and countdown not detected - trying color-based detection as fallback...');
-        } else {
-            // OCR completely failed (no text at all) - likely in an ad, don't use color detection
-            console.log('DEBUG: OCR and countdown both failed - assuming in ad, NOT using color detection');
-            return false;
-        }
-        
-        // Only use color-based detection if OCR found SOME text (even if it didn't match)
-        // This ensures we're on the game screen, not in an ad
-        try {
-            const sharp = require('sharp');
-            const { Monitor } = require('node-screenshots');
-            const monitors = Monitor.all();
-            const primaryMonitor = monitors.find(m => m.isPrimary);
-            
-            if (!primaryMonitor) {
-                console.log('DEBUG: No primary monitor found for color detection - assuming in ad');
-                return false;
-            }
-            
-            // Capture the boost box region
-            const image = primaryMonitor.captureImageSync();
-            const croppedImage = image.cropSync(boostBoxRegion.x, boostBoxRegion.y, boostBoxRegion.width, boostBoxRegion.height);
-            const imageBuffer = croppedImage.toPngSync();
-            
-            // Get raw RGB pixel data
-            const rawBuffer = await sharp(imageBuffer)
-                .raw()
-                .toBuffer();
-            
-            const metadata = await sharp(imageBuffer).metadata();
-            const pixelCount = metadata.width * metadata.height;
-            
-            // Count blue pixels with STRICTER criteria
-            // Boost box has specific blue colors - need to match more precisely
-            let bluePixelCount = 0;
-            let darkBluePixelCount = 0; // Dark blue (filled portion) - typically RGB ~(30,60,120)
-            let lightBluePixelCount = 0; // Light blue (unfilled) - typically RGB ~(100,150,220)
-            let veryBluePixelCount = 0; // Very blue pixels (strong blue dominance)
-            
-            for (let i = 0; i < rawBuffer.length; i += 3) {
-                const r = rawBuffer[i];
-                const g = rawBuffer[i + 1];
-                const b = rawBuffer[i + 2];
-                
-                // Stricter blue detection: blue must be significantly dominant
-                // Boost box blue: blue channel is much higher than red/green
-                // Dark blue: b ~50-120, r ~20-50, g ~40-80
-                // Light blue: b ~150-220, r ~80-120, g ~120-180
-                const blueDominance = b - Math.max(r, g);
-                const isBlue = blueDominance > 30 && b > 50 && b < 250; // Blue is strongly dominant
-                
-                if (isBlue) {
-                    bluePixelCount++;
-                    
-                    // Very blue pixels (strong blue dominance > 50)
-                    if (blueDominance > 50) {
-                        veryBluePixelCount++;
-                    }
-                    
-                    // Classify as dark or light blue
-                    if (b < 120) {
-                        darkBluePixelCount++; // Dark blue (filled portion)
-                    } else {
-                        lightBluePixelCount++; // Light blue (unfilled or partially filled)
-                    }
-                }
-            }
-            
-            const bluePercentage = (bluePixelCount / pixelCount) * 100;
-            const veryBluePercentage = (veryBluePixelCount / pixelCount) * 100;
-            console.log(`DEBUG: Boost box detection (color) - blue pixels: ${bluePixelCount}/${pixelCount} (${bluePercentage.toFixed(1)}%), very blue: ${veryBluePixelCount} (${veryBluePercentage.toFixed(1)}%), dark: ${darkBluePixelCount}, light: ${lightBluePixelCount}`);
-            
-            // MUCH STRICTER criteria to avoid false positives from ads:
-            // 1. Need at least 30% blue pixels (was 20%)
-            // 2. OR at least 15% very blue pixels (strong blue dominance)
-            // 3. Must have BOTH dark and light blue pixels (boost box has both filled and unfilled areas)
-            const hasEnoughBlue = bluePercentage >= 30 || veryBluePercentage >= 15;
-            const hasBothDarkAndLight = darkBluePixelCount > 0 && lightBluePixelCount > 0;
-            
-            if (hasEnoughBlue && hasBothDarkAndLight) {
-                console.log(`DEBUG: Boost box detected via color - blue: ${bluePercentage.toFixed(1)}%, very blue: ${veryBluePercentage.toFixed(1)}%, has both dark/light: ${hasBothDarkAndLight}`);
-                return true;
-            } else {
-                console.log(`DEBUG: Boost box NOT detected via color - blue: ${bluePercentage.toFixed(1)}%, very blue: ${veryBluePercentage.toFixed(1)}%, has both dark/light: ${hasBothDarkAndLight}`);
-                return false;
-            }
-        } catch (colorError) {
-            console.error('ERROR: Color-based boost box detection failed:', colorError);
-            // Fall through to return false
-        }
-        
-        // Both OCR and color detection failed
-        console.log('DEBUG: Both OCR and color detection failed for boost box - assuming in ad');
+        // We explicitly do NOT fall back to countdown or color-only heuristics anymore.
+        // If OCR cannot find the word "Boost" in this region, we treat the boost box
+        // as NOT present to avoid false positives from ads with blue UI elements.
+        console.log(`DEBUG: Boost box NOT detected - OCR best text "${ocrText}" does not contain "Boost"`);
         return false;
     } catch (error) {
         console.error('ERROR: Boost box detection failed:', error);
@@ -441,10 +326,20 @@ async function readAdCountdown(dependencies) {
         // Perform OCR on preprocessed image
         const ocrWorker = await initializeOCR();
         const result = await ocrWorker.recognize(processedImageBuffer);
-        const rawText = result.data.text;
+        let rawText = result.data.text;
         
         console.log(`DEBUG: RAW OCR text for countdown: "${rawText}"`);
         console.log(`DEBUG: OCR confidence: ${result.data.confidence}`);
+        
+        // Normalize common OCR misreads:
+        // - In this countdown box, there is never a literal "S" character; when Tesseract
+        //   returns "S" it is actually misreading the digit "5". Treat all capital "S"
+        //   characters as "5" before further cleaning.
+        if (rawText && rawText.includes('S')) {
+            const normalized = rawText.replace(/S/g, '5');
+            console.log(`DEBUG: Normalized countdown OCR text (S->5): "${normalized}"`);
+            rawText = normalized;
+        }
         
         if (!rawText || rawText.trim().length === 0) {
             console.log('DEBUG: OCR returned empty text for countdown');

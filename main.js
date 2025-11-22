@@ -2744,7 +2744,7 @@ ipcMain.handle('toggle-center-clicks', async (event, start) => {
       unregisterAutomationShortcuts();
     });
     
-    return { success: true };
+  return { success: true };
   } else {
     // Stop center clicks
     isCenterClicksRunning = false;

@@ -324,7 +324,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 4
+      "minBuildCount": 5
     },
     "fast food": {
       "doResearch": true,
@@ -402,7 +402,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 6
+      "minBuildCount": 8
     },
     "drive thru": {
       "doResearch": true,
@@ -1127,7 +1127,7 @@
         "scrollAfterFirstBuild": {
           "action": "scrollCustom",
           "direction": "down",
-          "distance": 350
+          "distance": 450
         },
         "scrollAfterSecondBuild": {
           "action": "nothing",
@@ -1467,7 +1467,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 5
+      "minBuildCount": 6
     },
     "joghurt house": {
       "doResearch": true,
@@ -1637,7 +1637,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 5
+      "minBuildCount": 7
     },
     "big drive thru": {
       "doResearch": true,
@@ -2708,7 +2708,7 @@
     },
     "dessert co": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 4500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -2717,7 +2717,7 @@
           "action": "scroll_and_wait",
           "waitTimeMs": 1000,
           "scrollDirection": "down",
-          "scrollDistance": 200
+          "scrollDistance": 220
         },
         "firstBuildAction": {
           "action": "nothing",
@@ -3090,7 +3090,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 6
+      "minBuildCount": 7
     },
     "mezze bar": {
       "doResearch": true,
@@ -3209,7 +3209,7 @@
         }
       },
       "customTriggers": [],
-      "minBuildCount": 11
+      "minBuildCount": 13
     },
     "curry wurst stand": {
       "doResearch": false,
@@ -3287,7 +3287,7 @@
     },
     "apple juice bar": {
       "doResearch": true,
-      "scrollDirection": "down",
+      "scrollDirection": "up",
       "blueBoxClickHoldDuration": 6500,
       "directionUp": {
         "scrollToBottomAfterFirstBuild": false,
@@ -3558,7 +3558,7 @@
           }
         ]
       },
-      "minBuildCount": 6
+      "minBuildCount": 7
     },
     "dumpling hut": {
       "doResearch": true,
@@ -3912,7 +3912,7 @@
       "minBuildCount": 11
     },
     "_global": {
-      "directionMode": "random"
+      "directionMode": "best"
     },
     "unknown level": {
       "doResearch": true,
@@ -4004,7 +4004,7 @@
         },
         "customTriggers": []
       },
-      "minBuildCount": 61
+      "minBuildCount": 68
     },
     "level 1": {
       "minBuildCount": 15

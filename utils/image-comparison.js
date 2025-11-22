@@ -237,11 +237,12 @@ async function compareBottomRegions(imageDataUrl1, imageDataUrl2, region, bottom
         
         // Calculate the bottom region dimensions
         const bottomHeight = Math.floor(region.height * (bottomPercentage / 100));
+        const calculatedTop = Math.max(0, region.y + region.height - bottomHeight);
         const bottomRegion = {
             left: Math.max(0, region.x),
-            top: Math.max(0, region.y + region.height - bottomHeight),
+            top: calculatedTop,
             width: Math.min(region.width, metadata1.width - Math.max(0, region.x)),
-            height: Math.min(bottomHeight, metadata1.height - Math.max(0, region.y + region.height - bottomHeight))
+            height: Math.max(0, Math.min(bottomHeight, metadata1.height - calculatedTop))
         };
         
         // Validate that the region is valid
@@ -379,11 +380,12 @@ async function captureBottomRegion(captureScreenRegion, region, bottomPercentage
         
         // Calculate the bottom region dimensions
         const bottomHeight = Math.floor(region.height * (bottomPercentage / 100));
+        const calculatedTop = Math.max(0, region.y + region.height - bottomHeight);
         const bottomRegion = {
             left: Math.max(0, region.x),
-            top: Math.max(0, region.y + region.height - bottomHeight),
+            top: calculatedTop,
             width: Math.min(region.width, metadata.width - Math.max(0, region.x)),
-            height: Math.min(bottomHeight, metadata.height - Math.max(0, region.y + region.height - bottomHeight))
+            height: Math.max(0, Math.min(bottomHeight, metadata.height - calculatedTop))
         };
         
         // Validate that the region is valid

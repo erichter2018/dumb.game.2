@@ -206,15 +206,15 @@ async function stopAllAutomation() {
         const clickAroundFalseBtn = document.getElementById('clickAroundFalseBtn');
         
         if (clickAroundTrueBtn) {
-            clickAroundTrueBtn.textContent = 'Click Around True';
-            clickAroundTrueBtn.classList.remove('btn-danger');
-            clickAroundTrueBtn.classList.add('btn-secondary');
+        clickAroundTrueBtn.textContent = 'Click Around True';
+        clickAroundTrueBtn.classList.remove('btn-danger');
+        clickAroundTrueBtn.classList.add('btn-secondary');
         }
         
         if (clickAroundFalseBtn) {
-            clickAroundFalseBtn.textContent = 'Click Around False';
-            clickAroundFalseBtn.classList.remove('btn-danger');
-            clickAroundFalseBtn.classList.add('btn-secondary');
+        clickAroundFalseBtn.textContent = 'Click Around False';
+        clickAroundFalseBtn.classList.remove('btn-danger');
+        clickAroundFalseBtn.classList.add('btn-secondary');
         }
         
         updateStatus('All automation stopped.', 'info');
@@ -270,11 +270,10 @@ if (triggerAdsBtn) {
             const result = await ipcRenderer.invoke('trigger-ads', true);
             if (result && result.success) {
                 // Don't add redundant messages here - screenshots and completion message are already sent from ads.js
-                // Auto-close after 3 seconds on success
-                // COMMENTED OUT: Leave modal open for now
-                // setTimeout(() => {
-                //     closeAdsModal();
-                // }, 3000);
+                // Auto-close the ads modal a few seconds after ads have finished successfully
+                setTimeout(() => {
+                    closeAdsModal();
+                }, 5000);
             } else {
                 const errorMsg = result?.error || 'Unknown error';
                 addAdsModalMessage(`Ads trigger failed: ${errorMsg}`, 'error');
@@ -481,7 +480,7 @@ document.getElementById('adsModal').addEventListener('click', (e) => {
             if (isRelevant && !isVerboseDebug) {
                 addAdsModalMessage(message, type || 'info');
             }
-        });
+});
 
 // Scroll button event listeners removed - scroll controls are now handled internally by automation
 
@@ -1581,16 +1580,16 @@ ipcRenderer.on('click-around-stopped', () => {
     
     // Reset Click Around True button
     if (clickAroundTrueBtn) {
-        clickAroundTrueBtn.textContent = 'Click Around True';
-        clickAroundTrueBtn.classList.remove('btn-danger');
-        clickAroundTrueBtn.classList.add('btn-secondary');
+    clickAroundTrueBtn.textContent = 'Click Around True';
+    clickAroundTrueBtn.classList.remove('btn-danger');
+    clickAroundTrueBtn.classList.add('btn-secondary');
     }
     
     // Reset Click Around False button
     if (clickAroundFalseBtn) {
-        clickAroundFalseBtn.textContent = 'Click Around False';
-        clickAroundFalseBtn.classList.remove('btn-danger');
-        clickAroundFalseBtn.classList.add('btn-secondary');
+    clickAroundFalseBtn.textContent = 'Click Around False';
+    clickAroundFalseBtn.classList.remove('btn-danger');
+    clickAroundFalseBtn.classList.add('btn-secondary');
     }
 });
 
@@ -1725,38 +1724,38 @@ async function updatePreviousStageDetailsCompact(previousStage) {
     isUpdatingPreviousStage = true;
     
     try {
-        const prevStageDetails = document.getElementById('prevStageDetails');
-        const prevStageLevels = document.getElementById('prevStageLevels');
-        
-        // Validate previous stage data
-        if (!previousStage) {
-            console.log(`RENDERER: No previous stage data provided`);
-            if (prevStageDetails) prevStageDetails.style.display = 'none';
+    const prevStageDetails = document.getElementById('prevStageDetails');
+    const prevStageLevels = document.getElementById('prevStageLevels');
+    
+    // Validate previous stage data
+    if (!previousStage) {
+        console.log(`RENDERER: No previous stage data provided`);
+        if (prevStageDetails) prevStageDetails.style.display = 'none';
             if (prevStageLevels) prevStageLevels.innerHTML = '';
-            return;
-        }
-        
-        if (!previousStage.levels || !Array.isArray(previousStage.levels)) {
-            console.log(`RENDERER: Previous stage has invalid levels data:`, previousStage.levels);
-            if (prevStageDetails) prevStageDetails.style.display = 'none';
+        return;
+    }
+    
+    if (!previousStage.levels || !Array.isArray(previousStage.levels)) {
+        console.log(`RENDERER: Previous stage has invalid levels data:`, previousStage.levels);
+        if (prevStageDetails) prevStageDetails.style.display = 'none';
             if (prevStageLevels) prevStageLevels.innerHTML = '';
-            return;
-        }
-        
-        if (previousStage.levels.length === 0) {
-            console.log(`RENDERER: Previous stage has no levels`);
-            if (prevStageDetails) prevStageDetails.style.display = 'none';
+        return;
+    }
+    
+    if (previousStage.levels.length === 0) {
+        console.log(`RENDERER: Previous stage has no levels`);
+        if (prevStageDetails) prevStageDetails.style.display = 'none';
             if (prevStageLevels) prevStageLevels.innerHTML = '';
-            return;
-        }
-        
-        console.log(`RENDERER: Updating previous stage "${previousStage.name}" with ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
-        
-        if (prevStageDetails) prevStageDetails.style.display = 'block';
-        
-        if (prevStageLevels) {
+        return;
+    }
+    
+    console.log(`RENDERER: Updating previous stage "${previousStage.name}" with ${previousStage.levels.length} levels: [${previousStage.levels.map(l => l.name).join(', ')}]`);
+    
+    if (prevStageDetails) prevStageDetails.style.display = 'block';
+    
+    if (prevStageLevels) {
             // Clear existing content first
-            prevStageLevels.innerHTML = '';
+        prevStageLevels.innerHTML = '';
         
         const isPartialStage = previousStage.isPartial || false;
         
@@ -3564,15 +3563,15 @@ async function initializeSettingsModal() {
         await ipcRenderer.invoke('renderer-log', `DIR: current form (pre-save old): ${JSON.stringify(currentSettings)}`);
         
         // Always auto-save the current direction's settings before switching (no dialog)
-        const customTriggersForOldDir = getCustomTriggersFromForm();
+                const customTriggersForOldDir = getCustomTriggersFromForm();
                 const directionSpecificSettings = {
                     optimized: currentSettings.optimized,
                     perfectStartingPosition: currentSettings.perfectStartingPosition,
             scrollAfterFirstBuild: currentSettings.scrollAfterFirstBuild,
             scrollAfterSecondBuild: currentSettings.scrollAfterSecondBuild,
-                    firstBuildAction: currentSettings.firstBuildAction,
-            secondBuildAction: currentSettings.secondBuildAction,
-            customTriggers: customTriggersForOldDir
+                firstBuildAction: currentSettings.firstBuildAction,
+                secondBuildAction: currentSettings.secondBuildAction,
+                customTriggers: customTriggersForOldDir
             };
             await ipcRenderer.invoke('renderer-log', `DIR: auto-saving oldDirection ${oldDirection} settings: ${JSON.stringify(directionSpecificSettings)}`);
             await ipcRenderer.invoke('save-direction-settings', currentEditingLevel, oldDirection, directionSpecificSettings);

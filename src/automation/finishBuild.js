@@ -831,11 +831,18 @@ async function runBuildProtocol(dependencies) {
         
         // Now determine build actions based on the build number
         // Determine which action to use based on build number
+        // CRITICAL: Use sequence number (attempts) if available to determine which action to run
+        // This ensures "First Build Action" runs on first start, "Second Build Action" runs on second start
+        const actionSequenceNumber = dependencies.getBuildSequenceNumber ? dependencies.getBuildSequenceNumber() : buildNumber;
+        if (actionSequenceNumber !== buildNumber) {
+            console.log(`DEBUG: Using sequence number ${actionSequenceNumber} for action selection (OCR build number: ${buildNumber})`);
+        }
+
         // Only first and second builds have actions; third+ builds have no actions
         let currentBuildAction = { action: 'nothing', triggerTimeMs: null };
-        if (buildNumber === 1) {
+        if (actionSequenceNumber === 1) {
             currentBuildAction = firstBuildAction;
-        } else if (buildNumber === 2) {
+        } else if (actionSequenceNumber === 2) {
             currentBuildAction = secondBuildAction;
         }
         const actionTriggerTime = currentBuildAction.triggerTimeMs;
@@ -843,21 +850,22 @@ async function runBuildProtocol(dependencies) {
         console.log(`DEBUG: Build actions from settings for "${settingsLevelName}"${currentLevelName !== settingsLevelName ? ` (internal name: "${currentLevelName}")` : ''}:`, {
             first: firstBuildAction,
             second: secondBuildAction,
-            buildNumber: buildNumber
+            buildNumber: buildNumber,
+            sequenceNumber: actionSequenceNumber
         });
-        console.log(`DEBUG: Build #${buildNumber} - Using action: ${currentBuildAction.action} at ${actionTriggerTime}ms`);
+        console.log(`DEBUG: Build #${buildNumber} (Seq #${actionSequenceNumber}) - Using action: ${currentBuildAction.action} at ${actionTriggerTime}ms`);
 
         // Step 2: Start a loop
         let isFirstLoopIteration = true; // Flag to skip detection on first iteration when we have confirmed box
         // Check if build action has already been executed (tracked globally to persist across interruptions)
         const actionAlreadyExecuted = dependencies.hasBuildActionBeenExecuted 
-            ? dependencies.hasBuildActionBeenExecuted(currentLevelName, buildNumber) 
+            ? dependencies.hasBuildActionBeenExecuted(currentLevelName, actionSequenceNumber) 
             : false;
         
-        console.log(`DEBUG: Build action execution check - Level: "${currentLevelName}", Build: ${buildNumber}, Action: "${currentBuildAction.action}", Already executed: ${actionAlreadyExecuted}`);
+        console.log(`DEBUG: Build action execution check - Level: "${currentLevelName}", Seq: ${actionSequenceNumber}, Action: "${currentBuildAction.action}", Already executed: ${actionAlreadyExecuted}`);
         
         if (actionAlreadyExecuted && currentBuildAction.action !== 'nothing') {
-            console.log(`DEBUG: Build action for "${currentLevelName}" build #${buildNumber} was already executed, will not run again`);
+            console.log(`DEBUG: Build action for "${currentLevelName}" sequence #${actionSequenceNumber} was already executed, will not run again`);
         }
         
         while (getIsAutomationRunning()) {
@@ -925,9 +933,9 @@ async function runBuildProtocol(dependencies) {
             // If triggerTimeMs is null, execute immediately; otherwise wait for the trigger time
             if (!actionAlreadyExecuted && currentBuildAction.action !== 'nothing' && (actionTriggerTime === null || elapsedTime >= actionTriggerTime)) {
                 // Mark as executed globally (persists across build interruptions)
-                console.log(`DEBUG: About to mark build action as executed - Level: "${currentLevelName}", Build: ${buildNumber}`);
+                console.log(`DEBUG: About to mark build action as executed - Level: "${currentLevelName}", Seq: ${actionSequenceNumber}`);
                 if (dependencies.markBuildActionAsExecuted) {
-                    dependencies.markBuildActionAsExecuted(currentLevelName, buildNumber);
+                    dependencies.markBuildActionAsExecuted(currentLevelName, actionSequenceNumber);
                 } else {
                     console.warn('WARNING: markBuildActionAsExecuted function not available in dependencies!');
                 }
